@@ -3,10 +3,12 @@ A simple wrapper around glfw, simplifying common actions like window creation.
 This is done by simply bundling togheter some functions that are commonly called
 together.
 Author: Maciej Halber
+
+NOTE: Merge this with gfx??
 */
 
-#ifndef _MSH_WINDOW_H_
-#define _MSH_WINDOW_H_
+#ifndef MSH_WINDOW_H
+#define MSH_WINDOW_H
 
 // Does not seem like apple needs anything, so let's not bloat.
 #include <OpenGL/gl3.h>
@@ -24,11 +26,13 @@ Author: Maciej Halber
 // TODO: USE ONLY IF UNDEFINED!
 typedef struct msh_point
 {
-  int x;
-  int y;
+  float x;
+  float y;
 } msh_point_t;
 
 typedef GLFWwindow msh_window_t ;
+
+// TODO -> FREE!!!
 
 msh_window_t * msh_window_create( const char * title, 
                                   const int pos_x, const int pos_y, 
@@ -40,7 +44,7 @@ int  msh_window_is_any_open( msh_window_t ** windows, const int n_windows );
 void msh_window_poll_events(void);
 void msh_window_terminate(void);
 
-#endif //_MSH_WINDOW_H_
+#endif //MSH_WINDOW_H
 
 // IMPLEMENTATION
 #ifdef MSH_WINDOW_IMPLEMENTATION
