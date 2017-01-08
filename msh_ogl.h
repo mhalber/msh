@@ -1,17 +1,4 @@
-/* C89 annoyances: 
- *  - Impossible to have struct created in a function call -> C99 compound literals
- *  - No default values                                    -> can solved with constants defaults, like gaps
- *  - Private members                                      -> Need to make data opaque and have create method allocate...
- *  - No private structs..
- *
- *
- * Nice things:
- *  - Compilation times : 80% of cpp compiler already...
- *
- * These probably could also be solved using C+, basically writing c, but using
- * C++ compiler. Still I will need to investigate how this affects things like
- * emscripten.
- *
+/* 
  * TODO: Modify this to use more modern glProgramPipeline.
  * TODO: ifndef this?
  * TODO: Move text_file_read to a dedication file loading location
@@ -44,13 +31,13 @@
 
 
 #ifndef MSH_VEC_MATH
-
-typedef struct msh_point
+typedef union vec2
 {
-  float x;
-  float y;
-} msh_point_t;
-
+  struct { float x; float y; };
+  struct { float r; float g; };
+  struct { float p; float q; };
+  float data[2];
+} msh_vec2_t;
 #endif
 
 /*
@@ -59,6 +46,7 @@ typedef struct msh_point
  * =============================================================================
  */
 
+int
 text_file_read ( const char * filename, char ** file_contents )
 {
   FILE *fp;
@@ -119,7 +107,6 @@ int  msh_window_is_any_open( msh_window_t ** windows, const int n_windows );
 void msh_window_poll_events(void);
 
 void msh_window_terminate(void);
-
 
 /*
  * =============================================================================
@@ -240,6 +227,7 @@ void msh_shader_prog_set_uniform_uv( const msh_shader_prog_t *p,
                                      const unsigned int count );
 
 /*
+#ifdef MSH_VEC_MATH
 void set_uniform ( const msh_shader_prog_t *p, 
                    const char *attrib_name, const vec2f &v );
 void set_uniform ( const msh_shader_prog_t *p, 
@@ -266,6 +254,7 @@ void set_uniform ( const msh_shader_prog_t *p,
 void set_uniform ( const msh_shader_prog_t *p, 
                     const char *attrib_name, const mat4f *m,
                     const unsigned int count = 1 );
+#endif
 */
 
 /*

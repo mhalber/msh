@@ -1,6 +1,22 @@
-
+/* C89 annoyances: 
+ *  - Impossible to have struct created in a function call -> C99 compound literals
+ *  - No default values for struct                         -> can solved with constants defaults, like gaps
+ *  - Private members                                      -> Need to make data opaque and have create method allocate...
+ *  - No annonymous structs                                -> C11 
+ *  - No default args for functions                        -> 
+ *
+ * Nice things:
+ *  - Compilation times : 80% of cpp compiler already...
+ *
+ * These probably could also be solved using C+, basically writing c, but using
+ * C++ compiler. Still I will need to investigate how this affects things like
+ * emscripten.
+ */
 
 #include <stdio.h>
+
+#define MSH_VEC_MATH_IMPLEMENTATION
+#include "msh_vec_math.h"
 
 #define MSH_OGL_IMPLEMENTATION
 #define MAX_WINDOWS 10
@@ -8,37 +24,16 @@
 
 /*
  TO COMPILE
- MAC OSX : cc msh_window_dev.c -o bin/msh_window -lglfw3 -framework OpenGL
+ MAC OSX : time cc -O -std=c11 -Wall -Wextra -Wpedantic -Werror msh_window_dev.c -o bin/msh_window -lglfw3 -framework OpenGL
 */
 
 #ifndef MSH_VIEWPORT
 #define MSH_VIEWPORT
 
-typedef union hmm_vec2
-{
-    struct
-    {
-        float X, Y;
-    };
-
-    struct
-    {
-        float U, V;
-    };
-
-    struct
-    {
-        float Left, Right;
-    };
-
-    float Elements[2];
-} hmm_vec2;
-
-
 typedef struct msh_viewport
 {
-  msh_point_t p1;
-  msh_point_t p2;
+  msh_point2_t p1;
+  msh_point2_t p2;
 } msh_viewport_t;
 
 
@@ -48,7 +43,7 @@ typedef struct msh_viewport
 
 #ifdef MSH_VIEWPORT_IMPLEMENTATION
 /* Note -> do we need manager? Should we have msh_viewports or viewport?? */
-int msh_viewport_initialize(msh_viewport_t *v, msh_point_t p1, msh_point_t p2)
+int msh_viewport_initialize(msh_viewport_t *v, msh_point2_t p1, msh_point2_t p2)
 {
   v->p1 = p1;
   v->p2 = p2;
@@ -78,7 +73,6 @@ int window_A_display( void )
   glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-
   /* msh_viewport_begin( &viewports[0] ); */
   glViewport( 0, 0, 100, 100 );
   glClearColor( 0.9f, 0.5f, 0.5f, 1.0f );
@@ -95,8 +89,16 @@ int window_A_display( void )
 
 int main( void )
 {
+  msh_vec2_t vec_test = MSH_VEC2_ZEROS;
+  msh_mat3_t mat_test = MSH_MAT3_IDENTITY;
+  msh_print_vec2( &vec_test );
+  msh_print_mat3( &mat_test );
 
-  printf("%lu\n", sizeof(unsigned long) );
+  msh_vec2_t vec_a = {{10, 11}};
+  msh_vec2_t vec_b = {{10, 11}};
+  msh_vec2_t vec_c = msh_vec2_add( &vec_a, &vec_b );
+  msh_print_vec2( &vec_c );
+
 
   /* setup the functions */
   msh_window_t *windows[MAX_WINDOWS];
@@ -106,7 +108,7 @@ int main( void )
   int n_windows = 1;
 
   /* setup the viewports */
-  msh_point_t p1, p2, p3, p4;
+  msh_point2_t p1, p2, p3, p4;
   p1.x = 0, p1.y = 0;
   p2.x = 640, p2.y = 240;
   p3.x = 0, p3.y = 240;

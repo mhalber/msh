@@ -30,4 +30,6 @@ hex2rgba( int hex, float *r, float *g, float *b, float *a )
  * =============================================================================
  */
 
-#endif //MSH_GFX
+ 
+
+#endif /* MSH_GFX */
