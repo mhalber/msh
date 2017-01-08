@@ -1,27 +1,39 @@
 
-#define MSH_WINDOW_IMPLEMENTATION
-#define MAX_WINDOWS 10
 
 #include <stdio.h>
-#include "msh_window.h"
+
+#define MSH_OGL_IMPLEMENTATION
+#define MAX_WINDOWS 10
 #include "msh_ogl.h"
 
-
-////////////////////////////////////////////////////////////////////////////////
+/*
+ TO COMPILE
+ MAC OSX : cc msh_window_dev.c -o bin/msh_window -lglfw3 -framework OpenGL
+*/
 
 #ifndef MSH_VIEWPORT
 #define MSH_VIEWPORT
 
-// if point undefined!
-// NOTE -> How to do generic types here... of fuck generics. its float
-// NOTE -> how do i do the checks for type definition?
-// #ifndef msh_point_t
-// typedef struct msh_point
-// {
-//   float x;
-//   float y;
-// } msh_point_t;
-// #endif //msh_point_t
+typedef union hmm_vec2
+{
+    struct
+    {
+        float X, Y;
+    };
+
+    struct
+    {
+        float U, V;
+    };
+
+    struct
+    {
+        float Left, Right;
+    };
+
+    float Elements[2];
+} hmm_vec2;
+
 
 typedef struct msh_viewport
 {
@@ -30,12 +42,12 @@ typedef struct msh_viewport
 } msh_viewport_t;
 
 
-#endif //MSH_VIEWPORT
+#endif /* MSH_VIEWPORT */
 
 #define MSH_VIEWPORT_IMPLEMENTATION
 
 #ifdef MSH_VIEWPORT_IMPLEMENTATION
-// Note -> do we need manager? Should we have msh_viewports or viewport??
+/* Note -> do we need manager? Should we have msh_viewports or viewport?? */
 int msh_viewport_initialize(msh_viewport_t *v, msh_point_t p1, msh_point_t p2)
 {
   v->p1 = p1;
@@ -50,15 +62,15 @@ void msh_viewport_begin( const msh_viewport_t *v)
 
 void msh_viewport_end()
 {
-  glViewport( 0, 0, 0, 0 ); // no active viewport or make it no-op just for blocking?
+  glViewport( 0, 0, 0, 0 ); /* no active viewport or make it no-op just for blocking? */
 }
 
-#endif //MSH_VIEWPORT_IMPLEMENTATION
+#endif /* MSH_VIEWPORT_IMPLEMENTATION */
 
-////////////////////////////////////////////////////////////////////////////////
+/******************************************************************************/
 
-static const int n_viewports = 2;
-static msh_viewport_t viewports[n_viewports];
+#define N_VIEWPORTS 2
+static msh_viewport_t viewports[N_VIEWPORTS];
 
 
 int window_A_display( void )
@@ -67,12 +79,12 @@ int window_A_display( void )
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 
-  // msh_viewport_begin( &viewports[0] );
+  /* msh_viewport_begin( &viewports[0] ); */
   glViewport( 0, 0, 100, 100 );
   glClearColor( 0.9f, 0.5f, 0.5f, 1.0f );
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-  // msh_viewport_begin( &viewports[1] );
+  /* msh_viewport_begin( &viewports[1] ); */
   glViewport( 100, 100, 200, 200 );
   glClearColor( 0.5f, 0.5f, 0.9f, 1.0f );
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -81,16 +93,19 @@ int window_A_display( void )
   return 1;
 }
 
-int main( int argc, char ** argv )
+int main( void )
 {
-  // setup the functions
+
+  printf("%lu\n", sizeof(unsigned long) );
+
+  /* setup the functions */
   msh_window_t *windows[MAX_WINDOWS];
   int (*display_functions[MAX_WINDOWS]) (void);
   windows[0] = msh_window_create( "Test1", -1, -1, 640, 480 );
   display_functions[0] = window_A_display;
   int n_windows = 1;
 
-  // setup the viewports
+  /* setup the viewports */
   msh_point_t p1, p2, p3, p4;
   p1.x = 0, p1.y = 0;
   p2.x = 640, p2.y = 240;
@@ -99,16 +114,16 @@ int main( int argc, char ** argv )
   msh_viewport_initialize(&viewports[0], p1, p2);
   msh_viewport_initialize(&viewports[1], p3, p4);
 
-  // iterate over the windows
+  /* iterate over the windows */
   while ( msh_window_is_any_open( windows, n_windows ) ) 
   {
     for ( int i = 0 ; i < n_windows ; ++i )
     {
       if ( windows[i] )
       {
-        // msh_window_display( windows[i], display_functions[i]  );
-        // Seems like I misunderstand something about viewports. Need additional
-        // functions in ogl to use this effectively...
+        /* msh_window_display( windows[i], display_functions[i]  ); */
+        /* Seems like I misunderstand something about viewports. Need additional
+           functions in ogl to use this effectively... */
         glfwMakeContextCurrent(windows[i]);
         glViewport( 0, 0, 640, 480 );
         glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
