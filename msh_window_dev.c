@@ -14,6 +14,9 @@
  */
 
 #include <stdio.h>
+#include <unistd.h> /* What is this header including? */
+#include <sys/time.h>
+#include <time.h>
 
 #define MSH_VEC_MATH_IMPLEMENTATION
 #include "msh_vec_math.h"
@@ -89,15 +92,22 @@ int window_A_display( void )
 
 int main( void )
 {
-  msh_vec2_t vec_test = MSH_VEC2_ZEROS;
-  msh_mat3_t mat_test = MSH_MAT3_IDENTITY;
-  msh_print_vec2( &vec_test );
-  msh_print_mat3( &mat_test );
-
-  msh_vec2_t vec_a = {{10, 11}};
-  msh_vec2_t vec_b = {{10, 11}};
-  msh_vec2_t vec_c = msh_vec2_add( &vec_a, &vec_b );
-  msh_print_vec2( &vec_c );
+  msh_mat4_t m1 = msh_mat4_diag( 10 ); 
+  msh_mat4_t m2 = msh_mat4_diag( 5 );
+  msh_mat4_t m3 = msh_mat4_mul(m1, m2);
+  msh_mat4_t m4 = {{  3.8113, 2.9263, 3.0730, 3.5082,
+                      2.9263, 3.0563, 2.8186, 3.2660,
+                      3.0730, 2.8186, 3.6802, 3.7978,
+                      3.5082, 3.2660, 3.7978, 4.6614 }};
+  msh_mat4_t m5 = msh_mat4_inverse( m4 );
+  msh_mat4_t m6 = msh_mat4_mul( m4, m5 );
+  msh_mat4_print( m1 );
+  msh_mat4_print( m2 );
+  msh_mat4_print( m3 );
+  msh_mat4_print( m4 );
+  msh_mat4_print( m5 );
+  msh_mat4_print( m6 );
+  return 1;
 
 
   /* setup the functions */
