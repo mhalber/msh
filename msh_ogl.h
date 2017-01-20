@@ -347,7 +347,7 @@ void msh_gpu_tex_init_u16( const unsigned short * data,
                            const int w, 
                            const int h, 
                            const int n_comp, 
-                           msh_gpu_texture_t * tex, 
+                           const msh_gpu_texture_t * tex, 
                            const unsigned int unit );
 
 void msh_gpu_tex_update_u8( const unsigned char * data, 

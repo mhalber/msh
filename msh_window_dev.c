@@ -13,10 +13,18 @@
  * emscripten.
  */
 
+#include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h> /* What is this header including? */
 #include <sys/time.h>
 #include <time.h>
+#include <float.h>
+#include <math.h>
+
+
+#define MSH_ARGPARSE_IMPLEMENTATION
+#include "msh_argparse.h"
 
 #define MSH_VEC_MATH_IMPLEMENTATION
 #include "msh_vec_math.h"
@@ -24,6 +32,7 @@
 #define MSH_OGL_IMPLEMENTATION
 #define MAX_WINDOWS 10
 #include "msh_ogl.h"
+
 
 /*
  TO COMPILE
@@ -86,12 +95,12 @@ int window_A_display( void )
   glClearColor( 0.5f, 0.5f, 0.9f, 1.0f );
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-
   return 1;
 }
 
 int main( void )
 {
+  /*
   msh_mat4_t m1 = msh_mat4_diag( 10 ); 
   msh_mat4_t m2 = msh_mat4_diag( 5 );
   msh_mat4_t m3 = msh_mat4_mul(m1, m2);
@@ -107,9 +116,21 @@ int main( void )
   msh_mat4_print( m4 );
   msh_mat4_print( m5 );
   msh_mat4_print( m6 );
+
+  msh_quat_t qa = msh_quat_from_angle_axis( (msh_vec3_t){{0.0f, 1.0f, 0.0f}}, 
+                                                          1.57f * 0.5f);
+  msh_quat_print( qa );
+
+#ifdef __cplusplus
+  msh_vec4_t a = (msh_vec4_t){{ 1.0, 2.0, 3.0, 4.0 }} + (msh_vec4_t){{ 5.0, 6.0, 7.0, 8.0 }}; 
+  msh_vec4_print(a);
+  msh_vec4_t b = msh_vec4_value(4.0);
+  b+=a;
+  msh_vec4_print(b);
+#endif
+
   return 1;
-
-
+*/
   /* setup the functions */
   msh_window_t *windows[MAX_WINDOWS];
   int (*display_functions[MAX_WINDOWS]) (void);

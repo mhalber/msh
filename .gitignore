@@ -4,3 +4,4 @@ libs/**
 .vscode/**
 bin/**
 tags
+**/*.DS_Store
