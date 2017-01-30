@@ -1,21 +1,9 @@
-/* C89 annoyances: 
- *  - Impossible to have struct created in a function call -> C99 compound literals
- *  - No default values for struct                         -> can solved with constants defaults, like gaps
- *  - Private members                                      -> Need to make data opaque and have create method allocate...
- *  - No annonymous structs                                -> C11 
- *  - No default args for functions                        -> 
- *
- * Nice things:
- *  - Compilation times : 80% of cpp compiler already...
- *
- * These probably could also be solved using C+, basically writing c, but using
- * C++ compiler. Still I will need to investigate how this affects things like
- * emscripten.
- */
 
 #include <string.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <unistd.h> /* What is this header including? */
 #include <sys/time.h>
 #include <time.h>
@@ -98,39 +86,30 @@ int window_A_display( void )
   return 1;
 }
 
-int main( void )
+int main( int argc, char** argv )
 {
-  /*
-  msh_mat4_t m1 = msh_mat4_diag( 10 ); 
-  msh_mat4_t m2 = msh_mat4_diag( 5 );
-  msh_mat4_t m3 = msh_mat4_mul(m1, m2);
-  msh_mat4_t m4 = {{  3.8113, 2.9263, 3.0730, 3.5082,
-                      2.9263, 3.0563, 2.8186, 3.2660,
-                      3.0730, 2.8186, 3.6802, 3.7978,
-                      3.5082, 3.2660, 3.7978, 4.6614 }};
-  msh_mat4_t m5 = msh_mat4_inverse( m4 );
-  msh_mat4_t m6 = msh_mat4_mul( m4, m5 );
-  msh_mat4_print( m1 );
-  msh_mat4_print( m2 );
-  msh_mat4_print( m3 );
-  msh_mat4_print( m4 );
-  msh_mat4_print( m5 );
-  msh_mat4_print( m6 );
+  char *filename_a, *filename_b;
+  int test[4] = {};
+  bool bool_a = false;
 
-  msh_quat_t qa = msh_quat_from_angle_axis( (msh_vec3_t){{0.0f, 1.0f, 0.0f}}, 
-                                                          1.57f * 0.5f);
-  msh_quat_print( qa );
+  msh_argparse_t parser;
+  msh_init_argparse("Test Program", "Test description", &parser );
 
-#ifdef __cplusplus
-  msh_vec4_t a = (msh_vec4_t){{ 1.0, 2.0, 3.0, 4.0 }} + (msh_vec4_t){{ 5.0, 6.0, 7.0, 8.0 }}; 
-  msh_vec4_print(a);
-  msh_vec4_t b = msh_vec4_value(4.0);
-  b+=a;
-  msh_vec4_print(b);
-#endif
+  msh_add_string_argument("filename_a", NULL, "Filename for some file that we need",
+                           &filename_a, 1, &parser );
+  msh_add_string_argument("filename_b", NULL, "Filename for some file that we need",
+                           &filename_b, 1, &parser );
+  msh_add_bool_argument("--help", "-h", "Print help information", &bool_a, 1, &parser );
+  msh_add_int_argument("--vector", "-v", "Some numbers", &test[0], 4, &parser );
+  
+  if ( !msh_parse_arguments( argc, argv, &parser ) ) msh_display_help( &parser );
 
-  return 1;
-*/
+  printf("%s\n", filename_a );
+  printf("%s\n", filename_b );
+  printf("%d %d %d %d\n", test[0], test[1], test[2], test[3] );
+  printf("%s\n", bool_a ? "true" : "false" );
+
+  return 0;
   /* setup the functions */
   msh_window_t *windows[MAX_WINDOWS];
   int (*display_functions[MAX_WINDOWS]) (void);
