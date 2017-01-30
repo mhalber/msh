@@ -100,6 +100,11 @@
   recognized, you are granted a perpetual, irrevocable license to copy,
   distribute, and modify this file as you see fit.
 
+  The software is provided "as is", without any kind of warranty, including
+  any implied warranty. If it breaks, you get to keep both pieces.
+
+  While not required, attribution is certainly appreciated.
+  
  */
 
 /*
@@ -376,8 +381,7 @@ msh__find_type( const msh_argparse_t * argparse, char * type_id )
 {
   for ( size_t i = 0 ; i < N_TYPES ; ++i )
   {
-    if ( !strncmp( type_id, argparse->typenames[i], 15 ) )
-    {
+    if ( !strncmp( type_id, argparse->typenames[i], 15 ) ) {
       return i;
     }
   }
