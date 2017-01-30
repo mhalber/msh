@@ -1,12 +1,64 @@
 
 /*
-  ==============================================================================
-  
   MSH_ARGPARSE.H 
-  
 
   ==============================================================================
-  DEPENDENCIES
+  DESCRIPTION
+  
+  msh_argparse.h is single header c11 library for command-line argument parsing, 
+  with dependencies only on standard c library. To use it simply add following 
+  lines to your project:
+
+  #define MSH_ARGPARSE_IMPLEMENTATION
+  #include "msh_argparse.h"
+
+  Note that #define 'MSH_ARGPARSE_IMPLEMENTATION', should occur only once in 
+  your source.
+
+  ----------------------
+
+  msh_argparse.h does not allocate any memory on the heap, and what is allocated 
+  on stack is controlled via user-defineable #define flags. See below for specific
+  options. For example if you want to change the maximum number of arguments
+  allowed do the following when including library:
+
+  #define MSH_ARGPARSE_IMPLEMENTATION
+  #define MSH_MAX_N_ARGS 128
+  #include "msh_argparse.h"
+
+  -----------------------
+
+  By default msh_argparse will require you to include necessary libraries before
+  including the msh_argparse.h. List of required libraries (c standard library
+  headers only) is below. If you do not like this behaviour, and would like
+  library to include the headers, do the following:
+
+  #define MSH_ARGPARSE_IMPLEMENTATION
+  #define MSH_ARGPARSE_INCLUDE_HEADERS
+  #include "msh_argparse.h"
+
+  ==============================================================================
+  ADDITIONAL NOTES 
+    1. This code is macro heavy, which is probably not great. However, macros
+       are uses solely for the purpose of code-generating functions.
+    2. User should not touch any of the members of defined structs 
+       msh_arg and msh_argparse.
+
+  ==============================================================================
+  AUTHORS
+    Maciej Halber (macikuh@gmail.com)
+
+  ==============================================================================
+  DEPENDENCES
+
+  stdlib.h - qsort, atof, atoi
+  stdio.h  - printf, sprintf
+  string.h - strncmp
+  ctype.h  - isdigit
+  stdboolh - bool type
+
+  ==============================================================================
+  Example program
 
   ==============================================================================
   TODOS
@@ -15,23 +67,12 @@
     2. Fill in dependencies info
 
   ==============================================================================
-  AUTHORS
-
-    Maciej Halber (macikuh@gmail.com)
-
-  ==============================================================================
   LICENSE
 
   This software is in the public domain. Where that dedication is not
   recognized, you are granted a perpetual, irrevocable license to copy,
   distribute, and modify this file as you see fit.
 
-  ==============================================================================
-  NOTES 
-    1. This code is macro heavy, which is probably not great. However, macros
-       are uses solely for the purpose of code-generating functions.
-    2. User should not touch any of the members of defined structs 
-       msh_arg and msh_argparse.
  */
 
 /*
@@ -46,16 +87,16 @@
 
 /* Main options. Should be sane defaults. */
 
-#ifndef MSH_MAX_NAME_LEN
-#define MSH_MAX_NAME_LEN     64
+#ifndef MSH_MAX_NAME_LEN   /* Maximum string lengths for names */
+#define MSH_MAX_NAME_LEN   64
 #endif
 
-#ifndef MSH_MAX_STR_LEN
-#define MSH_MAX_STR_LEN      512
+#ifndef MSH_MAX_STR_LEN   /* Maximum string length for descriptions */
+#define MSH_MAX_STR_LEN   512
 #endif
 
-#ifndef MSH_MAX_N_ARGS
-#define MSH_MAX_N_ARGS       100
+#ifndef MSH_MAX_N_ARGS   /* Maximum number of arguments one can add */
+#define MSH_MAX_N_ARGS   100
 #endif
 
 /* If you're confident all your arguments are setup properly it is fine to 
@@ -287,7 +328,7 @@ msh__print_arguments( const msh_argparse_t * argparse,
     const msh_arg_t * argument = &argparse->args[i];
     if ( argument->shorthand == NULL )
     {
-      printf("\t%-24s - %s <%lu %s> %d\n", argument->name,
+      printf("|\t%-24s - %s <%lu %s> %d\n", argument->name,
                                            argument->message,
                                            argument->num_vals,
                                            argparse->typenames[argument->type],
@@ -298,7 +339,7 @@ msh__print_arguments( const msh_argparse_t * argparse,
       char name_and_shorthand[MSH_MAX_NAME_LEN + 10];
       sprintf( name_and_shorthand, "%s, %s", argument->name, 
                                              argument->shorthand );
-      printf("\t%-24s - %s <%lu %s> %d\n", name_and_shorthand,
+      printf("|\t%-24s - %s <%lu %s> %d\n", name_and_shorthand,
                                            argument->message,
                                            argument->num_vals,
                                            argparse->typenames[argument->type],
@@ -605,7 +646,7 @@ MSHAPDEF int
 msh_display_help( msh_argparse_t *argparse )
 {
   printf("\n|%s\n", argparse->program_name );
-  printf("|\t%s\n", argparse->program_description );
+  printf("|\t%s\n|\n", argparse->program_description );
   
   /* sort arguments */
   qsort( argparse->args, 
