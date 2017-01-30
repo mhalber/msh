@@ -3,5 +3,7 @@
 libs/**
 .vscode/**
 bin/**
+examples/out/**
+**/*.o
 tags
 **/*.DS_Store
