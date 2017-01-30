@@ -89,9 +89,9 @@
 
   ==============================================================================
   TODOS
-    1. Ask Kyle for review
-    2. Add program description / options and example
-    3. Can we figure out terminal width
+    1. Test on Unix and Windows
+    2. Test when compiling as cpp.
+    3. Can we figure out terminal width for nicer printing?
 
   ==============================================================================
   LICENSE
@@ -168,9 +168,9 @@ typedef enum
 
 typedef struct msh_arg
 {
-  char *name;
-  char *shorthand;
-  char *message;
+  const char *name;
+  const char *shorthand;
+  const char *message;
   char position;
   msh_type_t type;
   size_t num_vals;
@@ -179,8 +179,8 @@ typedef struct msh_arg
 
 typedef struct msh_argparse
 {
-  char *program_name; 
-  char *program_description;
+  const char *program_name; 
+  const char *program_description;
 
   msh_arg_t args[ MSH_MAX_N_ARGS ];
   size_t n_args;
@@ -191,8 +191,8 @@ typedef struct msh_argparse
 } msh_argparse_t;
 
 
-MSHAPDEF int msh_init_argparse( char * program_name, 
-                                char * program_description,
+MSHAPDEF int msh_init_argparse( const char * program_name, 
+                                const char * program_description,
                                 msh_argparse_t * argparse );
 
 MSHAPDEF int msh_parse_arguments( int argc, 
@@ -204,9 +204,9 @@ MSHAPDEF int msh_display_help( msh_argparse_t * argparse );
 /* Argument addition function prototype.  */
 /* typename follows the convention of msh_typenames */
 #define MSH_ADD_ARGUMENT(typename,val_t)                                       \
-  MSHAPDEF int msh_add_##typename##_argument( char * name,                     \
-                                              char * shorthand,                \
-                                              char * message,                  \
+  MSHAPDEF int msh_add_##typename##_argument( const char * name,               \
+                                              const char * shorthand,          \
+                                              const char * message,            \
                                               val_t *value,                    \
                                               const size_t num_vals,           \
                                               msh_argparse_t * argparse ); 
@@ -260,8 +260,8 @@ typedef struct test_struct
 static int 
 msh__arg_compare ( const void * data_a, const void * data_b )
 {
-  const msh_arg_t * arg_a = data_a; 
-  const msh_arg_t * arg_b = data_b;
+  const msh_arg_t * arg_a = (const msh_arg_t *)data_a; 
+  const msh_arg_t * arg_b = (const msh_arg_t *)data_b;
 
   if (  arg_a->position >= 0 && arg_b->position >= 0 ) 
     return 0;
@@ -371,13 +371,15 @@ msh__print_arguments( const msh_argparse_t * argparse,
   }
 }
 
-static msh_type_t
+static int
 msh__find_type( const msh_argparse_t * argparse, char * type_id )
 {
   for ( size_t i = 0 ; i < N_TYPES ; ++i )
   {
     if ( !strncmp( type_id, argparse->typenames[i], 15 ) )
+    {
       return i;
+    }
   }
   return -1;
 }
@@ -415,7 +417,7 @@ msh__find_argument( const char * arg_name,
                                     char **argv,                               \
                                     size_t *argv_index )                       \
   {                                                                            \
-    val_t * values = arg->values;                                              \
+    val_t * values = (val_t*)arg->values;                                      \
     if ( arg->num_vals <= 0 )                                                  \
     {                                                                          \
       values[0] = (val_t)1;                                                    \
@@ -516,9 +518,9 @@ msh__parse_argument( msh_arg_t * arg,
 
 #define MSH_ADD_ARGUMENT_IMPL(typename, val_t)                                 \
   MSHAPDEF int                                                                 \
-  msh_add_##typename##_argument( char * name,                                  \
-                                 char * shorthand,                             \
-                                 char * message,                               \
+  msh_add_##typename##_argument( const char * name,                                  \
+                                 const char * shorthand,                             \
+                                 const char * message,                               \
                                  val_t *values,                                \
                                  const size_t num_vals,                        \
                                  msh_argparse_t * argparse )                   \
@@ -560,7 +562,7 @@ msh__parse_argument( msh_arg_t * arg,
       argument->message   = message;                                           \
                                                                                \
       /* determine type */                                                     \
-      argument->type = msh__find_type( argparse, #typename );                  \
+      argument->type = (msh_type_t)msh__find_type(argparse, (char*)#typename); \
                                                                                \
       /* copy length and pointer */                                            \
       argument->num_vals = num_vals;                                           \
@@ -589,8 +591,8 @@ MSH_ADD_ARGUMENT_IMPL(string, char*)
 
 
 MSHAPDEF int 
-msh_init_argparse( char * program_name,
-                   char * program_description,
+msh_init_argparse( const char * program_name,
+                   const char * program_description,
                    msh_argparse_t * argparse )
 {
 #ifndef MSH_NO_DEBUG
@@ -615,18 +617,18 @@ msh_init_argparse( char * program_name,
   argparse->n_args = 0;
   argparse->n_required = 0;
 
-  argparse->typenames[ 0] = "bool";
-  argparse->typenames[ 1] = "char";
-  argparse->typenames[ 2] = "unsigned_char";
-  argparse->typenames[ 3] = "short";
-  argparse->typenames[ 4] = "unsigned_short";
-  argparse->typenames[ 5] = "int";
-  argparse->typenames[ 6] = "unsigned_int";
-  argparse->typenames[ 7] = "long";
-  argparse->typenames[ 8] = "unsigned_long";
-  argparse->typenames[ 9] = "float";
-  argparse->typenames[10] = "double";
-  argparse->typenames[11] = "string";
+  argparse->typenames[ 0] = (char*)"bool";
+  argparse->typenames[ 1] = (char*)"char";
+  argparse->typenames[ 2] = (char*)"unsigned_char";
+  argparse->typenames[ 3] = (char*)"short";
+  argparse->typenames[ 4] = (char*)"unsigned_short";
+  argparse->typenames[ 5] = (char*)"int";
+  argparse->typenames[ 6] = (char*)"unsigned_int";
+  argparse->typenames[ 7] = (char*)"long";
+  argparse->typenames[ 8] = (char*)"unsigned_long";
+  argparse->typenames[ 9] = (char*)"float";
+  argparse->typenames[10] = (char*)"double";
+  argparse->typenames[11] = (char*)"string";
 
   return 1;
 }

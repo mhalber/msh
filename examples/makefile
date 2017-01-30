@@ -9,7 +9,7 @@ ARGPARSE_SRCS = msh_argparse_example.c
 ARGPARSE_OBJS = $(ARGPARSE_SRCS:%.c=$(OUT_DIR)%.o)
 
 # Compile and link options
-CC = cc
+CC = clang
 WARNINGS = -Wall -Wextra -Wpedantic
 CFLAGS = -O0 -ggdb -std=gnu11 -I../ 
 
