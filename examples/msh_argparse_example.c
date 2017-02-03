@@ -127,8 +127,9 @@ int main( int argc, char** argv )
   if( opts.print_verbose )
   {
     printf("Verbosity requested! Below you can see the auto-generated "
-           "help message!");
+           "help message:");
     msh_display_help(&parser);
   }
 
 }
+

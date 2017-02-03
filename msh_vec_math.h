@@ -76,6 +76,7 @@
   TODO: Add quat from euler angles!
   TODO: Normalize the quaternion after lerping!
   TODO: Add testing
+  TODO: Typedef the scalar type
 
   ==============================================================================
   REFERENCES:
@@ -181,6 +182,9 @@ typedef msh_vec3_t msh_point4_t;
 #define msh_vec2_value(x) (msh_vec2_t){{x, x}}
 #define msh_vec3_value(x) (msh_vec3_t){{x, x, x}}
 #define msh_vec4_value(x) (msh_vec4_t){{x, x, x, x}}
+#define msh_vec2(x,y) (msh_vec2_t){{x, y}}
+#define msh_vec3(x,y,z) (msh_vec3_t){{x, y, z}}
+#define msh_vec4(x,y,z,w) (msh_vec4_t){{x, y, z, w}}
 
 MSHVMDEF msh_vec2_t msh_vec3_to_vec2( msh_vec3_t v );
 MSHVMDEF msh_vec2_t msh_vec4_to_vec2( msh_vec4_t v );

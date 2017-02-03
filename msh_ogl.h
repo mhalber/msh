@@ -1,23 +1,34 @@
 /* 
+ * TODO: Framebuffer/Renerbuffer stuff
+ * TODO: MRTs!
+ *
  * TODO: Modify this to use more modern glProgramPipeline.
- * TODO: ifndef this?
- * TODO: Move text_file_read to a dedication file loading location
- * TODO: Framebuffer/Renderbuffer stuff
- * TODO: Add integer typedefs?
+ *
  * TODO: Need to experiment with glMapBufferRange.
+ *
+ * TODO: Errors!
  * TODO: Custom asserts?
  * TODO: Check basics error function, maybe add one here?
+ *
+ * TODO: move inserts out!
  */
 
+/* 
+  NOTE: Overall this is a simple wrapper over opengl, with few bells and whistles
+  like gradient backgrounds and geometry shading.
 
-#ifndef MSH_OGL_H
-#define MSH_OGL_H
+  NOTE: Currently windowing is a thin wrapper over GLFW. There is some 
+  functionality added for handling multiple windows.
+*/
 
 /*
  * =============================================================================
- *       INCLUDES
+ *       INCLUDES, TYPES AND DEFINES
  * =============================================================================
  */
+
+#ifndef MSH_OGL
+#define MSH_OGL
 
 #include <stdlib.h>
 #include <assert.h>
@@ -29,7 +40,6 @@
 #define GLFW_INCLUDE_NONE
 #include "GLFW/glfw3.h"
 
-
 #ifndef MSH_VEC_MATH
 typedef union vec2
 {
@@ -40,81 +50,6 @@ typedef union vec2
 } msh_vec2_t;
 #endif
 
-/*
- * =============================================================================
- *       HELPERS
- * =============================================================================
- */
-
-int
-text_file_read ( const char * filename, char ** file_contents )
-{
-  FILE *fp;
-  long l_size;
-
-  fp = fopen ( filename , "r" );
-  if( !fp ) perror(filename),exit(1);
-
-  fseek( fp , 0L , SEEK_END);
-  l_size = ftell( fp );
-  rewind( fp );
-
-  /* allocate memory for entire content */ 
-  (*file_contents) = (char*)calloc( 1, l_size + 1 );
-  if ( !(*file_contents) )
-  { 
-    fclose( fp ); 
-    fputs( "memory alloc fails", stderr ); 
-    exit( 1 );
-  }
-
-  /* copy the file into the buffer */
-  if ( fread( (*file_contents), l_size, 1, fp) != 1 )
-  {
-    fclose(fp); 
-    free( (*file_contents) ); 
-    fputs( "entire read fails",stderr );
-    exit( 1 );
-  }
-
-  fclose(fp);
-  return 1;
-}
-
-/*
- * =============================================================================
- *       WINDOWING/CONTEXT
- * =============================================================================
- */
-
-/* 
-  NOTE: Currently windowing is a thin wrapper over GLFW. There is some 
-  functionality added for multiple windows
-*/
-
-typedef GLFWwindow msh_window_t ;
-
-msh_window_t * msh_window_create( const char * title, 
-                                  const int pos_x, const int pos_y, 
-                                  const int res_x, const int res_y );
-int msh_window_destroy( msh_window_t * window );
-
-int  msh_window_display( msh_window_t * window, 
-                         int (*display_function)(void) );
-
-int  msh_window_is_any_open( msh_window_t ** windows, const int n_windows );
-
-void msh_window_poll_events(void);
-
-void msh_window_terminate(void);
-
-/*
- * =============================================================================
- *       SHADERS
- * =============================================================================
- */
-
-#define SHADER_HEAD "#version 330 core\n"
 
 enum msh_shader_type
 {
@@ -124,6 +59,31 @@ enum msh_shader_type
   TESS_CONTROL_SHADER,
   TESS_EVALUATION_SHADER
 };
+
+enum msh_geometry_properties_flags_
+{
+  POSITION  = 1 << 0, /* layout( location = 0 ) */
+  NORMAL    = 1 << 1, /* layout( location = 1 ) */
+  TANGENT   = 1 << 2, /* layout( location = 2 ) */
+  TEX_COORD = 1 << 3, /* layout( location = 3 ) */
+  COLOR_A   = 1 << 4, /* layout( location = 4 ) */
+  COLOR_B   = 1 << 5, /* layout( location = 5 ) */
+  COLOR_C   = 1 << 6, /* layout( location = 6 ) */
+  COLOR_D   = 1 << 7, /* layout( location = 7 ) */
+  STRUCTURED = 1 << 8,
+
+  SIMPLE_MESH   = POSITION | NORMAL | STRUCTURED,
+  POINTCLOUD    = POSITION
+};
+
+
+typedef GLFWwindow msh_window_t ;
+
+typedef struct msh_viewport
+{
+  msh_vec2_t p1;
+  msh_vec2_t p2;
+} msh_viewport_t;
 
 typedef struct msh_shader
 {
@@ -137,6 +97,142 @@ typedef struct msh_shader_prog
   GLuint id;
   GLint linked;
 } msh_shader_prog_t;
+
+typedef struct msh_gpu_texture
+{
+  unsigned int id;
+  int width;
+  int height;
+  int n_comp;
+  GLenum type;
+  unsigned int unit;
+} msh_gpu_texture_t;
+
+typedef int msh_internal_data_type;
+typedef int msh_geometry_properties_flags;
+
+typedef struct msh_framebuffer
+{
+  GLuint id;
+  GLuint depthrenderbuffer;
+  int width;
+  int height;
+  msh_gpu_texture_t tex;
+} msh_framebuffer_t;
+
+
+typedef struct msh_geometry_data
+{
+  float * positions;
+  float * normals;
+  float * tangents;
+  float * texcoords;
+  unsigned char  * colors_a;
+  unsigned char  * colors_b;
+  unsigned char  * colors_c;
+  unsigned char  * colors_d;
+  unsigned int * indices;
+  int n_vertices;
+  int n_elements;
+} msh_geometry_data_t;
+
+typedef struct msh_gpu_geometry
+{
+  unsigned int vao;
+  unsigned int vbo;
+  unsigned int ebo;
+  int n_indices;
+  int n_elements;
+  int buffer_size;
+  msh_geometry_properties_flags flags;
+} msh_gpu_geometry_t;
+
+/*
+ * =============================================================================
+ *       WINDOWING/CONTEXT
+ * =============================================================================
+ */
+
+msh_window_t * msh_window_create( const char *title, int pos_x, int pos_y, 
+                                                      int res_x, int res_y );
+int msh_window_destroy( msh_window_t *window );
+int msh_window_display( msh_window_t *window, int (*display_function)(void) );
+int msh_window_is_any_open( msh_window_t **windows, const int n_windows );
+void msh_window_poll_events(void);
+void msh_window_terminate(void);
+
+void msh_window_activate( msh_window_t *window )
+{
+  glfwMakeContextCurrent( window );
+}
+
+void msh_window_set_callback_window_size( msh_window_t *window, 
+              void (*callback)( msh_window_t * window, int width, int height ) )
+{
+  glfwSetWindowSizeCallback( window, callback );
+}
+
+void msh_window_set_callback_framebuffer_size( msh_window_t *window, 
+              void (*callback)( msh_window_t * window, int width, int height ) )
+{
+  glfwSetFramebufferSizeCallback( window, callback );
+}
+
+void msh_window_set_callback_refresh( msh_window_t *window, 
+                                     void (*callback)( msh_window_t * window ) )
+{
+  glfwSetWindowRefreshCallback( window, callback );
+}
+
+
+
+/*
+ * =============================================================================
+ *       FRAMEBUFFER 
+ * =============================================================================
+ */
+
+enum msh_framebuffer_type_
+{
+  DEFAULT,
+  RGB,
+  RGBA
+};
+typedef int msh_framebuffer_type;
+
+int msh_framebuffer_init( msh_framebuffer_t * fb, int width, int height );
+int msh_framebuffer_bind( msh_framebuffer_t * fb );
+
+/*
+ * =============================================================================
+ *       VIEWPORTS 
+ * =============================================================================
+ */
+
+int  msh_viewport_init( msh_viewport_t *v, msh_vec2_t p1, msh_vec2_t p2 );
+void msh_viewport_begin( const msh_viewport_t *v);
+void msh_viewport_end();
+
+
+void msh_background_flat4f( float r, float g, float b, float a);
+void msh_background_gradient4f( float r1, float g1, float b1, float a1,
+                                float r2, float g2, float b2, float a2 );
+void msh_background_tex( msh_gpu_texture_t * tex );
+
+#ifdef MSH_VEC_MATH
+void msh_background_flat4v( msh_vec4_t col );
+void msh_background_gradient4v( msh_vec4_t col1, msh_vec4_t col2 );
+#endif /*MSH_VEC_MATH*/
+
+
+/*
+ * =============================================================================
+ *       SHADERS
+ * =============================================================================
+ */
+
+#define MSH_SHADER_HEAD "#version 330 core\n"
+#define MSH_SHADER_STRINGIFY(x) #x
 
 int msh_shader_prog_create_from_source_vf( msh_shader_prog_t *p,
                                            const char *vs_source,
@@ -156,8 +252,7 @@ int msh_shader_prog_create_from_files_vgf( msh_shader_prog_t *p,
                                            const char * gs_filename,
                                            const char * fs_filename );
 
-int msh_shader_compile( msh_shader_t *s,
-                        const char * source );
+int msh_shader_compile( msh_shader_t *s, const char * source );
 
 int msh_shader_prog_link_vf( msh_shader_prog_t *p,
                              const msh_shader_t *vs, 
@@ -226,87 +321,41 @@ void msh_shader_prog_set_uniform_uv( const msh_shader_prog_t *p,
                                      const unsigned int *val, 
                                      const unsigned int count );
 
-/*
 #ifdef MSH_VEC_MATH
-void set_uniform ( const msh_shader_prog_t *p, 
-                   const char *attrib_name, const vec2f &v );
-void set_uniform ( const msh_shader_prog_t *p, 
-                    const char *attrib_name, const vec2f *v, 
-                    const unsigned int count = 1 );
-void set_uniform ( const msh_shader_prog_t *p, 
-                    const char *attrib_name, const vec3f &v );
-void set_uniform ( const msh_shader_prog_t *p, 
-                    const char *attrib_name, const vec3f *v, 
-                    const unsigned int count = 1 );
-void set_uniform ( const msh_shader_prog_t *p, 
-                    const char *attrib_name, const vec4f &v);
-void set_uniform ( const msh_shader_prog_t *p, 
-                    const char *attrib_name, const vec4f *v, 
-                    const unsigned int count = 1 );
+void msh_shader_prog_set_uniform_2fv( const msh_shader_prog_t *p, 
+                                 const char *attrib_name, const msh_vec2_t *v );
+void msh_shader_prog_set_uniform_2fvc( const msh_shader_prog_t *p, 
+                                 const char *attrib_name, const msh_vec2_t *v, 
+                                 const unsigned int count );
+void msh_shader_prog_set_uniform_3fv( const msh_shader_prog_t *p, 
+                                 const char *attrib_name, const msh_vec3_t *v );
+void msh_shader_prog_set_uniform_3fvc( const msh_shader_prog_t *p, 
+                                 const char *attrib_name, const msh_vec3_t *v, 
+                                 const unsigned int count );
+void msh_shader_prog_set_uniform_4fv( const msh_shader_prog_t *p, 
+                                  const char *attrib_name, const msh_vec4_t *v);
+void msh_shader_prog_set_uniform_4fvc( const msh_shader_prog_t *p, 
+                                  const char *attrib_name, const msh_vec4_t *v, 
+                                  const unsigned int count );
 
-void set_uniform ( const msh_shader_prog_t *p, 
-                    const char *attrib_name, const mat3f &m );
-void set_uniform ( const msh_shader_prog_t *p, 
-                    const char *attrib_name, const mat3f *m,
-                    const unsigned int count = 1 );
-void set_uniform ( const msh_shader_prog_t *p, 
-                    const char *attrib_name, const mat4f &m );
-void set_uniform ( const msh_shader_prog_t *p, 
-                    const char *attrib_name, const mat4f *m,
-                    const unsigned int count = 1 );
+void msh_shader_prog_set_uniform_3fm( const msh_shader_prog_t *p, 
+                                 const char *attrib_name, const msh_mat3_t *m );
+void msh_shader_prog_set_uniform_3fmc( const msh_shader_prog_t *p, 
+                                 const char *attrib_name, const msh_mat3_t *m,
+                                 const unsigned int count );
+void msh_shader_prog_set_uniform_4fm( const msh_shader_prog_t *p, 
+                                 const char *attrib_name, const msh_mat4_t *m );
+void msh_shader_prog_set_uniform_4fmc( const msh_shader_prog_t *p, 
+                                 const char *attrib_name, const msh_mat4_t *m,
+                                 const unsigned int count );
 #endif
-*/
+
 
 /*
  * =============================================================================
  *       GPU GEOMETRY
  * =============================================================================
  */
-
-enum msh_geometry_properties_flags_
-{
-  POSITION  = 1 << 0, /* layout( location = 0 ) */
-  NORMAL    = 1 << 1, /* layout( location = 1 ) */
-  TANGENT   = 1 << 2, /* layout( location = 2 ) */
-  TEX_COORD = 1 << 3, /* layout( location = 3 ) */
-  COLOR_A   = 1 << 4, /* layout( location = 4 ) */
-  COLOR_B   = 1 << 5, /* layout( location = 5 ) */
-  COLOR_C   = 1 << 6, /* layout( location = 6 ) */
-  COLOR_D   = 1 << 7, /* layout( location = 7 ) */
-  STRUCTURED = 1 << 8,
-
-  SIMPLE_MESH   = POSITION | NORMAL | STRUCTURED,
-  POINTCLOUD    = POSITION
-};
-
-typedef int msh_internal_data_type;
-typedef int msh_geometry_properties_flags;
-
-typedef struct msh_geometry_data
-{
-  float * positions;
-  float * normals;
-  float * tangents;
-  float * texcoords;
-  unsigned char  * colors_a;
-  unsigned char  * colors_b;
-  unsigned char  * colors_c;
-  unsigned char  * colors_d;
-  unsigned int * indices;
-  int n_vertices;
-  int n_elements;
-} msh_geometry_data_t;
-
-typedef struct msh_gpu_geometry
-{
-  unsigned int vao;
-  unsigned int vbo;
-  unsigned int ebo;
-  int n_indices;
-  int n_elements;
-  int buffer_size;
-  msh_geometry_properties_flags flags;
-} msh_gpu_geometry_t;
 
 int msh_gpu_geo_update( const msh_geometry_data_t * host_data, 
                         const msh_gpu_geometry_t * geo, 
@@ -325,16 +374,6 @@ void msh_gpu_geo_draw( msh_gpu_geometry_t * geo, GLenum draw_mode );
  *       TEXTURES
  * =============================================================================
  */
-
-typedef struct msh_gpu_texture
-{
-  unsigned int id;
-  int width;
-  int height;
-  int n_comp;
-  GLenum type;
-  unsigned int unit;
-} msh_gpu_texture_t;
 
 void msh_gpu_tex_init_u8( const unsigned char * data, 
                           const int w, 
@@ -360,22 +399,7 @@ void msh_gpu_tex_use( const msh_gpu_texture_t * tex );
 
 void msh_gpu_tex_free( msh_gpu_texture_t * tex );
 
-/*
- * =============================================================================
- *       FRAMEBUFFER 
- * =============================================================================
- */
-
-enum msh_framebuffer_type_
-{
-  DEFAULT,
-  RGB,
-  RGBA
-};
-
-typedef int msh_framebuffer_type;
-
-#endif /* MSH_OGL_H */
+#endif /* MSH_OGL */
 
 
 /*
@@ -393,18 +417,15 @@ typedef int msh_framebuffer_type;
  * =============================================================================
  */
 
+
 msh_window_t * 
-msh_window_create( const char * title,
-                   const int pos_x, const int pos_y,
-                   const int res_x, const int res_y )
+msh_window_create( const char * title, int pos_x, int pos_y, 
+                                       int res_x, int res_y )
 {
   msh_window_t * window = NULL;
 
   /* attempt to initialize glfw library */
-  if (!glfwInit())
-  {
-    return 0;
-  }
+  if(!glfwInit()) return 0;
 
   /* setup some hints - this is osx specific */
   /* 
@@ -420,13 +441,10 @@ msh_window_create( const char * title,
   /* actually create window */
   window = glfwCreateWindow( res_x, res_y, title, NULL, NULL );
 
-  if (!window)
-  {
-    return NULL;
-  }
+  if(!window) return NULL;
 
   /* change position */
-  if ( pos_x >= 0 && pos_y >= 0 )
+  if( pos_x >= 0 && pos_y >= 0 )
   {
     glfwSetWindowPos( window, pos_x, pos_y );
   }
@@ -491,13 +509,200 @@ msh_window_terminate( void )
   glfwTerminate();
 }
 
+/*
+ * =============================================================================
+ *       VIEWPORTS IMPLEMENTATION
+ * =============================================================================
+ */
 
+int msh_viewport_init(msh_viewport_t *v, msh_point2_t p1, msh_point2_t p2)
+{
+  glEnable(GL_SCISSOR_TEST);
+  v->p1 = p1;
+  v->p2 = p2;
+  return 1;
+}
+
+void msh_viewport_begin( const msh_viewport_t *v)
+{
+  glScissor( v->p1.x, v->p1.y, v->p2.x, v->p2.y );
+  glViewport( v->p1.x, v->p1.y, v->p2.x, v->p2.y );
+}
+
+void msh_viewport_end()
+{
+  glScissor( 0, 0, 0, 0 );
+  glViewport( 0, 0, 0, 0 );
+}
+
+void 
+msh_background_flat4f( float r, float g, float b, float a )
+{
+  glClearColor( r, g, b, a );
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+}
+
+void 
+msh_background_gradient4f( float r1, float g1, float b1, float a1,
+                           float r2, float g2, float b2, float a2 )
+{
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+  glDisable(GL_DEPTH_TEST);
+  
+  static GLuint background_vao = 0;
+  static msh_shader_prog_t background_shader;
+  if (background_vao == 0)
+  {
+    glGenVertexArrays(1, &background_vao);
+  
+    // vertex shader ( full screen quad by Morgan McGuire)
+    char* vs_src = (char*) MSH_SHADER_HEAD MSH_SHADER_STRINGIFY
+    (
+      out vec2 v_texcoords;
+      void main()
+      {
+        uint idx = uint( gl_VertexID % 3 );
+        gl_Position = vec4(
+            (float(   idx        & 1U ) ) * 4.0 - 1.0,
+            (float( ( idx >> 1U )& 1U ) ) * 4.0 - 1.0,
+            0.0, 1.0);
+        v_texcoords = gl_Position.xy * 0.5 + 0.5;
+      }
+    );
+
+    char* fs_src = (char*) MSH_SHADER_HEAD MSH_SHADER_STRINGIFY
+    (
+      in vec2 v_texcoords;
+      uniform vec4 col_top;
+      uniform vec4 col_bot;
+      out vec4 frag_color;
+      void main()
+      {
+        frag_color = v_texcoords.y * col_top + (1.0 - v_texcoords.y) * col_bot;
+      }
+    );
+    msh_shader_prog_create_from_source_vf( &background_shader, vs_src, fs_src );
+  }
+
+  msh_shader_prog_use( &background_shader );
+  msh_shader_prog_set_uniform_4f( &background_shader, "col_top", r1, g1, b1, a1 );
+  msh_shader_prog_set_uniform_4f( &background_shader, "col_bot", r2, g2, b2, a2 );
+  glBindVertexArray( background_vao );
+  glDrawArrays(GL_TRIANGLES, 0, 3);
+  glBindVertexArray(0);
+
+  glEnable(GL_DEPTH_TEST);
+}
+
+void 
+msh_background_tex( msh_gpu_texture_t * tex )
+{
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+  glDisable(GL_DEPTH_TEST);
+  static GLuint background_vao = 0;
+  static msh_shader_prog_t background_shader;
+
+  if (background_vao == 0)
+  {
+    glGenVertexArrays(1, &background_vao);
+  
+    // vertex shader (full screen quad by Morgan McGuire)
+    char* vs_src = (char*) MSH_SHADER_HEAD MSH_SHADER_STRINGIFY
+    (
+      out vec2 v_texcoords;
+      void main()
+      {
+        uint idx = uint( gl_VertexID % 3 );
+        gl_Position = vec4(
+            (float(   idx        & 1U ) ) * 4.0 - 1.0,
+            (float( ( idx >> 1U )& 1U ) ) * 4.0 - 1.0,
+            0.0, 1.0);
+        v_texcoords = gl_Position.xy * 0.5 + 0.5;
+      }
+    );
+
+    char* fs_src = (char*) MSH_SHADER_HEAD MSH_SHADER_STRINGIFY
+    (
+      in vec2 v_texcoords;
+      uniform sampler2D fb_tex;
+      out vec4 frag_color;
+      void main()
+      {
+        vec3 tex_color = texture( fb_tex, v_texcoords ).rgb;
+        frag_color = vec4( tex_color.r, tex_color.g, tex_color.b, 1.0f );
+      }
+    );
+    msh_shader_prog_create_from_source_vf( &background_shader, vs_src, fs_src );
+  }
+  
+  msh_shader_prog_use( &background_shader );
+  msh_gpu_tex_use( tex );
+  msh_shader_prog_set_uniform_1i( &background_shader, "fb_tex", tex->unit );
+
+  glBindVertexArray( background_vao );
+  glDrawArrays(GL_TRIANGLES, 0, 3);
+  glBindVertexArray(0);
+  glEnable(GL_DEPTH_TEST);
+}
+
+#ifdef MSH_VEC_MATH
+void 
+msh_background_flat4fv( msh_vec4_t col )
+{
+  glClearColor( col.x, col.y, col.z, col.w );
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+}
+
+void 
+msh_background_gradient4fv( msh_vec4_t col_top, msh_vec4_t col_bot )
+{
+  msh_background_gradient4f( col_top.x, col_top.y, col_top.z, col_top.w,
+                             col_bot.x, col_bot.y, col_bot.z, col_bot.w );
+}
+#endif
 
 /*
  * =============================================================================
  *       SHADERS IMPLEMENTATION
  * =============================================================================
  */
+
+
+int
+msh__shader_text_file_read( const char * filename, char ** file_contents )
+{
+  FILE *fp;
+  long l_size;
+
+  fp = fopen ( filename , "r" );
+  if( !fp ) perror(filename),exit(1);
+
+  fseek( fp , 0L , SEEK_END);
+  l_size = ftell( fp );
+  rewind( fp );
+
+  /* allocate memory for entire content */ 
+  (*file_contents) = (char*)calloc( 1, l_size + 1 );
+  if ( !(*file_contents) )
+  { 
+    fclose( fp ); 
+    fputs( "memory alloc fails", stderr ); 
+    exit( 1 );
+  }
+
+  /* copy the file into the buffer */
+  if ( fread( (*file_contents), l_size, 1, fp) != 1 )
+  {
+    fclose(fp); 
+    free( (*file_contents) ); 
+    fputs( "entire read fails",stderr );
+    exit( 1 );
+  }
+
+  fclose(fp);
+  return 1;
+}
+
 
 int
 msh_shader_compile( msh_shader_t *s, const char * source )
@@ -583,7 +788,7 @@ msh_shader_prog_link_vf( msh_shader_prog_t *p,
   p->id = glCreateProgram();
   if ( p->id == 0 )
   {
-    printf ( " Failed to create program!\n" );
+    printf ( " Failed to create program (%d)!\n", p->id );
     return 0;
   }
 
@@ -721,8 +926,8 @@ msh_shader_prog_create_from_files_vf( msh_shader_prog_t *p,
                                       const char * fs_filename )
 {
   char *vs_source, *fs_source;
-  if( !text_file_read( vs_filename, &vs_source ) ||
-      !text_file_read( fs_filename, &fs_source ) )
+  if( !msh__shader_text_file_read( vs_filename, &vs_source ) ||
+      !msh__shader_text_file_read( fs_filename, &fs_source ) )
   {
     return 0;
   }
@@ -745,9 +950,9 @@ msh_shader_prog_create_from_files_vgf( msh_shader_prog_t *p,
                                        const char * fs_filename )
 {
   char *vs_source, *fs_source, *gs_source;
-  if( !text_file_read( vs_filename, &vs_source ) ||
-      !text_file_read( gs_filename, &gs_source ) ||
-      !text_file_read( fs_filename, &fs_source ) )
+  if( !msh__shader_text_file_read( vs_filename, &vs_source ) ||
+      !msh__shader_text_file_read( gs_filename, &gs_source ) ||
+      !msh__shader_text_file_read( fs_filename, &fs_source ) )
   {
     return 0;
   }
@@ -848,131 +1053,121 @@ msh_shader_prog_set_uniform_3u( const msh_shader_prog_t *p,
   glUniform3ui( location, x, y, z );
 }
 
-
-
-/*
-
-NOTE: These should only be active if specific header is already included
 void
-msh_shader_prog_set_uniform ( const msh_shader_prog_t *p, 
-              const char *attrib_name, const vec2f & v)
+msh_shader_prog_set_uniform_4f( const msh_shader_prog_t *p, 
+                                const char *attrib_name, 
+                                float x, float y, float z, float w )
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
-  glUniform2fv( location, 1, &(v.data[0]) );
+  glUniform4f( location, x, y, z, w );
 }
 
 void
-msh_shader_prog_set_uniform ( const msh_shader_prog_t *p, 
-              const char *attrib_name, const vec2f * v, const unsigned int count )
+msh_shader_prog_set_uniform_4i( const msh_shader_prog_t *p, 
+                                const char *attrib_name, 
+                                int x, int y, int z, int w )
+{
+  GLuint location = glGetUniformLocation( p->id, attrib_name );
+  glUniform4i( location, x, y, z, w );
+}
+
+void
+msh_shader_prog_set_uniform_4u( const msh_shader_prog_t *p, 
+                                const char *attrib_name, 
+                                unsigned int x, unsigned int y, 
+                                unsigned int z, unsigned int w )
+{
+  GLuint location = glGetUniformLocation( p->id, attrib_name );
+  glUniform4ui( location, x, y, z, w );
+}
+
+#ifdef MSH_VEC_MATH
+void
+msh_shader_prog_set_uniform_2fv( const msh_shader_prog_t *p, 
+                                 const char *attrib_name, const msh_vec2_t* v)
+{
+  GLuint location = glGetUniformLocation( p->id, attrib_name );
+  glUniform2fv( location, 1, &(v->data[0]) );
+}
+
+void
+msh_shader_prog_set_uniform_2fvc( const msh_shader_prog_t *p, 
+                                  const char *attrib_name, const msh_vec2_t* v, 
+                                  const unsigned int count )
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
   glUniform2fv( location, count, &( v->data[0] ) );
 }
 
 void
-msh_shader_prog_set_uniform ( const msh_shader_prog_t *p, 
-              const char *attrib_name, const vec3f & v)
+msh_shader_prog_set_uniform_3fv( const msh_shader_prog_t *p, 
+                                 const char *attrib_name, const msh_vec3_t * v)
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
-  glUniform3fv( location, 1, &(v.data[0]) );
+  glUniform3fv( location, 1, &(v->data[0]) );
 }
 
 void
-msh_shader_prog_set_uniform ( const msh_shader_prog_t *p, 
-              const char *attrib_name, const vec3f * v, const unsigned int count )
+msh_shader_prog_set_uniform_3fvc( const msh_shader_prog_t *p, 
+                                  const char *attrib_name, const msh_vec3_t * v, 
+                                  const unsigned int count )
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
   glUniform3fv( location, count, &( v->data[0] ) );
 }
 
 void
-msh_shader_prog_set_uniform ( const msh_shader_prog_t *p, 
-              const char *attrib_name, const vec4f &v )
+msh_shader_prog_set_uniform_4fv( const msh_shader_prog_t *p, 
+                                  const char *attrib_name, const msh_vec4_t *v )
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
-  glUniform4fv( location, 1, &(v.data[0]) );
+  glUniform4fv( location, 1, &(v->data[0]) );
 }
 
 void
-msh_shader_prog_set_uniform ( const msh_shader_prog_t *p, 
-              const char *attrib_name, const vec4f *v, const unsigned int count )
+msh_shader_prog_set_uniform_4fvc( const msh_shader_prog_t *p, 
+                                  const char *attrib_name, const msh_vec4_t *v, 
+                                  const unsigned int count )
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
   glUniform4fv( location, count, &(v->data[0]) );
 }
 
 void
-msh_shader_prog_set_uniform ( const msh_shader_prog_t *p, 
-              const char *attrib_name, const mat3f &m )
+msh_shader_prog_set_uniform_3fm( const msh_shader_prog_t *p, 
+                                 const char *attrib_name, const msh_mat3_t *m )
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
-  glUniformMatrix3fv( location, 1, GL_FALSE, &(m.data[0]) );
+  glUniformMatrix3fv( location, 1, GL_FALSE, &(m->data[0]) );
 }
 
 void
-msh_shader_prog_set_uniform ( const msh_shader_prog_t *p, 
-              const char *attrib_name, const mat3f *m, const unsigned int count )
+msh_shader_prog_set_uniform_3fmc( const msh_shader_prog_t *p, 
+                                  const char *attrib_name, const msh_mat3_t *m, 
+                                  const unsigned int count )
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
   glUniformMatrix3fv( location, count, GL_FALSE, &(m->data[0]) );
 }
 
 void
-msh_shader_prog_set_uniform ( const msh_shader_prog_t *p, 
-              const char *attrib_name, const mat4f &m )
-{
-  GLuint location = glGetUniformLocation( p->id, attrib_name );
-  glUniformMatrix4fv( location, 1, GL_FALSE, &(m.data[0]) );
-}
-
-void
-msh_shader_prog_set_uniform ( const msh_shader_prog_t *p, 
-              const char *attrib_name, const mat4f *m, const unsigned int count  )
+msh_shader_prog_set_uniform_4fm( const msh_shader_prog_t *p, 
+                                 const char *attrib_name, const msh_mat4_t *m )
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
   glUniformMatrix4fv( location, 1, GL_FALSE, &(m->data[0]) );
 }
 
 void
-msh_shader_prog_set_uniform  ( const msh_shader_prog_t *p, 
-               const char *attrib_name, bool val )
+msh_shader_prog_set_uniform_4fmc( const msh_shader_prog_t *p, 
+                                  const char *attrib_name, const msh_mat4_t *m, 
+                                  const unsigned int count  )
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
-  glUniform1i( location, (GLint)val );
+  glUniformMatrix4fv( location, count, GL_FALSE, &(m->data[0]) );
 }
 
-void
-msh_shader_prog_set_uniform  ( const msh_shader_prog_t *p, 
-               const char *attrib_name, const bool * val, const unsigned int count )
-{
-  GLuint location = glGetUniformLocation( p->id, attrib_name );
-  glUniform1iv( location, count, (GLint*)val );
-}
-
-void
-msh_shader_prog_set_uniform  ( const msh_shader_prog_t *p, 
-               const char *attrib_name, const float * val, const unsigned int count )
-{
-  GLuint location = glGetUniformLocation( p->id, attrib_name );
-  glUniform1fv( location, count, (GLfloat*)val );
-}
-
-void
-msh_shader_prog_set_uniform  ( const msh_shader_prog_t *p, 
-               const char *attrib_name, const int * val, const unsigned int count )
-{
-  GLuint location = glGetUniformLocation ( p->id, attrib_name );
-  glUniform1iv( location, count, (GLint*)val );
-}
-
-void
-msh_shader_prog_set_uniform  ( const msh_shader_prog_t *p, 
-               const char *attrib_name, const unsigned int * val, const unsigned int count )
-{
-  GLuint location = glGetUniformLocation ( p->id, attrib_name );
-  glUniform1uiv( location, count, (GLuint*)val );
-}
-*/
+#endif /* MSH_VEC_MATH */
 
 
 
@@ -1252,7 +1447,7 @@ msh_gpu_geo_draw( msh_gpu_geometry_t * geo,
 
 /*
  * =============================================================================
- *       TEXTURES
+ *       TEXTURES IMPLEMENTATION
  * =============================================================================
  */
 
@@ -1397,13 +1592,57 @@ msh_gpu_tex_free( msh_gpu_texture_t * tex )
 }
 
 
-
 /*
  * =============================================================================
- *       FRAMEBUFFERS
+ *       FRAMEBUFFERS IMPLEMENTATION
  * =============================================================================
  */
 
+int 
+msh_framebuffer_init( msh_framebuffer_t * fb, int width, int height )
+{
+  fb->width = width;
+  fb->height = height;
+  glGenFramebuffers(1, &fb->id);
+  glBindFramebuffer(GL_FRAMEBUFFER, fb->id);
 
+  // The texture we're going to render to
+  msh_gpu_tex_init_u8( NULL, fb->width, fb->height, 3, &fb->tex, 0 );
+
+  // The depth buffer
+  glGenRenderbuffers(1, &fb->depthrenderbuffer);
+  glBindRenderbuffer(GL_RENDERBUFFER, fb->depthrenderbuffer);
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 
+                                                         fb->width, fb->height);
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, 
+                                       GL_RENDERBUFFER, fb->depthrenderbuffer);
+
+  // Set "renderedTexture" as our colour attachement #0
+  glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, fb->tex.id, 0);
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+  return 1;
+}
+
+int 
+msh_framebuffer_bind( msh_framebuffer_t *fb )
+{
+  if (fb) glBindFramebuffer(GL_FRAMEBUFFER, fb->id);
+  else    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+  return 1;
+}
+
+int msh_framebuffer_resize( msh_framebuffer_t *fb, int width, int height )
+{
+  // delete old
+  msh_gpu_tex_free( &fb->tex );
+  glDeleteRenderbuffers( 1, &fb->depthrenderbuffer );
+  glDeleteFramebuffers( 1, &fb->id );
+
+  // reinitialize
+  return msh_framebuffer_init( fb, width, height );
+}
 
 #endif /* MSH_OGL_IMPLEMENTATION */

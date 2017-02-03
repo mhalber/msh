@@ -77,21 +77,19 @@
 
   ==============================================================================
   DEPENDENCES
-
-  stdlib.h - qsort, atof, atoi
-  stdio.h  - printf, sprintf
-  string.h - strncmp
-  ctype.h  - isdigit
-  stdboolh - bool type
-
-  ==============================================================================
-  EXAMPLE PROGRAM
+    stdlib.h - qsort, atof, atoi
+    stdio.h  - printf, sprintf
+    string.h - strncmp
+    ctype.h  - isdigit
+    stdboolh - bool type
 
   ==============================================================================
-  TODOS
+  TODOs
     1. Test on Unix and Windows
-    2. Test when compiling as cpp.
-    3. Can we figure out terminal width for nicer printing?
+    2. Can we figure out terminal width for nicer printing?
+    3. Default values
+    4. Check for the validity based on type 
+    5. C++ API 
 
   ==============================================================================
   LICENSE
@@ -421,7 +419,7 @@ msh__find_argument( const char * arg_name,
                                     char **argv,                               \
                                     size_t *argv_index )                       \
   {                                                                            \
-    val_t * values = (val_t*)arg->values;                                      \
+    val_t * values = (val_t *)arg->values;                                     \
     if ( arg->num_vals <= 0 )                                                  \
     {                                                                          \
       values[0] = (val_t)1;                                                    \
