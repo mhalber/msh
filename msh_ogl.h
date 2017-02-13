@@ -1,6 +1,23 @@
-/* 
+/*
+ * NOTE: This currently is a wrapper around the opengl. What it should be
+ *       is a API agnostic renderer -> Similar to bgfx / nanovg.
+ *       This should allow us to do some nice things regarding the errors
+ *
+ * NOTE: We want to make it thinner even.
+ * 
  * TODO: Framebuffer/Renerbuffer stuff
+ * TODO: Framebuffer Status?
+ * FRAMEBUFFERS -> Bind, add texture, add renderbuffer (seems like a terrible 
+ *                 name), check if valid. How to access in the shader..?
+                   glDrawFramebuffer / glBlitFramebuffer?
+                  Read and write from to easily create multi stage stuff.
+                  Frame buffers will be a bit trickier, but we will push through
+
+                  Multisample texture... Eh i really should read the ogl book
+                  Renderbuffers are used when you do not need to resample.
  * TODO: MRTs!
+ *
+ * This means that we need a function for texture that will do selections for types like r32
  *
  * TODO: Modify this to use more modern glProgramPipeline.
  *
@@ -192,16 +209,20 @@ void msh_window_set_callback_refresh( msh_window_t *window,
  * =============================================================================
  */
 
-enum msh_framebuffer_type_
-{
-  DEFAULT,
-  RGB,
-  RGBA
-};
-typedef int msh_framebuffer_type;
-
 int msh_framebuffer_init( msh_framebuffer_t * fb, int width, int height );
+int msh_framebuffer_attach( msh_gpu_texture_t * tex, unsigned int attachements,
+                            int n_textures );
 int msh_framebuffer_bind( msh_framebuffer_t * fb );
+int msh_framebuffer_attach_color_texture( msh_frambuffer_t *fb, 
+                                          msh_gpu_texture_t *tex,
+                                          GLuint *attachement, int n );
+int msh_framebuffer_attach_depth_texture( msh_framebuffer_t *fb, 
+                                          msh_gpu_texture_t *tex );
+int msh_framebuffer_add_color_renderbuffer();
+int msh_framebuffer_add_depth_renderbuffer( msh_frambuffer_t *fb );
+int msh_framebuffer_check_status( msh_framebuffer_t * fb );
+int msh_framebuffer_terminate( msh_framebuffer_t *fb );
+
 
 /*
  * =============================================================================
@@ -1599,7 +1620,7 @@ msh_gpu_tex_free( msh_gpu_texture_t * tex )
  */
 
 int 
-msh_framebuffer_init( msh_framebuffer_t * fb, int width, int height )
+msh_framebuffer_init( msh_framebuffer_t *fb, int width, int height )
 {
   fb->width = width;
   fb->height = height;
@@ -1634,7 +1655,58 @@ msh_framebuffer_bind( msh_framebuffer_t *fb )
   return 1;
 }
 
-int msh_framebuffer_resize( msh_framebuffer_t *fb, int width, int height )
+int
+msh_framebuffer_attach_color_texture( msh_frambuffer_t *fb, 
+                                      msh_gpu_texture_t *tex,
+                                      GLuint *attachement, int n )
+{
+  // NOTE: Research what is the difference between glFramebufferTexture2D and glFramebufferTexture
+  for( int i = 0 ; i < ntex ; ++i )
+  {
+    // NOTE: We should test if texture sizes are the same.
+    glFramebufferTexture2D( GL_FRAMEBUFFER, attachment[i], 
+                            GL_TEXTURE_2D, tex[i].id, 0);
+  }
+  glDrawBuffers( n, attachement );
+  return 1;
+}
+
+int msh_framebuffer_attach_depth_texture( msh_framebuffer_t *fb, 
+                                          msh_gpu_texture_t *tex )
+{
+  // NOTE: We should test if texture sizes are the same
+  glFramebufferTexture2D( GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, tex->id, 0 );
+  return 1;
+}
+
+int
+msh_framebuffer_add_color_renderbuffer()
+{
+  // NOTE: TO BE IMPLEMENTED
+  return 0;
+}
+
+int
+msh_framebuffer_add_depth_renderbuffer( msh_frambuffer_t *fb )
+{
+  glGenRenderbuffers(1, &fb->depthrenderbuffer);
+  glBindRenderbuffer(GL_RENDERBUFFER, fb->depthrenderbuffer);
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 
+                                                         fb->width, fb->height);
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, 
+                                       GL_RENDERBUFFER, fb->depthrenderbuffer);
+  return 1;
+}
+
+int 
+msh_framebuffer_check_status( msh_framebuffer_t * fb )
+{
+  // NOTE: TO BE IMPLEMENTED
+  return 0;
+}
+
+int 
+msh_framebuffer_resize( msh_framebuffer_t *fb, int width, int height )
 {
   // delete old
   msh_gpu_tex_free( &fb->tex );
@@ -1643,6 +1715,13 @@ int msh_framebuffer_resize( msh_framebuffer_t *fb, int width, int height )
 
   // reinitialize
   return msh_framebuffer_init( fb, width, height );
+}
+
+int
+msh_framebuffer_terminate( msh_framebuffer_t *fb)
+{
+  if( fb->depthrenderbuffer ) glDeleteRenderbuffers(1, &fb->renderbuffer );
+  glDeleteFramebuffers( 1, fb );
 }
 
 #endif /* MSH_OGL_IMPLEMENTATION */

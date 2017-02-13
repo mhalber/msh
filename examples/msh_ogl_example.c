@@ -105,17 +105,16 @@ int main( void )
   msh_window_activate(windows[0]);
   msh_window_set_callback_refresh( windows[0], window_refresh );
 
-
-
   msh_shader_prog_create_from_source_vf( &triangle_shader,
                                          vs_source,
                                          fs_source );
   msh_viewport_init(&viewports[0], (msh_vec2_t){{0, 0}}, 
-                                   (msh_vec2_t){{320, 480}});
-  msh_viewport_init(&viewports[1], (msh_vec2_t){{320, 0}}, 
-                                   (msh_vec2_t){{320, 480}});
+                                   (msh_vec2_t){{window_width/2, window_height/2}});
+  msh_viewport_init(&viewports[1], (msh_vec2_t){{window_width/2, 0}}, 
+                                   (msh_vec2_t){{window_width/2, window_height/2}});
   msh_viewport_init(&viewports[2], (msh_vec2_t){{0, 0}}, 
-                                   (msh_vec2_t){{640, 480}});
+                                   (msh_vec2_t){{window_width, window_height}});
+
   msh_framebuffer_init( &fb, window_width, window_height );
 
   float positions[9] = {  -0.8f, -0.8f, 0.0f, 
