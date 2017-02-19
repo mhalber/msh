@@ -57,6 +57,7 @@
   ==============================================================================
 
   TODO: Everything!
+  TODO: Add quaternions / vectors if no vec math is provided 
   TODO: Remove dependency on msh_vec_math.h
 
 
@@ -101,7 +102,16 @@ typedef struct msh_camera
   msh_quat_t orientation;  
 } msh_camera_t;
 
-/* TODO Add quaternions / vectors if no vec math is provided */
+typedef struct mshcam_first_person_controls
+{
+  msh_scalar_t speed;
+} mshcam_first_person_controls_t;
+
+typedef struct mshcam_trackball_controls
+{
+  msh_scalar_t speed;
+} mshcam_trackball_controls_t;
+
 
 #ifdef __cplusplus
 }

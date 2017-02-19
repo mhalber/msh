@@ -25,6 +25,7 @@ CFLAGS = -O0 -ggdb -std=gnu11 -I../
 # Libraries and Frameworks
 FRAMEWORKS = -framework opengl
 GFX_LIBS = -lglfw3
+CAM_LIBS = -lglfw3
 
 # Make targets
 all: clean argparse gfx cam

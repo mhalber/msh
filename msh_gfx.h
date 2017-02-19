@@ -3,9 +3,16 @@
   
   MSH_GFX.H - WIP!
   
-  A single header library that wraps OpenGL. This library serves two purposes:
-    - Streamline common OpenGL operation
-    - Provide a layer of abstraction for different OpenGL context (3.3+ vs 2.1) 
+  A single header library that wraps OpenGL. This library should be providing two
+  APISs, with two purposes:
+    - High Level API - Streamline common OpenGL operation
+    - Low Level API - Layer of abstraction for different OpenGL context 
+                      (3.3+, 2.1, ES), or even different rendering APIs
+
+  What the low level api aims to be is close to Branimir Karadzic bgfx.
+  What the high level api aims to be is close to Ricardo Cabello(mrdoob) three.js
+  But in C11... ¯\_(ツ)_/¯ We'll see how it goes. Currently it is a bit of a
+  hodgepodge and I would not recommend using it.
 
   To use the library you simply add:
   
@@ -44,10 +51,10 @@
   ==============================================================================
   NOTES 
 
-  NOTE: This currently is a wrapper around the opengl. What it should be
-         is a API agnostic renderer -> Similar to bgfx / nanovg.
-  NOTE: Currently windowing is a thin wrapper over GLFW. There is some 
-        functionality added for handling multiple windows. This will be removed. 
+  1. This currently is a wrapper around the opengl. What it should be
+     is a API agnostic renderer -> Similar to bgfx / nanovg.
+  2. Currently windowing is a thin wrapper over GLFW. There is some 
+     functionality added for handling multiple windows. This will be removed. 
 
   ==============================================================================
 
@@ -55,6 +62,10 @@
   TODO: Add texture format declaration
   TODO: For geometry, need to experiment with glMapBufferRange
   TODO: Add informative error messages. Make them optional
+  TODO: Add lower-level wrapper for geometry handling
+  TODO: Add higher level stuff for wrapping materials
+  TODO: Remove the mshgfx_window stuff and replace it with glfw
+  TODO: Think more about the viewport design
 
   ==============================================================================
   REFERENCES:
@@ -118,7 +129,7 @@ enum msh_geometry_properties_flags_
 };
 
 
-typedef GLFWwindow msh_window_t ;
+typedef GLFWwindow mshgfx_window_t ;
 
 typedef struct msh_viewport
 {
@@ -126,19 +137,19 @@ typedef struct msh_viewport
   msh_vec2_t p2;
 } msh_viewport_t;
 
-typedef struct msh_shader
+typedef struct mshgfx_shader
 {
   GLuint id;
   enum mshgfx_shader_type type;
   GLint compiled;
-} msh_shader_t;
+} mshgfx_shader_t;
 
 
-typedef struct msh_shader_prog
+typedef struct mshgfx_shader_prog
 {
   GLuint id;
   GLint linked;
-} msh_shader_prog_t;
+} mshgfx_shader_prog_t;
 
 typedef struct mshgfx_texture
 {
@@ -162,7 +173,7 @@ typedef struct msh_framebuffer
 } mshgfx_framebuffer_t;
 
 
-typedef struct msh_geometry_data
+typedef struct mshgfx_geometry_data
 {
   float * positions;
   float * normals;
@@ -175,9 +186,9 @@ typedef struct msh_geometry_data
   unsigned int * indices;
   int n_vertices;
   int n_elements;
-} msh_geometry_data_t;
+} mshgfx_geometry_data_t;
 
-typedef struct msh_gpu_geometry
+typedef struct mshgfx_geometry
 {
   unsigned int vao;
   unsigned int vbo;
@@ -186,7 +197,7 @@ typedef struct msh_gpu_geometry
   int n_elements;
   int buffer_size;
   msh_geometry_properties_flags flags;
-} msh_gpu_geometry_t;
+} mshgfx_geometry_t;
 
 /*
  * =============================================================================
@@ -194,33 +205,33 @@ typedef struct msh_gpu_geometry
  * =============================================================================
  */
 
-msh_window_t * msh_window_create( const char *title, int pos_x, int pos_y, 
+mshgfx_window_t * mshgfx_window_create( const char *title, int pos_x, int pos_y, 
                                                       int res_x, int res_y );
-int msh_window_destroy( msh_window_t *window );
-int msh_window_display( msh_window_t *window, int (*display_function)(void) );
-int msh_window_is_any_open( msh_window_t **windows, const int n_windows );
-void msh_window_poll_events(void);
-void msh_window_terminate(void);
+int mshgfx_window_destroy( mshgfx_window_t *window );
+int mshgfx_window_display( mshgfx_window_t *window, int (*display_function)(void) );
+int mshgfx_window_is_any_open( mshgfx_window_t **windows, const int n_windows );
+void mshgfx_window_poll_events(void);
+void mshgfx_window_terminate(void);
 
-void msh_window_activate( msh_window_t *window )
+void mshgfx_window_activate( mshgfx_window_t *window )
 {
   glfwMakeContextCurrent( window );
 }
 
-void msh_window_set_callback_window_size( msh_window_t *window, 
-              void (*callback)( msh_window_t * window, int width, int height ) )
+void mshgfx_window_set_callback_window_size( mshgfx_window_t *window, 
+              void (*callback)( mshgfx_window_t * window, int width, int height ) )
 {
   glfwSetWindowSizeCallback( window, callback );
 }
 
-void msh_window_set_callback_framebuffer_size( msh_window_t *window, 
-              void (*callback)( msh_window_t * window, int width, int height ) )
+void mshgfx_window_set_callback_framebuffer_size( mshgfx_window_t *window, 
+              void (*callback)( mshgfx_window_t * window, int width, int height ) )
 {
   glfwSetFramebufferSizeCallback( window, callback );
 }
 
-void msh_window_set_callback_refresh( msh_window_t *window, 
-                                     void (*callback)( msh_window_t * window ) )
+void mshgfx_window_set_callback_refresh( mshgfx_window_t *window, 
+                                     void (*callback)( mshgfx_window_t * window ) )
 {
   glfwSetWindowRefreshCallback( window, callback );
 }
@@ -259,14 +270,14 @@ void msh_viewport_begin( const msh_viewport_t *v);
 void msh_viewport_end();
 
 
-void msh_background_flat4f( float r, float g, float b, float a);
-void msh_background_gradient4f( float r1, float g1, float b1, float a1,
-                                float r2, float g2, float b2, float a2 );
-void msh_background_tex( mshgfx_texture_t *tex );
+void mshgfx_background_flat4f( float r, float g, float b, float a);
+void mshgfx_background_gradient4f( float r1, float g1, float b1, float a1,
+                                   float r2, float g2, float b2, float a2 );
+void mshgfx_background_tex( mshgfx_texture_t *tex );
 
 #ifdef MSH_VEC_MATH
-void msh_background_flat4v( msh_vec4_t col );
-void msh_background_gradient4v( msh_vec4_t col1, msh_vec4_t col2 );
+void mshgfx_background_flat4v( msh_vec4_t col );
+void mshgfx_background_gradient4v( msh_vec4_t col1, msh_vec4_t col2 );
 #endif /*MSH_VEC_MATH*/
 
 
@@ -276,121 +287,121 @@ void msh_background_gradient4v( msh_vec4_t col1, msh_vec4_t col2 );
  * =============================================================================
  */
 
-#define MSH_SHADER_HEAD "#version 330 core\n"
-#define MSH_SHADER_STRINGIFY(x) #x
+#define MSHGFX_SHADER_HEAD "#version 330 core\n"
+#define MSHGFX_SHADER_STRINGIFY(x) #x
 
-int msh_shader_prog_create_from_source_vf( msh_shader_prog_t *p,
+int mshgfx_shader_prog_create_from_source_vf( mshgfx_shader_prog_t *p,
                                            const char *vs_source,
                                            const char *fs_source );
 
-int msh_shader_prog_create_from_source_vgf( msh_shader_prog_t *p,
+int mshgfx_shader_prog_create_from_source_vgf( mshgfx_shader_prog_t *p,
                                             const char *vs_source,
                                             const char *gs_source,
                                             const char *fs_source );
 
-int msh_shader_prog_create_from_files_vf( msh_shader_prog_t *p,
+int mshgfx_shader_prog_create_from_files_vf( mshgfx_shader_prog_t *p,
                                           const char * vs_filename,
                                           const char * fs_filename );
 
-int msh_shader_prog_create_from_files_vgf( msh_shader_prog_t *p,
+int mshgfx_shader_prog_create_from_files_vgf( mshgfx_shader_prog_t *p,
                                            const char * vs_filename,
                                            const char * gs_filename,
                                            const char * fs_filename );
 
-int msh_shader_compile( msh_shader_t *s, const char * source );
+int mshgfx_shader_compile( mshgfx_shader_t *s, const char * source );
 
-int msh_shader_prog_link_vf( msh_shader_prog_t *p,
-                             const msh_shader_t *vs, 
-                             const msh_shader_t *fs );
+int mshgfx_shader_prog_link_vf( mshgfx_shader_prog_t *p,
+                             const mshgfx_shader_t *vs, 
+                             const mshgfx_shader_t *fs );
 
-int msh_shader_prog_link_vgf( msh_shader_prog_t *p,
-                              const msh_shader_t *vs, 
-                              const msh_shader_t *gs, 
-                              const msh_shader_t *fs );
+int mshgfx_shader_prog_link_vgf( mshgfx_shader_prog_t *p,
+                              const mshgfx_shader_t *vs, 
+                              const mshgfx_shader_t *gs, 
+                              const mshgfx_shader_t *fs );
 
-int msh_shader_prog_use( const msh_shader_prog_t *p );
+int mshgfx_shader_prog_use( const mshgfx_shader_prog_t *p );
 
 
-void msh_shader_prog_set_uniform_1f( const msh_shader_prog_t *p, 
+void mshgfx_shader_prog_set_uniform_1f( const mshgfx_shader_prog_t *p, 
                                      const char *attrib_name, 
                                      float x );
-void msh_shader_prog_set_uniform_1i( const msh_shader_prog_t *p, 
+void mshgfx_shader_prog_set_uniform_1i( const mshgfx_shader_prog_t *p, 
                                      const char *attrib_name, 
                                      int x );
-void msh_shader_prog_set_uniform_1u( const msh_shader_prog_t *p, 
+void mshgfx_shader_prog_set_uniform_1u( const mshgfx_shader_prog_t *p, 
                                      const char *attrib_name, 
                                      unsigned int x );
 
-void msh_shader_prog_set_uniform_2f( const msh_shader_prog_t *p, 
+void mshgfx_shader_prog_set_uniform_2f( const mshgfx_shader_prog_t *p, 
                                      const char *attrib_name, 
                                      float x, float y );
-void msh_shader_prog_set_uniform_2i( const msh_shader_prog_t *p, 
+void mshgfx_shader_prog_set_uniform_2i( const mshgfx_shader_prog_t *p, 
                                      const char *attrib_name, 
                                      int x, int y );
-void msh_shader_prog_set_uniform_2u( const msh_shader_prog_t *p, 
+void mshgfx_shader_prog_set_uniform_2u( const mshgfx_shader_prog_t *p, 
                                      const char *attrib_name, 
                                      unsigned int x, unsigned int y );
 
-void msh_shader_prog_set_uniform_3f( const msh_shader_prog_t *p, 
+void mshgfx_shader_prog_set_uniform_3f( const mshgfx_shader_prog_t *p, 
                                      const char *attrib_name, 
                                      float x, float y, float z );
-void msh_shader_prog_set_uniform_3i( const msh_shader_prog_t *p, 
+void mshgfx_shader_prog_set_uniform_3i( const mshgfx_shader_prog_t *p, 
                                      const char *attrib_name, 
                                      int x, int y, int z );
-void msh_shader_prog_set_uniform_3u( const msh_shader_prog_t *p, 
+void mshgfx_shader_prog_set_uniform_3u( const mshgfx_shader_prog_t *p, 
                                      const char *attrib_name, 
                                      unsigned int x, unsigned int y, 
                                      unsigned int z );
 
-void msh_shader_prog_set_uniform_4f( const msh_shader_prog_t *p, 
+void mshgfx_shader_prog_set_uniform_4f( const mshgfx_shader_prog_t *p, 
                                      const char *attrib_name, 
                                      float x, float y, float z, float w );
-void msh_shader_prog_set_uniform_4i( const msh_shader_prog_t *p, 
+void mshgfx_shader_prog_set_uniform_4i( const mshgfx_shader_prog_t *p, 
                                      const char *attrib_name, 
                                      int x, int y, int z, int w );
-void msh_shader_prog_set_uniform_4u( const msh_shader_prog_t *p, 
+void mshgfx_shader_prog_set_uniform_4u( const mshgfx_shader_prog_t *p, 
                                      const char *attrib_name, 
                                      unsigned int x, unsigned int y, 
                                      unsigned int z, unsigned int w );
 
-void msh_shader_prog_set_uniform_fv( const msh_shader_prog_t *p, 
+void mshgfx_shader_prog_set_uniform_fv( const mshgfx_shader_prog_t *p, 
                                      const char *attrib_name, 
                                      const float *val, 
                                      const unsigned int count );
-void msh_shader_prog_set_uniform_iv( const msh_shader_prog_t *p, 
+void mshgfx_shader_prog_set_uniform_iv( const mshgfx_shader_prog_t *p, 
                                      const char *attrib_name, 
                                      const int *val, 
                                      const unsigned int count );
-void msh_shader_prog_set_uniform_uv( const msh_shader_prog_t *p, 
+void mshgfx_shader_prog_set_uniform_uv( const mshgfx_shader_prog_t *p, 
                                      const char *attrib_name, 
                                      const unsigned int *val, 
                                      const unsigned int count );
 
 #ifdef MSH_VEC_MATH
-void msh_shader_prog_set_uniform_2fv( const msh_shader_prog_t *p, 
+void mshgfx_shader_prog_set_uniform_2fv( const mshgfx_shader_prog_t *p, 
                                  const char *attrib_name, const msh_vec2_t *v );
-void msh_shader_prog_set_uniform_2fvc( const msh_shader_prog_t *p, 
+void mshgfx_shader_prog_set_uniform_2fvc( const mshgfx_shader_prog_t *p, 
                                  const char *attrib_name, const msh_vec2_t *v, 
                                  const unsigned int count );
-void msh_shader_prog_set_uniform_3fv( const msh_shader_prog_t *p, 
+void mshgfx_shader_prog_set_uniform_3fv( const mshgfx_shader_prog_t *p, 
                                  const char *attrib_name, const msh_vec3_t *v );
-void msh_shader_prog_set_uniform_3fvc( const msh_shader_prog_t *p, 
+void mshgfx_shader_prog_set_uniform_3fvc( const mshgfx_shader_prog_t *p, 
                                  const char *attrib_name, const msh_vec3_t *v, 
                                  const unsigned int count );
-void msh_shader_prog_set_uniform_4fv( const msh_shader_prog_t *p, 
+void mshgfx_shader_prog_set_uniform_4fv( const mshgfx_shader_prog_t *p, 
                                   const char *attrib_name, const msh_vec4_t *v);
-void msh_shader_prog_set_uniform_4fvc( const msh_shader_prog_t *p, 
+void mshgfx_shader_prog_set_uniform_4fvc( const mshgfx_shader_prog_t *p, 
                                   const char *attrib_name, const msh_vec4_t *v, 
                                   const unsigned int count );
 
-void msh_shader_prog_set_uniform_3fm( const msh_shader_prog_t *p, 
+void mshgfx_shader_prog_set_uniform_3fm( const mshgfx_shader_prog_t *p, 
                                  const char *attrib_name, const msh_mat3_t *m );
-void msh_shader_prog_set_uniform_3fmc( const msh_shader_prog_t *p, 
+void mshgfx_shader_prog_set_uniform_3fmc( const mshgfx_shader_prog_t *p, 
                                  const char *attrib_name, const msh_mat3_t *m,
                                  const unsigned int count );
-void msh_shader_prog_set_uniform_4fm( const msh_shader_prog_t *p, 
+void mshgfx_shader_prog_set_uniform_4fm( const mshgfx_shader_prog_t *p, 
                                  const char *attrib_name, const msh_mat4_t *m );
-void msh_shader_prog_set_uniform_4fmc( const msh_shader_prog_t *p, 
+void mshgfx_shader_prog_set_uniform_4fmc( const mshgfx_shader_prog_t *p, 
                                  const char *attrib_name, const msh_mat4_t *m,
                                  const unsigned int count );
 #endif
@@ -402,17 +413,17 @@ void msh_shader_prog_set_uniform_4fmc( const msh_shader_prog_t *p,
  * =============================================================================
  */
 
-int msh_gpu_geo_update( const msh_geometry_data_t * host_data, 
-                        const msh_gpu_geometry_t * geo, 
-                        const int flags );
+int mshgfx_geometry_update( const mshgfx_geometry_t * geo, 
+                            const mshgfx_geometry_data_t * host_data, 
+                            const int flags );
 
-int msh_gpu_geo_init( const msh_geometry_data_t * host_data,   
-                      msh_gpu_geometry_t * geo, 
-                      const int flags );
+int mshgfx_geometry_init( mshgfx_geometry_t * geo, 
+                          const mshgfx_geometry_data_t * host_data,   
+                          const int flags );
 
-int msh_gpu_geo_free( msh_gpu_geometry_t * geo );
+int mshgfx_geometry_free( mshgfx_geometry_t * geo );
 
-void msh_gpu_geo_draw( msh_gpu_geometry_t * geo, GLenum draw_mode );
+void mshgfx_geometry_draw( mshgfx_geometry_t * geo, GLenum draw_mode );
 
 /*
  * =============================================================================
@@ -490,11 +501,11 @@ msh__check_gl_error(const char* str)
  */
 
 
-msh_window_t * 
-msh_window_create( const char * title, int pos_x, int pos_y, 
+mshgfx_window_t * 
+mshgfx_window_create( const char * title, int pos_x, int pos_y, 
                                        int res_x, int res_y )
 {
-  msh_window_t * window = NULL;
+  mshgfx_window_t * window = NULL;
 
   /* attempt to initialize glfw library */
   if(!glfwInit()) return 0;
@@ -525,7 +536,7 @@ msh_window_create( const char * title, int pos_x, int pos_y,
 }
 
 int 
-msh_window_destroy( msh_window_t * window )
+mshgfx_window_destroy( mshgfx_window_t * window )
 {
   if ( window )
   {
@@ -536,7 +547,7 @@ msh_window_destroy( msh_window_t * window )
 }
 
 int 
-msh_window_display( msh_window_t * window,
+mshgfx_window_display( mshgfx_window_t * window,
                     int (*display_function)(void) )
 {
   glfwMakeContextCurrent(window);
@@ -549,7 +560,7 @@ msh_window_display( msh_window_t * window,
 }
 
 int 
-msh_window_is_any_open( msh_window_t ** windows, const int n_windows )
+mshgfx_window_is_any_open( mshgfx_window_t ** windows, const int n_windows )
 {
   int is_any_open = 0;
   for ( int i = 0 ; i < n_windows ; ++i )
@@ -560,7 +571,7 @@ msh_window_is_any_open( msh_window_t ** windows, const int n_windows )
       int should_close = glfwWindowShouldClose( windows[i] );
       if ( should_close )
       {
-         msh_window_destroy( windows[i] );
+         mshgfx_window_destroy( windows[i] );
          windows[i] = NULL;
       }
     }
@@ -570,13 +581,13 @@ msh_window_is_any_open( msh_window_t ** windows, const int n_windows )
  }
  
 void 
-msh_window_poll_events( void )
+mshgfx_window_poll_events( void )
 {
   glfwPollEvents();
 }
 
 void 
-msh_window_terminate( void )
+mshgfx_window_terminate( void )
 {
   glfwTerminate();
 }
@@ -720,27 +731,27 @@ void msh_viewport_end()
 }
 
 void 
-msh_background_flat4f( float r, float g, float b, float a )
+mshgfx_background_flat4f( float r, float g, float b, float a )
 {
   glClearColor( r, g, b, a );
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 }
 
 void 
-msh_background_gradient4f( float r1, float g1, float b1, float a1,
-                           float r2, float g2, float b2, float a2 )
+mshgfx_background_gradient4f( float r1, float g1, float b1, float a1,
+                              float r2, float g2, float b2, float a2 )
 {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
   glDisable(GL_DEPTH_TEST);
   
   static GLuint background_vao = 0;
-  static msh_shader_prog_t background_shader;
+  static mshgfx_shader_prog_t background_shader;
   if (background_vao == 0)
   {
     glGenVertexArrays(1, &background_vao);
   
     // vertex shader ( full screen quad by Morgan McGuire)
-    char* vs_src = (char*) MSH_SHADER_HEAD MSH_SHADER_STRINGIFY
+    char* vs_src = (char*) MSHGFX_SHADER_HEAD MSHGFX_SHADER_STRINGIFY
     (
       out vec2 v_texcoords;
       void main()
@@ -754,7 +765,7 @@ msh_background_gradient4f( float r1, float g1, float b1, float a1,
       }
     );
 
-    char* fs_src = (char*) MSH_SHADER_HEAD MSH_SHADER_STRINGIFY
+    char* fs_src = (char*) MSHGFX_SHADER_HEAD MSHGFX_SHADER_STRINGIFY
     (
       in vec2 v_texcoords;
       uniform vec4 col_top;
@@ -765,12 +776,12 @@ msh_background_gradient4f( float r1, float g1, float b1, float a1,
         frag_color = v_texcoords.y * col_top + (1.0 - v_texcoords.y) * col_bot;
       }
     );
-    msh_shader_prog_create_from_source_vf( &background_shader, vs_src, fs_src );
+    mshgfx_shader_prog_create_from_source_vf( &background_shader, vs_src, fs_src );
   }
 
-  msh_shader_prog_use( &background_shader );
-  msh_shader_prog_set_uniform_4f( &background_shader, "col_top", r1, g1, b1, a1 );
-  msh_shader_prog_set_uniform_4f( &background_shader, "col_bot", r2, g2, b2, a2 );
+  mshgfx_shader_prog_use( &background_shader );
+  mshgfx_shader_prog_set_uniform_4f( &background_shader, "col_top", r1, g1, b1, a1 );
+  mshgfx_shader_prog_set_uniform_4f( &background_shader, "col_bot", r2, g2, b2, a2 );
   glBindVertexArray( background_vao );
   glDrawArrays(GL_TRIANGLES, 0, 3);
   glBindVertexArray(0);
@@ -779,19 +790,19 @@ msh_background_gradient4f( float r1, float g1, float b1, float a1,
 }
 
 void 
-msh_background_tex( mshgfx_texture_t *tex )
+mshgfx_background_tex( mshgfx_texture_t *tex )
 {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
   glDisable(GL_DEPTH_TEST);
   static GLuint background_vao = 0;
-  static msh_shader_prog_t background_shader;
+  static mshgfx_shader_prog_t background_shader;
 
   if (background_vao == 0)
   {
     glGenVertexArrays(1, &background_vao);
   
     // vertex shader (full screen quad by Morgan McGuire)
-    char* vs_src = (char*) MSH_SHADER_HEAD MSH_SHADER_STRINGIFY
+    char* vs_src = (char*) MSHGFX_SHADER_HEAD MSHGFX_SHADER_STRINGIFY
     (
       out vec2 v_texcoords;
       void main()
@@ -805,7 +816,7 @@ msh_background_tex( mshgfx_texture_t *tex )
       }
     );
 
-    char* fs_src = (char*) MSH_SHADER_HEAD MSH_SHADER_STRINGIFY
+    char* fs_src = (char*) MSHGFX_SHADER_HEAD MSHGFX_SHADER_STRINGIFY
     (
       in vec2 v_texcoords;
       uniform sampler2D fb_tex;
@@ -816,12 +827,12 @@ msh_background_tex( mshgfx_texture_t *tex )
         frag_color = vec4( tex_color.r, tex_color.g, tex_color.b, 1.0f );
       }
     );
-    msh_shader_prog_create_from_source_vf( &background_shader, vs_src, fs_src );
+    mshgfx_shader_prog_create_from_source_vf( &background_shader, vs_src, fs_src );
   }
   
-  msh_shader_prog_use( &background_shader );
+  mshgfx_shader_prog_use( &background_shader );
   mshgfx_texture_use( tex );
-  msh_shader_prog_set_uniform_1i( &background_shader, "fb_tex", tex->unit );
+  mshgfx_shader_prog_set_uniform_1i( &background_shader, "fb_tex", tex->unit );
 
   glBindVertexArray( background_vao );
   glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -831,16 +842,16 @@ msh_background_tex( mshgfx_texture_t *tex )
 
 #ifdef MSH_VEC_MATH
 void 
-msh_background_flat4fv( msh_vec4_t col )
+mshgfx_background_flat4fv( msh_vec4_t col )
 {
   glClearColor( col.x, col.y, col.z, col.w );
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 }
 
 void 
-msh_background_gradient4fv( msh_vec4_t col_top, msh_vec4_t col_bot )
+mshgfx_background_gradient4fv( msh_vec4_t col_top, msh_vec4_t col_bot )
 {
-  msh_background_gradient4f( col_top.x, col_top.y, col_top.z, col_top.w,
+  mshgfx_background_gradient4f( col_top.x, col_top.y, col_top.z, col_top.w,
                              col_bot.x, col_bot.y, col_bot.z, col_bot.w );
 }
 #endif
@@ -889,7 +900,7 @@ msh__shader_text_file_read( const char * filename, char ** file_contents )
 
 
 int
-msh_shader_compile( msh_shader_t *s, const char * source )
+mshgfx_shader_compile( mshgfx_shader_t *s, const char * source )
 {
   switch ( s->type ) {
       case VERTEX_SHADER:
@@ -958,9 +969,9 @@ msh_shader_compile( msh_shader_t *s, const char * source )
 }
 
 int 
-msh_shader_prog_link_vf( msh_shader_prog_t *p,
-                         const msh_shader_t *vs, 
-                         const msh_shader_t *fs )
+mshgfx_shader_prog_link_vf( mshgfx_shader_prog_t *p,
+                         const mshgfx_shader_t *vs, 
+                         const mshgfx_shader_t *fs )
 {
   /* NOTE: change to asserts? */
   if ( !vs->compiled || !fs->compiled )
@@ -1007,10 +1018,10 @@ msh_shader_prog_link_vf( msh_shader_prog_t *p,
 
 
 int
-msh_shader_prog_link_vgf( msh_shader_prog_t *p,
-                          const msh_shader_t *vs, 
-                          const msh_shader_t *gs, 
-                          const msh_shader_t *fs )
+mshgfx_shader_prog_link_vgf( mshgfx_shader_prog_t *p,
+                          const mshgfx_shader_t *vs, 
+                          const mshgfx_shader_t *gs, 
+                          const mshgfx_shader_t *fs )
 {
   /* NOTE: change to asserts? */
   if ( !vs->compiled || !fs->compiled )
@@ -1059,7 +1070,7 @@ msh_shader_prog_link_vgf( msh_shader_prog_t *p,
 }
 
 int
-msh_shader_prog_use( const msh_shader_prog_t *p )
+mshgfx_shader_prog_use( const mshgfx_shader_prog_t *p )
 {
   if ( p->linked ) {
     glUseProgram( p->id );
@@ -1069,43 +1080,43 @@ msh_shader_prog_use( const msh_shader_prog_t *p )
 }
 
 int
-msh_shader_prog_create_from_source_vf( msh_shader_prog_t *p,
+mshgfx_shader_prog_create_from_source_vf( mshgfx_shader_prog_t *p,
                                        const char *vs_src,
                                        const char *fs_src )
 {
 
-  msh_shader_t vs, fs;
+  mshgfx_shader_t vs, fs;
   vs.type = VERTEX_SHADER;
   fs.type = FRAGMENT_SHADER;
 
-  if ( !msh_shader_compile( &vs, vs_src ) )        return 0;
-  if ( !msh_shader_compile( &fs, fs_src ) )        return 0;
-  if ( !msh_shader_prog_link_vf( p, &vs, &fs ) )   return 0;
+  if ( !mshgfx_shader_compile( &vs, vs_src ) )        return 0;
+  if ( !mshgfx_shader_compile( &fs, fs_src ) )        return 0;
+  if ( !mshgfx_shader_prog_link_vf( p, &vs, &fs ) )   return 0;
 
   return 1;
 }
 
 int
-msh_shader_prog_create_from_source_vgf( msh_shader_prog_t *p,
+mshgfx_shader_prog_create_from_source_vgf( mshgfx_shader_prog_t *p,
                                         const char * vs_src,
                                         const char * gs_src,
                                         const char * fs_src )
 {
-  msh_shader_t vs, fs, gs;
+  mshgfx_shader_t vs, fs, gs;
   vs.type = VERTEX_SHADER;
   fs.type = FRAGMENT_SHADER;
   gs.type = GEOMETRY_SHADER;
 
-  if ( !msh_shader_compile( &vs, vs_src ) )            return 0;
-  if ( !msh_shader_compile( &gs, gs_src ) )            return 0;
-  if ( !msh_shader_compile( &fs, fs_src ) )            return 0;
-  if ( !msh_shader_prog_link_vgf( p, &vs, &gs, &fs ) ) return 0;
+  if ( !mshgfx_shader_compile( &vs, vs_src ) )            return 0;
+  if ( !mshgfx_shader_compile( &gs, gs_src ) )            return 0;
+  if ( !mshgfx_shader_compile( &fs, fs_src ) )            return 0;
+  if ( !mshgfx_shader_prog_link_vgf( p, &vs, &gs, &fs ) ) return 0;
 
   return 1;
 }
 
 int
-msh_shader_prog_create_from_files_vf( msh_shader_prog_t *p,
+mshgfx_shader_prog_create_from_files_vf( mshgfx_shader_prog_t *p,
                                       const char * vs_filename,
                                       const char * fs_filename )
 {
@@ -1116,7 +1127,7 @@ msh_shader_prog_create_from_files_vf( msh_shader_prog_t *p,
     return 0;
   }
 
-  if( !msh_shader_prog_create_from_source_vf( p, vs_source, fs_source ))
+  if( !mshgfx_shader_prog_create_from_source_vf( p, vs_source, fs_source ))
   {
     return 0;
   }
@@ -1128,7 +1139,7 @@ msh_shader_prog_create_from_files_vf( msh_shader_prog_t *p,
 }
 
 int
-msh_shader_prog_create_from_files_vgf( msh_shader_prog_t *p,
+mshgfx_shader_prog_create_from_files_vgf( mshgfx_shader_prog_t *p,
                                        const char * vs_filename,
                                        const char * gs_filename,
                                        const char * fs_filename )
@@ -1141,7 +1152,7 @@ msh_shader_prog_create_from_files_vgf( msh_shader_prog_t *p,
     return 0;
   }
 
-  if( !msh_shader_prog_create_from_source_vgf( p, 
+  if( !mshgfx_shader_prog_create_from_source_vgf( p, 
                                               vs_source, 
                                               gs_source,
                                               fs_source ) )
@@ -1156,7 +1167,7 @@ msh_shader_prog_create_from_files_vgf( msh_shader_prog_t *p,
 }
 
 void
-msh_shader_prog_set_uniform_1f( const msh_shader_prog_t *p, 
+mshgfx_shader_prog_set_uniform_1f( const mshgfx_shader_prog_t *p, 
                                 const char *attrib_name, 
                                 float x )
 {
@@ -1165,7 +1176,7 @@ msh_shader_prog_set_uniform_1f( const msh_shader_prog_t *p,
 }
 
 void
-msh_shader_prog_set_uniform_1i( const msh_shader_prog_t *p, 
+mshgfx_shader_prog_set_uniform_1i( const mshgfx_shader_prog_t *p, 
                                const char *attrib_name, 
                                int x )
 {
@@ -1174,7 +1185,7 @@ msh_shader_prog_set_uniform_1i( const msh_shader_prog_t *p,
 }
 
 void
-msh_shader_prog_set_uniform_1u( const msh_shader_prog_t *p, 
+mshgfx_shader_prog_set_uniform_1u( const mshgfx_shader_prog_t *p, 
                                 const char *attrib_name, 
                                 unsigned int x )
 {
@@ -1183,7 +1194,7 @@ msh_shader_prog_set_uniform_1u( const msh_shader_prog_t *p,
 }
 
 void
-msh_shader_prog_set_uniform_2f( const msh_shader_prog_t *p, 
+mshgfx_shader_prog_set_uniform_2f( const mshgfx_shader_prog_t *p, 
                                 const char *attrib_name, 
                                 float x, float y )
 {
@@ -1192,7 +1203,7 @@ msh_shader_prog_set_uniform_2f( const msh_shader_prog_t *p,
 }
 
 void
-msh_shader_prog_set_uniform_2i( const msh_shader_prog_t *p, 
+mshgfx_shader_prog_set_uniform_2i( const mshgfx_shader_prog_t *p, 
                                 const char *attrib_name, 
                                 int x, int y )
 {
@@ -1201,7 +1212,7 @@ msh_shader_prog_set_uniform_2i( const msh_shader_prog_t *p,
 }
 
 void
-msh_shader_prog_set_uniform_2u( const msh_shader_prog_t *p, 
+mshgfx_shader_prog_set_uniform_2u( const mshgfx_shader_prog_t *p, 
                                 const char *attrib_name, 
                                 unsigned int x, unsigned int y )
 {
@@ -1211,7 +1222,7 @@ msh_shader_prog_set_uniform_2u( const msh_shader_prog_t *p,
 
 
 void
-msh_shader_prog_set_uniform_3f( const msh_shader_prog_t *p, 
+mshgfx_shader_prog_set_uniform_3f( const mshgfx_shader_prog_t *p, 
                                 const char *attrib_name, 
                                 float x, float y, float z )
 {
@@ -1220,7 +1231,7 @@ msh_shader_prog_set_uniform_3f( const msh_shader_prog_t *p,
 }
 
 void
-msh_shader_prog_set_uniform_3i( const msh_shader_prog_t *p, 
+mshgfx_shader_prog_set_uniform_3i( const mshgfx_shader_prog_t *p, 
                                 const char *attrib_name, 
                                 int x, int y, int z )
 {
@@ -1229,7 +1240,7 @@ msh_shader_prog_set_uniform_3i( const msh_shader_prog_t *p,
 }
 
 void
-msh_shader_prog_set_uniform_3u( const msh_shader_prog_t *p, 
+mshgfx_shader_prog_set_uniform_3u( const mshgfx_shader_prog_t *p, 
                                 const char *attrib_name, 
                                 unsigned int x, unsigned int y, unsigned int z )
 {
@@ -1238,7 +1249,7 @@ msh_shader_prog_set_uniform_3u( const msh_shader_prog_t *p,
 }
 
 void
-msh_shader_prog_set_uniform_4f( const msh_shader_prog_t *p, 
+mshgfx_shader_prog_set_uniform_4f( const mshgfx_shader_prog_t *p, 
                                 const char *attrib_name, 
                                 float x, float y, float z, float w )
 {
@@ -1247,7 +1258,7 @@ msh_shader_prog_set_uniform_4f( const msh_shader_prog_t *p,
 }
 
 void
-msh_shader_prog_set_uniform_4i( const msh_shader_prog_t *p, 
+mshgfx_shader_prog_set_uniform_4i( const mshgfx_shader_prog_t *p, 
                                 const char *attrib_name, 
                                 int x, int y, int z, int w )
 {
@@ -1256,7 +1267,7 @@ msh_shader_prog_set_uniform_4i( const msh_shader_prog_t *p,
 }
 
 void
-msh_shader_prog_set_uniform_4u( const msh_shader_prog_t *p, 
+mshgfx_shader_prog_set_uniform_4u( const mshgfx_shader_prog_t *p, 
                                 const char *attrib_name, 
                                 unsigned int x, unsigned int y, 
                                 unsigned int z, unsigned int w )
@@ -1267,7 +1278,7 @@ msh_shader_prog_set_uniform_4u( const msh_shader_prog_t *p,
 
 #ifdef MSH_VEC_MATH
 void
-msh_shader_prog_set_uniform_2fv( const msh_shader_prog_t *p, 
+mshgfx_shader_prog_set_uniform_2fv( const mshgfx_shader_prog_t *p, 
                                  const char *attrib_name, const msh_vec2_t* v)
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
@@ -1275,7 +1286,7 @@ msh_shader_prog_set_uniform_2fv( const msh_shader_prog_t *p,
 }
 
 void
-msh_shader_prog_set_uniform_2fvc( const msh_shader_prog_t *p, 
+mshgfx_shader_prog_set_uniform_2fvc( const mshgfx_shader_prog_t *p, 
                                   const char *attrib_name, const msh_vec2_t* v, 
                                   const unsigned int count )
 {
@@ -1284,7 +1295,7 @@ msh_shader_prog_set_uniform_2fvc( const msh_shader_prog_t *p,
 }
 
 void
-msh_shader_prog_set_uniform_3fv( const msh_shader_prog_t *p, 
+mshgfx_shader_prog_set_uniform_3fv( const mshgfx_shader_prog_t *p, 
                                  const char *attrib_name, const msh_vec3_t * v)
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
@@ -1292,7 +1303,7 @@ msh_shader_prog_set_uniform_3fv( const msh_shader_prog_t *p,
 }
 
 void
-msh_shader_prog_set_uniform_3fvc( const msh_shader_prog_t *p, 
+mshgfx_shader_prog_set_uniform_3fvc( const mshgfx_shader_prog_t *p, 
                                   const char *attrib_name, const msh_vec3_t * v, 
                                   const unsigned int count )
 {
@@ -1301,7 +1312,7 @@ msh_shader_prog_set_uniform_3fvc( const msh_shader_prog_t *p,
 }
 
 void
-msh_shader_prog_set_uniform_4fv( const msh_shader_prog_t *p, 
+mshgfx_shader_prog_set_uniform_4fv( const mshgfx_shader_prog_t *p, 
                                   const char *attrib_name, const msh_vec4_t *v )
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
@@ -1309,7 +1320,7 @@ msh_shader_prog_set_uniform_4fv( const msh_shader_prog_t *p,
 }
 
 void
-msh_shader_prog_set_uniform_4fvc( const msh_shader_prog_t *p, 
+mshgfx_shader_prog_set_uniform_4fvc( const mshgfx_shader_prog_t *p, 
                                   const char *attrib_name, const msh_vec4_t *v, 
                                   const unsigned int count )
 {
@@ -1318,7 +1329,7 @@ msh_shader_prog_set_uniform_4fvc( const msh_shader_prog_t *p,
 }
 
 void
-msh_shader_prog_set_uniform_3fm( const msh_shader_prog_t *p, 
+mshgfx_shader_prog_set_uniform_3fm( const mshgfx_shader_prog_t *p, 
                                  const char *attrib_name, const msh_mat3_t *m )
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
@@ -1326,7 +1337,7 @@ msh_shader_prog_set_uniform_3fm( const msh_shader_prog_t *p,
 }
 
 void
-msh_shader_prog_set_uniform_3fmc( const msh_shader_prog_t *p, 
+mshgfx_shader_prog_set_uniform_3fmc( const mshgfx_shader_prog_t *p, 
                                   const char *attrib_name, const msh_mat3_t *m, 
                                   const unsigned int count )
 {
@@ -1335,7 +1346,7 @@ msh_shader_prog_set_uniform_3fmc( const msh_shader_prog_t *p,
 }
 
 void
-msh_shader_prog_set_uniform_4fm( const msh_shader_prog_t *p, 
+mshgfx_shader_prog_set_uniform_4fm( const mshgfx_shader_prog_t *p, 
                                  const char *attrib_name, const msh_mat4_t *m )
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
@@ -1343,7 +1354,7 @@ msh_shader_prog_set_uniform_4fm( const msh_shader_prog_t *p,
 }
 
 void
-msh_shader_prog_set_uniform_4fmc( const msh_shader_prog_t *p, 
+mshgfx_shader_prog_set_uniform_4fmc( const mshgfx_shader_prog_t *p, 
                                   const char *attrib_name, const msh_mat4_t *m, 
                                   const unsigned int count  )
 {
@@ -1366,7 +1377,7 @@ msh_shader_prog_set_uniform_4fmc( const msh_shader_prog_t *p,
    depending on what has been requested 
 */
 unsigned long 
-msh__gpu_geo_get_offset( const msh_gpu_geometry_t * geo, 
+msh__gpu_geo_get_offset( const mshgfx_geometry_t * geo, 
                         const int flag )
 {
   unsigned long offset = 0;
@@ -1415,9 +1426,9 @@ msh__gpu_geo_get_offset( const msh_gpu_geometry_t * geo,
 
 
 int 
-msh_gpu_geo_update( const msh_geometry_data_t * host_data, 
-                    const msh_gpu_geometry_t * geo,
-                    const int flags )
+mshgfx_geometry_update( const mshgfx_geometry_t * geo,
+                        const mshgfx_geometry_data_t * host_data, 
+                         const int flags )
 {
   
   if( !(flags & geo->flags) )
@@ -1535,9 +1546,9 @@ msh_gpu_geo_update( const msh_geometry_data_t * host_data,
 
 /* TODO: Errors if creating data fails!! */
 int 
-msh_gpu_geo_init( const msh_geometry_data_t * host_data, 
-                  msh_gpu_geometry_t * geo, 
-                  const int flags )
+mshgfx_geometry_init( mshgfx_geometry_t * geo, 
+                      const mshgfx_geometry_data_t * host_data, 
+                      const int flags )
 {
   /* Always use position */
   assert( flags & POSITION );
@@ -1571,7 +1582,7 @@ msh_gpu_geo_init( const msh_geometry_data_t * host_data,
   geo->n_elements  = host_data->n_elements;
   geo->buffer_size = buf_size;
 
-  if ( !msh_gpu_geo_update( host_data, geo, flags ) )
+  if ( !mshgfx_geometry_update( geo, host_data, flags ) )
   {
     return 0;
   }
@@ -1593,7 +1604,7 @@ msh_gpu_geo_init( const msh_geometry_data_t * host_data,
 }
 
 int 
-msh_gpu_geo_free( msh_gpu_geometry_t * geo )
+mshgfx_geometry_free( mshgfx_geometry_t * geo )
 {
   glDeleteBuffers(1, &(geo->vbo) );
   if ( geo->flags & STRUCTURED )
@@ -1610,7 +1621,7 @@ msh_gpu_geo_free( msh_gpu_geometry_t * geo )
 }
 
 void 
-msh_gpu_geo_draw( msh_gpu_geometry_t * geo, 
+mshgfx_geometry_draw( mshgfx_geometry_t * geo, 
                   GLenum draw_mode ) 
 {
   msh_geometry_properties_flags flags = geo->flags;
