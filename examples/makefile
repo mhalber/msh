@@ -8,9 +8,13 @@ ARGPARSE_EXE = msh_argparse_example
 ARGPARSE_SRCS = msh_argparse_example.c
 ARGPARSE_OBJS = $(ARGPARSE_SRCS:%.c=$(OUT_DIR)%.o)
 
-OGL_EXE = msh_ogl_example
-OGL_SRCS = msh_ogl_example.c
-OGL_OBJS = $(OGL_SRCS:%.c=$(OUT_DIR)%.o)
+GFX_EXE = msh_gfx_example
+GFX_SRCS = msh_gfx_example.c
+GFX_OBJS = $(GFX_SRCS:%.c=$(OUT_DIR)%.o)
+
+CAM_EXE = msh_cam_example
+CAM_SRCS = msh_cam_example.c
+CAM_OBJS = $(CAM_SRCS:%.c=$(OUT_DIR)%.o)
 
 
 # Compile and link options
@@ -20,16 +24,20 @@ CFLAGS = -O0 -ggdb -std=gnu11 -I../
 
 # Libraries and Frameworks
 FRAMEWORKS = -framework opengl
-OGL_LIBS = -lglfw3
+GFX_LIBS = -lglfw3
 
 # Make targets
-all: clean argparse ogl
+all: clean argparse gfx cam
 
 argparse: $(ARGPARSE_OBJS)
 		time $(CC) $(FRAMEWORKS) $(CFLAGS) $(ARGPARSE_OBJS) -o ${BIN_DIR}${ARGPARSE_EXE}
 
-ogl: $(OGL_OBJS)
-		time $(CC) $(FRAMEWORKS) $(CFLAGS) $(OGL_OBJS) $(OGL_LIBS) -o ${BIN_DIR}${OGL_EXE}
+gfx: $(GFX_OBJS)
+		time $(CC) $(FRAMEWORKS) $(CFLAGS) $(GFX_OBJS) $(GFX_LIBS) -o ${BIN_DIR}${GFX_EXE}
+
+cam: $(CAM_OBJS)
+		time $(CC) $(FRAMEWORKS) $(CFLAGS) $(CAM_OBJS) $(CAM_LIBS) -o ${BIN_DIR}${CAM_EXE}
+
 
 clean:
 		rm -f $(OUT_DIR)*.o ${BIN_DIR}${ARGPARSE_EXE}

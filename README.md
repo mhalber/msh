@@ -8,7 +8,8 @@ library             |  version   | description
 ------------------- | ---------- | -----------
 **msh_argparse.h**  |    0.5     | command-line argument parsing
 **msh_vec_math.h**  |    0.1     | glsl inspired vector math (vectors, matrices and quaternions)
-**msh_ogl.h**       |    0.2     | Thin wrapper over OpenGL
+**msh_gfx.h**       |    0.05    | OpenGL wrapper
+**msh_camera.h**    |    0.05    | Arcball and first person camera
 
 These libraries have been inspired and modelled after excellent
 [libraries](https://github.com/nothings/stb) by Sean Barret

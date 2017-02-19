@@ -1,42 +1,66 @@
 /*
- * NOTE: This currently is a wrapper around the opengl. What it should be
- *       is a API agnostic renderer -> Similar to bgfx / nanovg.
- *       This should allow us to do some nice things regarding the errors
- *
- * NOTE: We want to make it thinner even.
- * 
- * TODO: Framebuffer/Renerbuffer stuff
- * TODO: Framebuffer Status?
- * FRAMEBUFFERS -> Bind, add texture, add renderbuffer (seems like a terrible 
- *                 name), check if valid. How to access in the shader..?
-                   glDrawFramebuffer / glBlitFramebuffer?
-                  Read and write from to easily create multi stage stuff.
-                  Frame buffers will be a bit trickier, but we will push through
+  ==============================================================================
+  
+  MSH_GFX.H - WIP!
+  
+  A single header library that wraps OpenGL. This library serves two purposes:
+    - Streamline common OpenGL operation
+    - Provide a layer of abstraction for different OpenGL context (3.3+ vs 2.1) 
 
-                  Multisample texture... Eh i really should read the ogl book
-                  Renderbuffers are used when you do not need to resample.
- * TODO: MRTs!
- *
- * This means that we need a function for texture that will do selections for types like r32
- *
- * TODO: Modify this to use more modern glProgramPipeline.
- *
- * TODO: Need to experiment with glMapBufferRange.
- *
- * TODO: Errors!
- * TODO: Custom asserts?
- * TODO: Check basics error function, maybe add one here?
- *
- * TODO: move inserts out!
+  To use the library you simply add:
+  
+  #define MSH_GFX_IMPLEMENTATION
+  #include "msh_gfx.h"
+
+  The define should only include once in your source. If you need to include 
+  library in multiple places, simply use the include:
+
+  #include "msh_gfx.h"
+
+  ==============================================================================
+  DEPENDENCIES
+
+  This library depends on following standard headers:
+    <stdlib.h>
+    <assert.h>
+
+  By default this library does not import these headers. Please see 
+  docs/no_headers.md for explanation. Importing heades is enabled by:
+
+  #define MSH_GFX_INCLUDE_HEADES
+
+  ==============================================================================
+  AUTHORS
+
+    Maciej Halber (macikuh@gmail.com)
+
+  ==============================================================================
+  LICENSE
+
+  This software is in the public domain. Where that dedication is not
+  recognized, you are granted a perpetual, irrevocable license to copy,
+  distribute, and modify this file as you see fit.
+
+  ==============================================================================
+  NOTES 
+
+  NOTE: This currently is a wrapper around the opengl. What it should be
+         is a API agnostic renderer -> Similar to bgfx / nanovg.
+  NOTE: Currently windowing is a thin wrapper over GLFW. There is some 
+        functionality added for handling multiple windows. This will be removed. 
+
+  ==============================================================================
+
+  TODO: Modify shader code to enable use of glProgramPipeline
+  TODO: Add texture format declaration
+  TODO: For geometry, need to experiment with glMapBufferRange
+  TODO: Add informative error messages. Make them optional
+
+  ==============================================================================
+  REFERENCES:
+
  */
 
-/* 
-  NOTE: Overall this is a simple wrapper over opengl, with few bells and whistles
-  like gradient backgrounds and geometry shading.
-
-  NOTE: Currently windowing is a thin wrapper over GLFW. There is some 
-  functionality added for handling multiple windows.
-*/
 
 /*
  * =============================================================================
@@ -44,8 +68,8 @@
  * =============================================================================
  */
 
-#ifndef MSH_OGL
-#define MSH_OGL
+#ifndef MSH_GFX_H
+#define MSH_GFX_H
 
 #include <stdlib.h>
 #include <assert.h>
@@ -58,17 +82,17 @@
 #include "GLFW/glfw3.h"
 
 #ifndef MSH_VEC_MATH
+
 typedef union vec2
 {
   struct { float x; float y; };
-  struct { float r; float g; };
-  struct { float p; float q; };
   float data[2];
 } msh_vec2_t;
+
 #endif
 
 
-enum msh_shader_type
+enum mshgfx_shader_type
 {
   VERTEX_SHADER,
   FRAGMENT_SHADER,
@@ -105,9 +129,10 @@ typedef struct msh_viewport
 typedef struct msh_shader
 {
   GLuint id;
-  enum msh_shader_type type;
+  enum mshgfx_shader_type type;
   GLint compiled;
 } msh_shader_t;
+
 
 typedef struct msh_shader_prog
 {
@@ -115,7 +140,7 @@ typedef struct msh_shader_prog
   GLint linked;
 } msh_shader_prog_t;
 
-typedef struct msh_gpu_texture
+typedef struct mshgfx_texture
 {
   unsigned int id;
   int width;
@@ -123,7 +148,7 @@ typedef struct msh_gpu_texture
   int n_comp;
   GLenum type;
   unsigned int unit;
-} msh_gpu_texture_t;
+} mshgfx_texture_t;
 
 typedef int msh_internal_data_type;
 typedef int msh_geometry_properties_flags;
@@ -134,8 +159,7 @@ typedef struct msh_framebuffer
   GLuint depthrenderbuffer;
   int width;
   int height;
-  msh_gpu_texture_t tex;
-} msh_framebuffer_t;
+} mshgfx_framebuffer_t;
 
 
 typedef struct msh_geometry_data
@@ -143,7 +167,7 @@ typedef struct msh_geometry_data
   float * positions;
   float * normals;
   float * tangents;
-  float * texcoords;
+  float *texcoords;
   unsigned char  * colors_a;
   unsigned char  * colors_b;
   unsigned char  * colors_c;
@@ -209,19 +233,19 @@ void msh_window_set_callback_refresh( msh_window_t *window,
  * =============================================================================
  */
 
-int msh_framebuffer_init( msh_framebuffer_t * fb, int width, int height );
-int msh_framebuffer_attach( msh_gpu_texture_t * tex, unsigned int attachements,
+int mshgfx_framebuffer_init( mshgfx_framebuffer_t * fb, int width, int height );
+int mshgfx_framebuffer_attach( mshgfx_texture_t *tex, unsigned int attachements,
                             int n_textures );
-int msh_framebuffer_bind( msh_framebuffer_t * fb );
-int msh_framebuffer_attach_color_texture( msh_frambuffer_t *fb, 
-                                          msh_gpu_texture_t *tex,
+int mshgfx_framebuffer_bind( mshgfx_framebuffer_t * fb );
+int mshgfx_framebuffer_attach_color_texture( mshgfx_framebuffer_t *fb, 
+                                          mshgfx_texture_t *tex,
                                           GLuint *attachement, int n );
-int msh_framebuffer_attach_depth_texture( msh_framebuffer_t *fb, 
-                                          msh_gpu_texture_t *tex );
-int msh_framebuffer_add_color_renderbuffer();
-int msh_framebuffer_add_depth_renderbuffer( msh_frambuffer_t *fb );
-int msh_framebuffer_check_status( msh_framebuffer_t * fb );
-int msh_framebuffer_terminate( msh_framebuffer_t *fb );
+int mshgfx_framebuffer_attach_depth_texture( mshgfx_framebuffer_t *fb, 
+                                          mshgfx_texture_t *tex );
+int mshgfx_framebuffer_add_color_renderbuffer( mshgfx_framebuffer_t *fb );
+int mshgfx_framebuffer_add_depth_renderbuffer( mshgfx_framebuffer_t *fb );
+int mshgfx_framebuffer_check_status( mshgfx_framebuffer_t * fb );
+int mshgfx_framebuffer_terminate( mshgfx_framebuffer_t *fb );
 
 
 /*
@@ -238,7 +262,7 @@ void msh_viewport_end();
 void msh_background_flat4f( float r, float g, float b, float a);
 void msh_background_gradient4f( float r1, float g1, float b1, float a1,
                                 float r2, float g2, float b2, float a2 );
-void msh_background_tex( msh_gpu_texture_t * tex );
+void msh_background_tex( mshgfx_texture_t *tex );
 
 #ifdef MSH_VEC_MATH
 void msh_background_flat4v( msh_vec4_t col );
@@ -396,41 +420,68 @@ void msh_gpu_geo_draw( msh_gpu_geometry_t * geo, GLenum draw_mode );
  * =============================================================================
  */
 
-void msh_gpu_tex_init_u8( const unsigned char * data, 
-                          const int w, 
-                          const int h, 
-                          const int n_comp, 
-                          msh_gpu_texture_t * tex, 
-                          const unsigned int unit );
+void mshgfx_texture_init_u8( mshgfx_texture_t *tex,                              
+                             const unsigned char *data, 
+                             const int w, 
+                             const int h, 
+                             const int n_comp, 
+                             const unsigned int unit );
 
-void msh_gpu_tex_init_u16( const unsigned short * data, 
-                           const int w, 
-                           const int h, 
-                           const int n_comp, 
-                           const msh_gpu_texture_t * tex, 
-                           const unsigned int unit );
+void mshgfx_texture_init_u16( mshgfx_texture_t *tex,
+                              const unsigned short *data, 
+                              const int w, 
+                              const int h, 
+                              const int n_comp, 
+                              const unsigned int unit );
 
-void msh_gpu_tex_update_u8( const unsigned char * data, 
-                            msh_gpu_texture_t * tex );
+void mshgfx_texture_init_u32( mshgfx_texture_t *tex,
+                              const unsigned int *data, 
+                              const int w, 
+                              const int h, 
+                              const int n_comp, 
+                              const unsigned int unit );
 
-void msh_gpu_tex_update_u16( const unsigned short * data, 
-                             msh_gpu_texture_t * tex );
 
-void msh_gpu_tex_use( const msh_gpu_texture_t * tex );
+void mshgfx_texture_init_r32( mshgfx_texture_t *tex,
+                              const float *data, 
+                              const int w, 
+                              const int h, 
+                              const int n_comp, 
+                              const unsigned int unit );
 
-void msh_gpu_tex_free( msh_gpu_texture_t * tex );
 
-#endif /* MSH_OGL */
+void mshgfx_texture_update_u8(  mshgfx_texture_t *tex, const unsigned char *data );
+void mshgfx_texture_update_u16( mshgfx_texture_t *tex, const unsigned short *data );
+void mshgfx_texture_update_u32( mshgfx_texture_t *tex, const unsigned int *data );
+void mshgfx_texture_update_r32( mshgfx_texture_t *tex, const float *data );
 
+void mshgfx_texture_use( const mshgfx_texture_t *tex );
+
+void mshgfx_texture_free( mshgfx_texture_t *tex );
+
+#endif /* MSH_GFX_H */
+
+
+
+
+#ifdef MSH_GFX_IMPLEMENTATION
 
 /*
-================================================================================
-================================================================================
-================================================================================
-================================================================================
-*/
+ * =============================================================================
+ *       HELPERS
+ * =============================================================================
+ */
 
-#ifdef MSH_OGL_IMPLEMENTATION
+static void 
+msh__check_gl_error(const char* str)
+{
+	GLenum err;
+	err = glGetError();
+	if (err != GL_NO_ERROR) {
+		fprintf(stderr, "Error %08x after %s\n", err, str);
+		return;
+	}
+}
 
 /*
  * =============================================================================
@@ -530,6 +581,118 @@ msh_window_terminate( void )
   glfwTerminate();
 }
 
+
+
+/*
+ * =============================================================================
+ *       FRAMEBUFFERS IMPLEMENTATION
+ * =============================================================================
+ */
+
+int 
+mshgfx_framebuffer_init( mshgfx_framebuffer_t *fb, int width, int height )
+{
+  fb->width = width;
+  fb->height = height;
+  glGenFramebuffers(1, &fb->id);
+  glBindFramebuffer(GL_FRAMEBUFFER, fb->id);
+
+  return 1;
+}
+
+int 
+mshgfx_framebuffer_bind( mshgfx_framebuffer_t *fb )
+{
+  if (fb) glBindFramebuffer(GL_FRAMEBUFFER, fb->id);
+  else    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+  return 1;
+}
+
+int
+mshgfx_framebuffer_attach_color_texture( mshgfx_framebuffer_t *fb, 
+                                      mshgfx_texture_t *tex,
+                                      GLuint *attachement, int n )
+{
+  if(!fb) return 0;
+  // NOTE: Research what is the difference between glFramebufferTexture2D and glFramebufferTexture
+  for( int i = 0 ; i < n ; ++i )
+  {
+    // NOTE: We should test if texture sizes are the same.
+    glFramebufferTexture2D( GL_FRAMEBUFFER, attachement[i], 
+                            GL_TEXTURE_2D, tex[i].id, 0);
+  }
+  glDrawBuffers( n, attachement );
+  return 1;
+}
+
+int mshgfx_framebuffer_attach_depth_texture( mshgfx_framebuffer_t *fb, 
+                                          mshgfx_texture_t *tex )
+{
+  if(!fb) return 0;
+  // NOTE: We should test if texture sizes are the same
+  glFramebufferTexture2D( GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, tex->id, 0 );
+  return 1;
+}
+
+int
+mshgfx_framebuffer_add_color_renderbuffer(mshgfx_framebuffer_t *fb)
+{
+  if(!fb) return 0;
+  // NOTE: TO BE IMPLEMENTED
+  return 0;
+}
+
+int
+mshgfx_framebuffer_add_depth_renderbuffer( mshgfx_framebuffer_t *fb )
+{
+  if(!fb) return 0;
+  glGenRenderbuffers(1, &fb->depthrenderbuffer);
+  glBindRenderbuffer(GL_RENDERBUFFER, fb->depthrenderbuffer);
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 
+                                                         fb->width, fb->height);
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, 
+                                       GL_RENDERBUFFER, fb->depthrenderbuffer);
+  return 1;
+}
+
+int 
+mshgfx_framebuffer_check_status( mshgfx_framebuffer_t * fb )
+{
+  if( !fb ) return 0;
+  if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+  {
+    printf( "%s\n", "Framebuffer not complete!" );
+  }
+  return 0;
+}
+
+int 
+mshgfx_framebuffer_resize( mshgfx_framebuffer_t *fb, int width, int height )
+{
+  if(!fb) return 0;
+  
+  // delete old
+  if( fb->depthrenderbuffer ) glDeleteRenderbuffers(1, &fb->depthrenderbuffer );
+  glDeleteFramebuffers( 1, &fb->id );
+
+  msh__check_gl_error("framebuffer resize"); 
+
+  // reinitialize
+  return mshgfx_framebuffer_init( fb, width, height );
+}
+
+int
+mshgfx_framebuffer_terminate(mshgfx_framebuffer_t *fb)
+{
+  if(!fb) return 0;
+  if( fb->depthrenderbuffer ) glDeleteRenderbuffers(1, &fb->depthrenderbuffer );
+  glDeleteFramebuffers( 1, &fb->id );
+  msh__check_gl_error("framebuffer termination");
+  return 1;
+}
+
+
 /*
  * =============================================================================
  *       VIEWPORTS IMPLEMENTATION
@@ -616,7 +779,7 @@ msh_background_gradient4f( float r1, float g1, float b1, float a1,
 }
 
 void 
-msh_background_tex( msh_gpu_texture_t * tex )
+msh_background_tex( mshgfx_texture_t *tex )
 {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
   glDisable(GL_DEPTH_TEST);
@@ -657,7 +820,7 @@ msh_background_tex( msh_gpu_texture_t * tex )
   }
   
   msh_shader_prog_use( &background_shader );
-  msh_gpu_tex_use( tex );
+  mshgfx_texture_use( tex );
   msh_shader_prog_set_uniform_1i( &background_shader, "fb_tex", tex->unit );
 
   glBindVertexArray( background_vao );
@@ -766,26 +929,26 @@ msh_shader_compile( msh_shader_t *s, const char * source )
       char* log_str = (char*)malloc(log_len);
       GLsizei written;
       glGetShaderInfoLog(s->id, log_len, &written, log_str);
-      char * msh_shader_type_str = NULL;
+      char * mshgfx_shader_type_str = NULL;
       switch(s->type)
       {
         case VERTEX_SHADER:
-          msh_shader_type_str = (char*)"Vertex Shader";
+          mshgfx_shader_type_str = (char*)"Vertex Shader";
           break;
         case FRAGMENT_SHADER:
-          msh_shader_type_str = (char*)"Fragment Shader";
+          mshgfx_shader_type_str = (char*)"Fragment Shader";
           break;
         case GEOMETRY_SHADER:
-          msh_shader_type_str = (char*)"Geometry Shader";
+          mshgfx_shader_type_str = (char*)"Geometry Shader";
           break;
         case TESS_CONTROL_SHADER:
-          msh_shader_type_str = (char*)"Tess Control Shader";
+          mshgfx_shader_type_str = (char*)"Tess Control Shader";
           break;
         case TESS_EVALUATION_SHADER:
-          msh_shader_type_str = (char*)"Tess Evaluation Shader";
+          mshgfx_shader_type_str = (char*)"Tess Evaluation Shader";
           break;
       }
-      printf( "%s Compilation Failure :\n%s\n", msh_shader_type_str, log_str );
+      printf( "%s Compilation Failure :\n%s\n", mshgfx_shader_type_str, log_str );
       free( log_str );
     }
     return 0;
@@ -1472,9 +1635,10 @@ msh_gpu_geo_draw( msh_gpu_geometry_t * geo,
  * =============================================================================
  */
 
+/* TODO (maciej): Format defining macro */
+
 void 
-msh_gpu_tex_update_u8( const unsigned char * data, 
-                       msh_gpu_texture_t * tex )
+mshgfx_texture_update_u8( mshgfx_texture_t *tex, const unsigned char *data )
 {
   glActiveTexture ( GL_TEXTURE0 + tex->unit );
   glBindTexture( GL_TEXTURE_2D, tex->id );
@@ -1509,8 +1673,7 @@ msh_gpu_tex_update_u8( const unsigned char * data,
 }
 
 void 
-msh_gpu_tex_update_u16( const unsigned short * data, 
-                        msh_gpu_texture_t * tex )
+mshgfx_texture_update_u16( mshgfx_texture_t *tex, const unsigned short *data )
 {
   assert( tex->n_comp > 0 && tex->n_comp <= 1 );
 
@@ -1548,180 +1711,171 @@ msh_gpu_tex_update_u16( const unsigned short * data,
 }
 
 void 
-msh_gpu_tex_init_u8( const unsigned char * data, 
-                     const int w, 
-                     const int h, 
-                     const int n_comp, 
-                     msh_gpu_texture_t * tex, 
-                     const unsigned int unit )
+mshgfx_texture_update_u32( mshgfx_texture_t *tex, const unsigned int *data )
+{
+  assert( tex->n_comp > 0 && tex->n_comp <= 1 );
+
+  glActiveTexture ( GL_TEXTURE0 + tex->unit );
+  glBindTexture( GL_TEXTURE_2D, tex->id );
+
+  GLint internal_format;
+  GLenum format;
+  switch( tex->n_comp )
+  {
+    case 1:
+      internal_format = GL_R32UI;
+      format = GL_RED;
+      break;
+    case 2:
+      internal_format = GL_RG32UI;
+      format = GL_RG;
+      break;
+    case 3:
+      internal_format = GL_RGB32UI;
+      format = GL_RGB;
+      break;
+    case 4:
+      internal_format = GL_RGBA32UI;
+      format = GL_RGBA;
+      break;
+    default:
+      internal_format = GL_RGB;
+      format = GL_RGB;
+  }
+
+  glTexImage2D( GL_TEXTURE_2D, 0, internal_format, 
+                tex->width, tex->height, 0, format, GL_UNSIGNED_INT, data );
+  glBindTexture( GL_TEXTURE_2D, 0 );
+}
+
+void 
+mshgfx_texture_update_r32( mshgfx_texture_t *tex, const float *data )
+{
+  assert( tex->n_comp > 0 && tex->n_comp <= 1 );
+
+  glActiveTexture ( GL_TEXTURE0 + tex->unit );
+  glBindTexture( GL_TEXTURE_2D, tex->id );
+
+  GLint internal_format;
+  GLenum format;
+  switch( tex->n_comp )
+  {
+    case 1:
+      internal_format = GL_R32F;
+      format = GL_RED;
+      break;
+    case 2:
+      internal_format = GL_RG32F;
+      format = GL_RG;
+      break;
+    case 3:
+      internal_format = GL_RGB32F;
+      format = GL_RGB;
+      break;
+    case 4:
+      internal_format = GL_RGBA32F;
+      format = GL_RGBA;
+      break;
+    default:
+      internal_format = GL_RGB;
+      format = GL_RGB;
+  }
+
+  glTexImage2D( GL_TEXTURE_2D, 0, internal_format, 
+                tex->width, tex->height, 0, format, GL_FLOAT, data );
+  glBindTexture( GL_TEXTURE_2D, 0 );
+}
+
+
+static inline void 
+mshgfx__texture_init_type( mshgfx_texture_t *tex, const int type, 
+                           const int w, const int h, const int n_comp,
+                           const unsigned int unit )
 {
   tex->width  = w;
   tex->height = h;
   tex->n_comp = n_comp; 
-  tex->type   = GL_UNSIGNED_BYTE;
+  tex->type   = type;
   tex->unit   = unit;
   glGenTextures( 1, &tex->id );
   
   glActiveTexture ( GL_TEXTURE0 + tex->unit );
   glBindTexture( GL_TEXTURE_2D, tex->id );
+  /* TODO(maciej): Move the texture parameters out */
   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+}
 
-  msh_gpu_tex_update_u8( data, tex );
+void 
+mshgfx_texture_init_u8( mshgfx_texture_t *tex,
+                        const unsigned char *data, 
+                        const int w, 
+                        const int h, 
+                        const int n_comp,  
+                        const unsigned int unit )
+{
+  mshgfx__texture_init_type( tex, GL_UNSIGNED_BYTE, w, h, n_comp, unit );
+  mshgfx_texture_update_u8( tex, data );
 
   glBindTexture( GL_TEXTURE_2D, 0 );
 }
 
 
 void 
-init_gpu_tex( const unsigned short * data, 
-              const int w, 
-              const int h, 
-              const int n_comp, 
-              msh_gpu_texture_t * tex, 
-              const unsigned int unit )
+mshgfx_texture_init_u16( mshgfx_texture_t *tex,
+                         const unsigned short *data, 
+                         const int w, 
+                         const int h, 
+                         const int n_comp,  
+                         const unsigned int unit )
 {
-  tex->width  = w;
-  tex->height = h;
-  tex->n_comp = n_comp; 
-  tex->type   = GL_UNSIGNED_SHORT;
-  tex->unit   = unit;
-  glGenTextures( 1, &tex->id );
-  
-  glActiveTexture ( GL_TEXTURE0 + tex->unit );
-  glBindTexture( GL_TEXTURE_2D, tex->id );
-  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-
-  msh_gpu_tex_update_u16( data, tex );
+  mshgfx__texture_init_type( tex, GL_UNSIGNED_SHORT, w, h, n_comp, unit );
+  mshgfx_texture_update_u16( tex, data );
 
   glBindTexture( GL_TEXTURE_2D, 0 );
 }
 
 void 
-msh_gpu_tex_use( const msh_gpu_texture_t * tex)
+mshgfx_texture_init_u32( mshgfx_texture_t *tex,
+                         const unsigned int *data, 
+                         const int w, 
+                         const int h, 
+                         const int n_comp,  
+                         const unsigned int unit )
+{
+  mshgfx__texture_init_type( tex, GL_UNSIGNED_INT, w, h, n_comp, unit );
+  mshgfx_texture_update_u32( tex, data );
+
+  glBindTexture( GL_TEXTURE_2D, 0 );
+}
+
+void 
+mshgfx_texture_init_r32( mshgfx_texture_t *tex,
+                         const float *data, 
+                         const int w, 
+                         const int h, 
+                         const int n_comp,  
+                         const unsigned int unit )
+{
+  mshgfx__texture_init_type( tex, GL_FLOAT, w, h, n_comp, unit );
+  mshgfx_texture_update_r32( tex, data );
+
+  glBindTexture( GL_TEXTURE_2D, 0 );
+}
+
+void 
+mshgfx_texture_use( const mshgfx_texture_t *tex)
 {
     glActiveTexture( GL_TEXTURE0 + tex->unit );
     glBindTexture( GL_TEXTURE_2D, tex->id );
 }
 
 void 
-msh_gpu_tex_free( msh_gpu_texture_t * tex )
+mshgfx_texture_free( mshgfx_texture_t *tex )
 {
     glDeleteTextures( 1, &tex->id );
     tex->id = 0;
 }
 
 
-/*
- * =============================================================================
- *       FRAMEBUFFERS IMPLEMENTATION
- * =============================================================================
- */
-
-int 
-msh_framebuffer_init( msh_framebuffer_t *fb, int width, int height )
-{
-  fb->width = width;
-  fb->height = height;
-  glGenFramebuffers(1, &fb->id);
-  glBindFramebuffer(GL_FRAMEBUFFER, fb->id);
-
-  // The texture we're going to render to
-  msh_gpu_tex_init_u8( NULL, fb->width, fb->height, 3, &fb->tex, 0 );
-
-  // The depth buffer
-  glGenRenderbuffers(1, &fb->depthrenderbuffer);
-  glBindRenderbuffer(GL_RENDERBUFFER, fb->depthrenderbuffer);
-  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 
-                                                         fb->width, fb->height);
-  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, 
-                                       GL_RENDERBUFFER, fb->depthrenderbuffer);
-
-  // Set "renderedTexture" as our colour attachement #0
-  glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, fb->tex.id, 0);
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  glBindRenderbuffer(GL_RENDERBUFFER, 0);
-
-  return 1;
-}
-
-int 
-msh_framebuffer_bind( msh_framebuffer_t *fb )
-{
-  if (fb) glBindFramebuffer(GL_FRAMEBUFFER, fb->id);
-  else    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-  return 1;
-}
-
-int
-msh_framebuffer_attach_color_texture( msh_frambuffer_t *fb, 
-                                      msh_gpu_texture_t *tex,
-                                      GLuint *attachement, int n )
-{
-  // NOTE: Research what is the difference between glFramebufferTexture2D and glFramebufferTexture
-  for( int i = 0 ; i < ntex ; ++i )
-  {
-    // NOTE: We should test if texture sizes are the same.
-    glFramebufferTexture2D( GL_FRAMEBUFFER, attachment[i], 
-                            GL_TEXTURE_2D, tex[i].id, 0);
-  }
-  glDrawBuffers( n, attachement );
-  return 1;
-}
-
-int msh_framebuffer_attach_depth_texture( msh_framebuffer_t *fb, 
-                                          msh_gpu_texture_t *tex )
-{
-  // NOTE: We should test if texture sizes are the same
-  glFramebufferTexture2D( GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, tex->id, 0 );
-  return 1;
-}
-
-int
-msh_framebuffer_add_color_renderbuffer()
-{
-  // NOTE: TO BE IMPLEMENTED
-  return 0;
-}
-
-int
-msh_framebuffer_add_depth_renderbuffer( msh_frambuffer_t *fb )
-{
-  glGenRenderbuffers(1, &fb->depthrenderbuffer);
-  glBindRenderbuffer(GL_RENDERBUFFER, fb->depthrenderbuffer);
-  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 
-                                                         fb->width, fb->height);
-  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, 
-                                       GL_RENDERBUFFER, fb->depthrenderbuffer);
-  return 1;
-}
-
-int 
-msh_framebuffer_check_status( msh_framebuffer_t * fb )
-{
-  // NOTE: TO BE IMPLEMENTED
-  return 0;
-}
-
-int 
-msh_framebuffer_resize( msh_framebuffer_t *fb, int width, int height )
-{
-  // delete old
-  msh_gpu_tex_free( &fb->tex );
-  glDeleteRenderbuffers( 1, &fb->depthrenderbuffer );
-  glDeleteFramebuffers( 1, &fb->id );
-
-  // reinitialize
-  return msh_framebuffer_init( fb, width, height );
-}
-
-int
-msh_framebuffer_terminate( msh_framebuffer_t *fb)
-{
-  if( fb->depthrenderbuffer ) glDeleteRenderbuffers(1, &fb->renderbuffer );
-  glDeleteFramebuffers( 1, fb );
-}
-
-#endif /* MSH_OGL_IMPLEMENTATION */
+#endif /* MSH_GFX_IMPLEMENTATION */

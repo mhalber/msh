@@ -77,11 +77,18 @@
 
   ==============================================================================
   DEPENDENCES
-    stdlib.h - qsort, atof, atoi
-    stdio.h  - printf, sprintf
-    string.h - strncmp
-    ctype.h  - isdigit
-    stdboolh - bool type
+
+  This library depends on following standard headers:
+    <stdlib.h>  - qsort, atof, atoi
+    <stdio.h>   - printf, sprintf
+    <string.h>  - strncmp
+    <ctype.h>   - isdigit
+    <stdbool.h> - bool type
+
+  By default this library does not import these headers. Please see 
+  docs/no_headers.md for explanation. Importing heades is enabled by:
+
+  #define MSH_ARGPARSE_INCLUDE_HEADERS
 
   ==============================================================================
   TODOs

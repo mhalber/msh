@@ -11,9 +11,9 @@
 #define MSH_VEC_MATH_IMPLEMENTATION
 #include "msh_vec_math.h"
 
-#define MSH_OGL_IMPLEMENTATION
+#define MSH_GFX_IMPLEMENTATION
 #define MAX_WINDOWS 10
-#include "msh_ogl.h"
+#include "msh_gfx.h"
 
 char * vs_source = MSH_SHADER_HEAD MSH_SHADER_STRINGIFY
 ( 
@@ -40,11 +40,12 @@ char * fs_source = MSH_SHADER_HEAD MSH_SHADER_STRINGIFY
 msh_viewport_t viewports[3];
 msh_shader_prog_t triangle_shader;
 msh_gpu_geometry_t triangle_geo;
-msh_framebuffer_t fb;
+mshgfx_texture_t fb_texture;
+mshgfx_framebuffer_t fb;
 
 int window_display( void )
 {
-  msh_framebuffer_bind( &fb );
+  mshgfx_framebuffer_bind( &fb );
   
   msh_viewport_begin( &viewports[1] );
   msh_background_gradient4fv( msh_vec4( 1.0f, 0.0f, 0.0f, 1.0f), 
@@ -59,9 +60,9 @@ int window_display( void )
   msh_gpu_geo_draw( &triangle_geo, GL_TRIANGLES );
   msh_viewport_end();
 
-  msh_framebuffer_bind( NULL );
+  mshgfx_framebuffer_bind( NULL );
   msh_viewport_begin( &viewports[2] );
-  msh_background_tex( &(fb.tex) );
+  msh_background_tex( &(fb_texture) );
   msh_viewport_end();
 
   return 1;
@@ -84,8 +85,15 @@ void window_refresh( msh_window_t * window )
   viewports[2].p1 = viewports[0].p1;
   viewports[2].p2 = msh_vec2( pix_ratio * fb_w, pix_ratio *fb_h );
 
-  msh_framebuffer_resize( &fb, fb_w, fb_h );
+  mshgfx_texture_free( &fb_texture ); // TODO(maciej): Texture and renderbuffer resize?
+  mshgfx_texture_init_u8( &fb_texture, NULL, fb_w, fb_h, 3, 0 );
   
+  mshgfx_framebuffer_resize( &fb, fb_w, fb_h );
+  GLuint attachments[1] = {GL_COLOR_ATTACHMENT0};
+  mshgfx_framebuffer_attach_color_texture( &fb, &fb_texture, &attachments[0], 1 );
+  mshgfx_framebuffer_add_depth_renderbuffer( &fb );
+  mshgfx_framebuffer_check_status( &fb );
+
   msh_window_display( window, window_display );
 }
 
@@ -115,7 +123,16 @@ int main( void )
   msh_viewport_init(&viewports[2], (msh_vec2_t){{0, 0}}, 
                                    (msh_vec2_t){{window_width, window_height}});
 
-  msh_framebuffer_init( &fb, window_width, window_height );
+  mshgfx_framebuffer_init( &fb, window_width, window_height );
+
+  // The color texture we're going to render to
+  mshgfx_texture_init_u8( &fb_texture, NULL, window_width, window_height, 3, 0 );
+  GLuint attachments[1] = {GL_COLOR_ATTACHMENT0};
+  mshgfx_framebuffer_attach_color_texture( &fb, &fb_texture, &attachments[0], 1 );
+
+  // The renderbuffer for depth
+  mshgfx_framebuffer_add_depth_renderbuffer( &fb );
+  mshgfx_framebuffer_check_status( &fb );
 
   float positions[9] = {  -0.8f, -0.8f, 0.0f, 
                            0.8f, -0.8f, 0.0f,

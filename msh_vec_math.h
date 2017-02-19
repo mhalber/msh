@@ -22,6 +22,11 @@
 
   before including the "msh_vec_math.h"
 
+  By default all calculations are done using floating point operations
+  If you wish to use double, please define(as usual, before including the file):
+
+  #define MSH_VEC_MATH_USE_DOUBLE
+
   ==============================================================================
   DEPENDENCIES
 
@@ -36,13 +41,11 @@
     <math.h>   -- sinf, cosf, sqrtf
     <stdio.h>  -- fprintf, printf
 
-  Following the advice of Rob Pike(https://www.lysator.liu.se/c/pikestyle.html), 
-  this library does not include the headers by default, and asks user to do so. 
-  If you are unhappy with this, you can add:
+  By default this library does not import these headers. Please see 
+  docs/no_headers.md for explanation. Importing heades is enabled by:
 
   #define MSH_VEC_MATH_INCLUDE_HEADERS
 
-  Or simply modify the source to include them without a flag.
 
   ==============================================================================
   AUTHORS
@@ -76,7 +79,7 @@
   TODO: Add quat from euler angles!
   TODO: Normalize the quaternion after lerping!
   TODO: Add testing
-  TODO: Typedef the scalar type
+  TODO: Typedef the scalar type and add an option
 
   ==============================================================================
   REFERENCES:
@@ -118,48 +121,55 @@ extern "C" {
 #define MSHVMDEF extern
 #endif
 
+#ifdef MSH_VEC_MATH_USE_DOUBLE
+typedef double msh_scalar_t; 
+#else
+typedef float msh_scalar_t;
+#endif
+
 typedef union vec2
 {
-  float data[2];
-  struct { float x; float y; };
-  struct { float r; float g; };
+  msh_scalar_t data[2];
+  struct { msh_scalar_t x; msh_scalar_t y; };
+  struct { msh_scalar_t r; msh_scalar_t g; };
 } msh_vec2_t;
 
 typedef union vec3
 {
-  float data[3];
-  struct { float x; float y; float z; };
-  struct { float r; float g; float b; };
+  msh_scalar_t data[3];
+  struct { msh_scalar_t x; msh_scalar_t y; msh_scalar_t z; };
+  struct { msh_scalar_t r; msh_scalar_t g; msh_scalar_t b; };
 } msh_vec3_t;
 
 typedef union vec4
 {
-  float data[4];
-  struct { float x; float y; float z; float w; };
-  struct { float r; float g; float b; float a; };
+  msh_scalar_t data[4];
+  struct { msh_scalar_t x; msh_scalar_t y; msh_scalar_t z; msh_scalar_t w; };
+  struct { msh_scalar_t r; msh_scalar_t g; msh_scalar_t b; msh_scalar_t a; };
 } msh_vec4_t;
 
 typedef union quaternion
 {
-  struct { float x, y, z, w; };
-  struct { msh_vec3_t im; float re; };
+  msh_scalar_t data[4];
+  struct { msh_scalar_t x, y, z, w; };
+  struct { msh_vec3_t im; msh_scalar_t re; };
 } msh_quat_t;
 
 typedef union mat2
 {
-  float data[4];
+  msh_scalar_t data[4];
   msh_vec2_t col[2];
 } msh_mat2_t;
 
 typedef union mat3
 {
-  float data[9];
+  msh_scalar_t data[9];
   msh_vec3_t col[3];
 } msh_mat3_t;
 
 typedef union mat4
 {
-  float data[16];
+  msh_scalar_t data[16];
   msh_vec4_t col[4];
 } msh_mat4_t;
 
