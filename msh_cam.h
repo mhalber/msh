@@ -56,6 +56,10 @@
 
   PLAN : Create camera that only uses the position and orientation represented 
   as a quaternion.
+  
+  While writing this file I have been looking at camera implementations by
+  nlguillemot[1,2] and vurtun[3]. Some tricks that they've linked have
+  been used, but no explicit code copying was done. 
 
   ==============================================================================
 
@@ -68,7 +72,9 @@
 
   ==============================================================================
   REFERENCES:
-
+  [1] nlguillemot/arcball_camera.h    https://github.com/nlguillemot/arcball_camera/blob/master/arcball_camera.h
+  [2] nlguillemot/flythrough_camera.h https://github.com/nlguillemot/flythrough_camera/blob/master/flythrough_camera.h
+  [3] vurtun/camera.c                 https://gist.github.com/vurtun/d41914c00b6608da3f6a73373b9533e5
  */
 
 /*
@@ -89,6 +95,7 @@ extern "C" {
 #include <stdio.h>
 #include <float.h>
 #include <math.h>
+#include <stdbool.h>
 #endif
 
 #ifdef MSH_CAM_STATIC
@@ -130,8 +137,8 @@ I like this more. It should store things like the speed, interface interaction *
 // } mshcam_controls_t;
 
 
-msh_trackball_controls_update( msh_camera_t *camera );
-msh_first_person_controls_update( msh_camera_t *camera );
+void msh_trackball_controls_update( msh_camera_t *camera );
+void msh_first_person_controls_update( msh_camera_t *camera );
 
 #ifdef __cplusplus
 }
@@ -141,78 +148,80 @@ msh_first_person_controls_update( msh_camera_t *camera );
 
 #ifdef MSH_CAM_IMPLEMENTATION
 
-static bool 
-msh__trackball_zoom( msh_camera_t *camera, const int wheel_tick )
-{
-  if( wheel_tick )
-  {
-    /* TODO: Implement zooming */
-    return false;
-  }
-  return false;
-}
 
-static bool 
-msh__trackball_pan( msh_camera_t *camera, 
-                    const msh_vec2_t prev_pos,
-                    const msh_vec2_t cur_pos )
-{
-  if( prev_pos.x != cur_pos.x || prev_pos.y != cur_pos.y )
-  {
-    /* TODO: implement panning */
-    return false;
-  }
-  return false;
-}
+// static bool 
+// msh__trackball_zoom( msh_camera_t *camera, const int wheel_tick )
+// {
+//   if( wheel_tick )
+//   {
+//     /* TODO: Implement zooming */
+//     return false;
+//   }
+//   return false;
+// }
 
-static msh_vec3_t
-msh__screen_to_sphere( msh_scalar_t x, msh_scalar_t y, msh_vec4_t viewport )
-{
-  msh_scalar_t w = viewport[2] - viewport[0];
-  msh_scalar_t h = viewport[3] - viewport[1];
+// static bool 
+// msh__trackball_pan( msh_camera_t *camera, 
+//                     const msh_vec2_t prev_pos,
+//                     const msh_vec2_t cur_pos )
+// {
+//   if( prev_pos.x != cur_pos.x || prev_pos.y != cur_pos.y )
+//   {
+//     /* TODO: implement panning */
+//     return false;
+//   }
+//   return false;
+// }
 
-  msh_vec3_t p = msh_vec3( 2.0 * x / w - 1.0, 1.0 - 2.0 * y / h, 0.0 );
-  msh_scalar_t l_sq = p.x * p.x + p.y * p.y + p.z * p.z;
-  msh_scalar_t l = sqrt( l_sq );
+// static msh_vec3_t
+// msh__screen_to_sphere( msh_scalar_t x, msh_scalar_t y, msh_vec4_t viewport )
+// {
+//   msh_scalar_t w = viewport[2] - viewport[0];
+//   msh_scalar_t h = viewport[3] - viewport[1];
 
-  p.z = l_sq > 0.5 ? 0.5 / l : sqrt( 1.0 - l_sq);
+//   msh_vec3_t p = msh_vec3( 2.0 * x / w - 1.0, 1.0 - 2.0 * y / h, 0.0 );
+//   msh_scalar_t l_sq = p.x * p.x + p.y * p.y + p.z * p.z;
+//   msh_scalar_t l = sqrt( l_sq );
 
-  msh_scalar_t denom = 1.0 / l;
-  p.x *= denom; p.y *= denom; p.z *= denom;
-  return p;
-}
+//   p.z = l_sq > 0.5 ? 0.5 / l : sqrt( 1.0 - l_sq);
+
+//   msh_scalar_t denom = 1.0 / l;
+//   p.x *= denom; p.y *= denom; p.z *= denom;
+//   return p;
+// }
 
 
-static bool
-msh__trackball_rotate( msh_camera *camera, 
-                       const msh_vec2_t prev_pos,
-                       const msh_vec2_t cur_pos )
-{
-  if( prev_pos.x != cur_pos.x || prev_pos.y != cur_pos.y )
-  {
-    /* TODO: implement rotation */
-    return false;
-  }
-  return false;
+// static bool
+// msh__trackball_rotate( msh_camera *camera, 
+//                        const msh_vec2_t prev_pos,
+//                        const msh_vec2_t cur_pos )
+// {
+//   if( prev_pos.x != cur_pos.x || prev_pos.y != cur_pos.y )
+//   {
+//     /* TODO: implement rotation */
+//     return false;
+//   }
+//   return false;
 
-}
+// }
 
-MSHCAMDEF void 
-msh_trackball_camera_update( msh_camera_t * camera, 
-                             const msh_vec2_t prev_pos, 
-                             const msh_vec2_t cur_pos,
-                             const int wheel_tick,
-                             const msh_vec4_t viewport )
-{
-  bool update = false;
-  update |= msh__tracball_zoom( wheel_tick );
-  update |= msh__trackball_pan();
-  update |= msh__trackball_rotate();
+// MSHCAMDEF void 
+// msh_trackball_camera_update( msh_camera_t * camera, 
+//                              const msh_vec2_t prev_pos, 
+//                              const msh_vec2_t cur_pos,
+//                              const int wheel_tick,
+//                              const msh_vec4_t viewport )
+// {
+//   bool update = false;
+//   update |= msh__tracball_zoom( wheel_tick );
+//   update |= msh__trackball_pan();
+//   update |= msh__trackball_rotate();
 
-  if( update )
-  {
-    /* new look at */
-  }
-}
+//   if( update )
+//   {
+//     /* new look at */
+//   }
+// }
+
 
 #endif

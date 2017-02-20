@@ -91,7 +91,7 @@
     [6] Quat. Normalization   https://www.mathworks.com/help/aerotbx/ug/quatnormalize.html
     [7] Quaternions 1         http://www.cs.virginia.edu/~gfx/Courses/2010/IntroGraphics/Lectures/29-Quaternions.pdf
     [8] Quaternions 2         http://www.3dgep.com/understanding-quaternions/
- 
+    [9] Two Vec. to Quat.     http://lolengine.net/blog/2013/09/18/beautiful-maths-quaternion-from-vectors
  */
 
 /*
@@ -185,18 +185,18 @@ typedef msh_vec3_t msh_point4_t;
  * =============================================================================
  */
 
-#define msh_vec2_zeros() (msh_vec2_t){{0, 0}}
-#define msh_vec3_zeros() (msh_vec3_t){{0, 0, 0}}
-#define msh_vec4_zeros() (msh_vec4_t){{0, 0, 0, 0}}
-#define msh_vec2_ones() (msh_vec2_t){{1, 1}}
-#define msh_vec3_ones() (msh_vec3_t){{1, 1, 1}}
-#define msh_vec4_ones() (msh_vec4_t){{1, 1, 1, 1}}
-#define msh_vec2_value(x) (msh_vec2_t){{x, x}}
-#define msh_vec3_value(x) (msh_vec3_t){{x, x, x}}
-#define msh_vec4_value(x) (msh_vec4_t){{x, x, x, x}}
-#define msh_vec2(x,y) (msh_vec2_t){{x, y}}
-#define msh_vec3(x,y,z) (msh_vec3_t){{x, y, z}}
-#define msh_vec4(x,y,z,w) (msh_vec4_t){{x, y, z, w}}
+#define msh_vec2_zeros()  ((msh_vec2_t){{0, 0}})
+#define msh_vec3_zeros()  ((msh_vec3_t){{0, 0, 0}})
+#define msh_vec4_zeros()  ((msh_vec4_t){{0, 0, 0, 0}})
+#define msh_vec2_ones()   ((msh_vec2_t){{1, 1}})
+#define msh_vec3_ones()   ((msh_vec3_t){{1, 1, 1}})
+#define msh_vec4_ones()   ((msh_vec4_t){{1, 1, 1, 1}})
+#define msh_vec2_value(x) ((msh_vec2_t){{x, x}})
+#define msh_vec3_value(x) ((msh_vec3_t){{x, x, x}})
+#define msh_vec4_value(x) ((msh_vec4_t){{x, x, x, x}})
+#define msh_vec2(x,y)     ((msh_vec2_t){{x, y}})
+#define msh_vec3(x,y,z)   ((msh_vec3_t){{x, y, z}})
+#define msh_vec4(x,y,z,w) ((msh_vec4_t){{x, y, z, w}})
 
 MSHVMDEF msh_vec2_t msh_vec3_to_vec2( msh_vec3_t v );
 MSHVMDEF msh_vec2_t msh_vec4_to_vec2( msh_vec4_t v );
@@ -288,15 +288,15 @@ MSHVMDEF void msh_vec4_print( msh_vec4_t v );
  * =============================================================================
  */
 
-#define msh_mat2_zeros() (msh_mat2_t){{0, 0, 0, 0}}
-#define msh_mat3_zeros() (msh_mat3_t){{0, 0, 0, 0, 0, 0, 0, 0, 0}}
-#define msh_mat4_zeros() (msh_mat4_t){{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}
-#define msh_mat2_identity() (msh_mat2_t){{1, 0, 0, 1}}
-#define msh_mat3_identity() (msh_mat3_t){{1, 0, 0, 0, 1, 0, 0, 0, 1}}
-#define msh_mat4_identity() (msh_mat4_t){{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}}
-#define msh_mat2_diag(x) (msh_mat2_t){{x, 0, 0, x}}
-#define msh_mat3_diag(x) (msh_mat3_t){{x, 0, 0, 0, x, 0, 0, 0, x}}
-#define msh_mat4_diag(x) (msh_mat4_t){{x, 0, 0, 0, 0, x, 0, 0, 0, 0, x, 0, 0, 0, 0, x}}
+#define msh_mat2_zeros() ((msh_mat2_t){{0, 0, 0, 0}})
+#define msh_mat3_zeros() ((msh_mat3_t){{0, 0, 0, 0, 0, 0, 0, 0, 0}})
+#define msh_mat4_zeros() ((msh_mat4_t){{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}})
+#define msh_mat2_identity() ((msh_mat2_t){{1, 0, 0, 1}})
+#define msh_mat3_identity() ((msh_mat3_t){{1, 0, 0, 0, 1, 0, 0, 0, 1}})
+#define msh_mat4_identity() ((msh_mat4_t){{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}})
+#define msh_mat2_diag(x) ((msh_mat2_t){{x, 0, 0, x}})
+#define msh_mat3_diag(x) ((msh_mat3_t){{x, 0, 0, 0, x, 0, 0, 0, x}})
+#define msh_mat4_diag(x) ((msh_mat4_t){{x, 0, 0, 0, 0, x, 0, 0, 0, 0, x, 0, 0, 0, 0, x}})
 
 MSHVMDEF msh_mat2_t msh_mat3_to_mat2( msh_mat3_t m );
 MSHVMDEF msh_mat2_t msh_mat4_to_mat2( msh_mat4_t m );
@@ -412,7 +412,14 @@ void eig( msh_mat3_t * mat, msh_mat3_t * eigvec, msh_vec3_t * eigval );
  * =============================================================================
  */
 
+#define msh_quat_zeros() ((msh_quat_t){{0, 0, 0, 0}})
+#define msh_quat(x,y,z,w) ((msh_quat_t){{ x, y, z, w }})
+
 MSHVMDEF msh_quat_t msh_quat_from_axis_angle( msh_vec3_t axis, float angle );
+MSHVMDEF msh_quat_t msh_quat_from_euler_angles( float pitch, 
+                                                float yaw, 
+                                                float roll );
+MSHVMDEF msh_quat_t msh_quat_from_vectors( msh_vec3_t v1, msh_vec3_t v2 );
 
 MSHVMDEF msh_mat3_t msh_quat_to_mat3( msh_quat_t q );
 MSHVMDEF msh_mat4_t msh_quat_to_mat4( msh_quat_t q );
@@ -667,19 +674,19 @@ msh_vec4_scalar_div( msh_vec4_t v, float s )
 MSHVMDEF inline msh_vec2_t 
 msh_vec2_abs( msh_vec2_t v )
 {
-  return (msh_vec2_t){{ fabsf(v.x), fabsf(v.y) }};
+  return (msh_vec2_t){{ fabs(v.x), fabs(v.y) }};
 }
 
 MSHVMDEF inline msh_vec3_t 
 msh_vec3_abs( msh_vec3_t v )
 {
-  return (msh_vec3_t){{ fabsf(v.x), fabsf(v.y), fabsf(v.z) }};
+  return (msh_vec3_t){{ fabs(v.x), fabs(v.y), fabs(v.z) }};
 }
 
 MSHVMDEF inline msh_vec4_t 
 msh_vec4_abs( msh_vec4_t v )
 {
-  return (msh_vec4_t){{ fabsf(v.x), fabsf(v.y), fabsf(v.z), fabsf(v.w) }};
+  return (msh_vec4_t){{ fabs(v.x), fabs(v.y), fabs(v.z), fabs(v.w) }};
 }
 
 MSHVMDEF inline msh_vec2_t 
@@ -843,25 +850,25 @@ msh_vec4_norm_sq( msh_vec4_t v )
 MSHVMDEF inline int 
 msh_vec2_equal( msh_vec2_t a, msh_vec2_t b )
 {
-  return (fabsf(a.x - b.x) <= MSH_FLT_EPSILON) && 
-         (fabsf(a.y - b.y) <= MSH_FLT_EPSILON);
+  return (fabs(a.x - b.x) <= MSH_FLT_EPSILON) && 
+         (fabs(a.y - b.y) <= MSH_FLT_EPSILON);
 }
 
 MSHVMDEF inline int 
 msh_vec3_equal( msh_vec3_t a, msh_vec3_t b )
 {
-  return (fabsf(a.x - b.x) <= MSH_FLT_EPSILON) && 
-         (fabsf(a.y - b.y) <= MSH_FLT_EPSILON) &&
-         (fabsf(a.z - b.z) <= MSH_FLT_EPSILON);
+  return (fabs(a.x - b.x) <= MSH_FLT_EPSILON) && 
+         (fabs(a.y - b.y) <= MSH_FLT_EPSILON) &&
+         (fabs(a.z - b.z) <= MSH_FLT_EPSILON);
 }
 
 MSHVMDEF inline int 
 msh_vec4_equal( msh_vec4_t a, msh_vec4_t b )
 {
-  return (fabsf(a.x - b.x) <= MSH_FLT_EPSILON) && 
-         (fabsf(a.y - b.y) <= MSH_FLT_EPSILON) &&
-         (fabsf(a.z - b.z) <= MSH_FLT_EPSILON) &&
-         (fabsf(a.w - b.w) <= MSH_FLT_EPSILON);
+  return (fabs(a.x - b.x) <= MSH_FLT_EPSILON) && 
+         (fabs(a.y - b.y) <= MSH_FLT_EPSILON) &&
+         (fabs(a.z - b.z) <= MSH_FLT_EPSILON) &&
+         (fabs(a.w - b.w) <= MSH_FLT_EPSILON);
 }
 
 #ifdef __cplusplus
@@ -1920,6 +1927,49 @@ msh_quat_from_axis_angle( msh_vec3_t axis, float angle )
   float s = sinf(a);
   return (msh_quat_t){{ axis.x * s, axis.y * s, axis.z * s, cosf(a)}};
 }
+
+MSHVMDEF inline msh_quat_t 
+msh_quat_from_euler_angles( float pitch, float yaw, float roll )
+{
+  double c1 = cos(pitch * 0.5 );
+  double s1 = sin(pitch * 0.5 );
+  double c2 = cos(yaw * 0.5 );
+  double s2 = sin(yaw * 0.5 );
+  double c3 = cos(roll * 0.5 );
+  double s3 = sin(roll * 0.5 );
+
+  return msh_quat( c1*c2*c3 - s1*s2*s3, 
+                   c1*c2*s3 + s1*s2*c3, 
+                   s1*c2*c3 + c1*s2*s3, 
+                   c1*s2*c3 - s1*c2*s3);
+}
+
+/* NOTE: Directly adapted from [9] */
+MSHVMDEF inline msh_quat_t 
+msh_quat_from_vectors( msh_vec3_t v1, msh_vec3_t v2 )
+{
+    float norm_v1_norm_v2 = sqrt(msh_vec3_dot(v1, v1) * msh_vec3_dot(v2, v2));
+    float real_part = norm_v1_norm_v2 + msh_vec3_dot(v1, v2);
+    msh_vec3_t v3;
+
+    if (real_part < 1.e-6f * norm_v1_norm_v2)
+    {
+        /* If u and v are exactly opposite, rotate 180 degrees
+         * around an arbitrary orthogonal axis. Axis normalisation
+         * can happen later, when we normalise the quaternion. */
+        real_part = 0.0f;
+        v3 = fabs(v1.x) > fabs(v1.z) ? msh_vec3( -v1.y, v1.x, 0.0f )
+                                     : msh_vec3( 0.0f, -v1.z, v1.y );
+    }
+    else
+    {
+        /* Otherwise, build quaternion the standard way. */
+        v3 = msh_vec3_cross(v1, v2);
+    }
+
+    return msh_quat_normalize( msh_quat( v3.x, v3.y, v3.z, real_part) );
+}
+
 
 MSHVMDEF inline msh_quat_t 
 msh_quat_add( msh_quat_t a, msh_quat_t b )
