@@ -83,13 +83,15 @@
 
   ==============================================================================
   REFERENCES:
-    [1] Quaternion To Matrix     http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/
-    [2] Matrix To Quaternion     http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/
-    [3] Axis Angle To Quaternion http://www.euclideanspace.com/maths/geometry/rotations/conversions/angleToQuaternion/
-    [4] Euler To Quaternion      http://www.euclideanspace.com/maths/geometry/rotations/conversions/eulerToQuaternion/index.html
-    [5] Matrix Inverse           http://download.intel.com/design/PentiumIII/sml/24504301.pdf
-    [6] Quaternion Normalization https://www.mathworks.com/help/aerotbx/ug/quatnormalize.html
-    [7] Quaternions              http://www.cs.virginia.edu/~gfx/Courses/2010/IntroGraphics/Lectures/29-Quaternions.pdf
+    [1] Quaternion To Matrix  http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/
+    [2] Matrix To Quaternion  http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/
+    [3] Axis Angle To Quat.   http://www.euclideanspace.com/maths/geometry/rotations/conversions/angleToQuaternion/
+    [4] Euler To Quaternion   http://www.euclideanspace.com/maths/geometry/rotations/conversions/eulerToQuaternion/index.html
+    [5] Matrix Inverse        http://download.intel.com/design/PentiumIII/sml/24504301.pdf
+    [6] Quat. Normalization   https://www.mathworks.com/help/aerotbx/ug/quatnormalize.html
+    [7] Quaternions 1         http://www.cs.virginia.edu/~gfx/Courses/2010/IntroGraphics/Lectures/29-Quaternions.pdf
+    [8] Quaternions 2         http://www.3dgep.com/understanding-quaternions/
+ 
  */
 
 /*

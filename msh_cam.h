@@ -54,12 +54,17 @@
   ==============================================================================
   NOTES 
 
+  PLAN : Create camera that only uses the position and orientation represented 
+  as a quaternion.
+
   ==============================================================================
 
   TODO: Everything!
   TODO: Add quaternions / vectors if no vec math is provided 
   TODO: Remove dependency on msh_vec_math.h
-
+  TODO: Add the capability to use a real camera parameters like focal length
+  and center of projection.
+  TODO: What is the interface for generating perspective?
 
   ==============================================================================
   REFERENCES:
@@ -98,20 +103,35 @@ typedef msh_scalar_t float
 
 typedef struct msh_camera
 {
+  /* State */
   msh_vec3_t position;
   msh_quat_t orientation;  
+  
+  /* Params */
+  msh_scalar_t fov_y;
+  msh_scalar_t aspect_ratio;
+  msh_scalar_t near;
+  msh_scalar_t far;
+
+  /* Generated -- Not sure if should be stored, or computed per request*/
+  msh_mat4_t view;
+  msh_mat4_t proj;
+
 } msh_camera_t;
 
-typedef struct mshcam_first_person_controls
-{
-  msh_scalar_t speed;
-} mshcam_first_person_controls_t;
 
-typedef struct mshcam_trackball_controls
-{
-  msh_scalar_t speed;
-} mshcam_trackball_controls_t;
+/* NOTE: Possibly hold all the ogl related stuff in controls. But probably it
+should just be a way to configure the controls to specific needs. 
+I like this more. It should store things like the speed, interface interaction */
 
+// typedef struct mshcam_controls
+// {
+// 
+// } mshcam_controls_t;
+
+
+msh_trackball_controls_update( msh_camera_t *camera );
+msh_first_person_controls_update( msh_camera_t *camera );
 
 #ifdef __cplusplus
 }
@@ -120,5 +140,79 @@ typedef struct mshcam_trackball_controls
 #endif /*MSH_CAM_H*/
 
 #ifdef MSH_CAM_IMPLEMENTATION
+
+static bool 
+msh__trackball_zoom( msh_camera_t *camera, const int wheel_tick )
+{
+  if( wheel_tick )
+  {
+    /* TODO: Implement zooming */
+    return false;
+  }
+  return false;
+}
+
+static bool 
+msh__trackball_pan( msh_camera_t *camera, 
+                    const msh_vec2_t prev_pos,
+                    const msh_vec2_t cur_pos )
+{
+  if( prev_pos.x != cur_pos.x || prev_pos.y != cur_pos.y )
+  {
+    /* TODO: implement panning */
+    return false;
+  }
+  return false;
+}
+
+static msh_vec3_t
+msh__screen_to_sphere( msh_scalar_t x, msh_scalar_t y, msh_vec4_t viewport )
+{
+  msh_scalar_t w = viewport[2] - viewport[0];
+  msh_scalar_t h = viewport[3] - viewport[1];
+
+  msh_vec3_t p = msh_vec3( 2.0 * x / w - 1.0, 1.0 - 2.0 * y / h, 0.0 );
+  msh_scalar_t l_sq = p.x * p.x + p.y * p.y + p.z * p.z;
+  msh_scalar_t l = sqrt( l_sq );
+
+  p.z = l_sq > 0.5 ? 0.5 / l : sqrt( 1.0 - l_sq);
+
+  msh_scalar_t denom = 1.0 / l;
+  p.x *= denom; p.y *= denom; p.z *= denom;
+  return p;
+}
+
+
+static bool
+msh__trackball_rotate( msh_camera *camera, 
+                       const msh_vec2_t prev_pos,
+                       const msh_vec2_t cur_pos )
+{
+  if( prev_pos.x != cur_pos.x || prev_pos.y != cur_pos.y )
+  {
+    /* TODO: implement rotation */
+    return false;
+  }
+  return false;
+
+}
+
+MSHCAMDEF void 
+msh_trackball_camera_update( msh_camera_t * camera, 
+                             const msh_vec2_t prev_pos, 
+                             const msh_vec2_t cur_pos,
+                             const int wheel_tick,
+                             const msh_vec4_t viewport )
+{
+  bool update = false;
+  update |= msh__tracball_zoom( wheel_tick );
+  update |= msh__trackball_pan();
+  update |= msh__trackball_rotate();
+
+  if( update )
+  {
+    /* new look at */
+  }
+}
 
 #endif
