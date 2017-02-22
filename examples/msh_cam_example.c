@@ -5,15 +5,20 @@
 #define MSH_VEC_MATH_IMPLEMENTATION
 #define MSH_GFX_IMPLEMENTATION
 #define MSH_CAM_IMPLEMENTATION
+#define ARCBALL_CAMERA_IMPLEMENTATION
 #include "msh_vec_math.h"
 #include "msh_gfx.h"
 #include "msh_cam.h"
 
 /* Global data */
+/* NOTE: Types should be in msh_ namespace and the functions should have the 
+  identifier like mshgfx or mshcam */
 static mshgfx_window_t *win; 
 static mshgfx_geometry_t cube_geo;
 static mshgfx_shader_prog_t cube_shader;
-static msh_mat4_t view;
+static msh_camera_t camera;
+static msh_vec2_t prev_pos;
+static msh_vec2_t cur_pos;
 
 /* Shaders */
 char* cube_vs_src = (char*) MSHGFX_SHADER_HEAD MSHGFX_SHADER_STRINGIFY
@@ -39,14 +44,21 @@ char* cube_fs_src = (char*) MSHGFX_SHADER_HEAD MSHGFX_SHADER_STRINGIFY
   }
 );
 
+static msh_vec3_t eye = msh_vec3( 0.0f, 0.0f, 5.0f );
+static msh_vec3_t target = msh_vec3( 0.0f, 0.0f, 0.0f );
+static msh_vec3_t up = msh_vec3( 0.0f, 1.0f, 0.0f );
 
 /* Actual code */
 int init()
 {
   /* setup view matrix */
-  view  = msh_look_at( msh_vec3( 2.0f, 2.0f, 2.0f ),
-                       msh_vec3( 0.0f, 0.0f, 0.0f ),
-                       msh_vec3( 0.0f, 1.0f, 0.0f )  );
+  msh_arcball_camera_init( &camera,
+                           eye,
+                           target,
+                           up,
+                           0.75,
+                           1.0, 
+                           0.1, 100.0 );
 
   /* setup cube geometry and send it to gpu */
   const int vertex_count  = 8;
@@ -106,11 +118,34 @@ int init()
 
 int display()
 {
+
+  /* NOTE: How to push controls only to the camera to allow custom controls */
+  int state = glfwGetMouseButton(win, GLFW_MOUSE_BUTTON_LEFT);
+  double x, y;
+  double t = 0;
+  glfwGetCursorPos( win, &x, &y );
+
+  if (state == GLFW_PRESS)
+  {
+    cur_pos = (msh_vec2_t){.x = (float)x, 
+                           .y = (float)y};
+
+    msh_arcball_camera_update( &camera, prev_pos, cur_pos, msh_vec4(0, 0, 1024, 1024));
+
+    t = glfwGetTime();
+    prev_pos = cur_pos;
+  }
+  else
+  {
+    cur_pos = (msh_vec2_t){.x = (float)x, .y = (float)y}; 
+    prev_pos = (msh_vec2_t){.x = (float)x, .y = (float)y}; 
+  }
   mshgfx_background_gradient4fv( msh_vec4( 0.194f, 0.587f, 0.843f, 1.0f ), 
                                  msh_vec4( 0.067f, 0.265f, 0.394f, 1.0f ) );
   static float near = 0.1f;
   static float far  = 100.0f;
   static float fovy = 35.0f * (M_PI/180.0f);
+
   int w, h;
   glfwGetFramebufferSize( win, &w, &h );
   float aspect_ratio = (float)w/h;
@@ -120,9 +155,8 @@ int display()
                                            near, 
                                            far );
   static msh_mat4_t model = msh_mat4_identity();
-  model = msh_rotate( model, 0.01, msh_vec3( 0.0f, 1.0f, 0.0f ) );
 
-  msh_mat4_t mvp = msh_mat4_mul( msh_mat4_mul( projection, view ), model );
+  msh_mat4_t mvp = msh_mat4_mul( msh_mat4_mul( projection, camera.view ), model );
 
   mshgfx_shader_prog_use( &cube_shader );
   mshgfx_shader_prog_set_uniform_4fm( &cube_shader, "mvp", &mvp );

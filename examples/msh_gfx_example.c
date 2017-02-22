@@ -15,7 +15,7 @@
 #define MAX_WINDOWS 10
 #include "msh_gfx.h"
 
-char * vs_source = MSHGFX_SHADER_HEAD MSHGFX_SHADER_STRINGIFY
+char * vs_source = (char*)MSHGFX_SHADER_HEAD MSHGFX_SHADER_STRINGIFY
 ( 
   layout (location = 0) in vec3 position;
   layout (location = 4) in vec4 color;
@@ -27,7 +27,7 @@ char * vs_source = MSHGFX_SHADER_HEAD MSHGFX_SHADER_STRINGIFY
   }
 );
 
-char * fs_source = MSHGFX_SHADER_HEAD MSHGFX_SHADER_STRINGIFY
+char * fs_source = (char*)MSHGFX_SHADER_HEAD MSHGFX_SHADER_STRINGIFY
 ( 
   in vec4 v_color;
   out vec4 frag_color;
@@ -117,12 +117,12 @@ int main( void )
   mshgfx_shader_prog_create_from_source_vf( &triangle_shader,
                                             vs_source,
                                             fs_source );
-  msh_viewport_init(&viewports[0], (msh_vec2_t){{0, 0}}, 
-                                   (msh_vec2_t){{window_width/2, window_height/2}});
-  msh_viewport_init(&viewports[1], (msh_vec2_t){{window_width/2, 0}}, 
-                                   (msh_vec2_t){{window_width/2, window_height/2}});
-  msh_viewport_init(&viewports[2], (msh_vec2_t){{0, 0}}, 
-                                   (msh_vec2_t){{window_width, window_height}});
+  // msh_viewport_init(&viewports[0], (msh_vec2_t){{0, 0}}, 
+  //                                  (msh_vec2_t){{window_width/2, window_height/2}});
+  // msh_viewport_init(&viewports[1], (msh_vec2_t){{window_width/2, 0}}, 
+  //                                  (msh_vec2_t){{window_width/2, window_height/2}});
+  // msh_viewport_init(&viewports[2], (msh_vec2_t){{0, 0}}, 
+  //                                  (msh_vec2_t){{window_width, window_height}});
 
   mshgfx_framebuffer_init( &fb, window_width, window_height );
 

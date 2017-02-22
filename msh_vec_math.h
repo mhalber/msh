@@ -209,33 +209,33 @@ MSHVMDEF msh_vec2_t msh_vec2_add( msh_vec2_t a, msh_vec2_t b );
 MSHVMDEF msh_vec3_t msh_vec3_add( msh_vec3_t a, msh_vec3_t b );
 MSHVMDEF msh_vec4_t msh_vec4_add( msh_vec4_t a, msh_vec4_t b );
 
-MSHVMDEF msh_vec2_t msh_vec2_scalar_add( msh_vec2_t v, float s );
-MSHVMDEF msh_vec3_t msh_vec3_scalar_add( msh_vec3_t v, float s );
-MSHVMDEF msh_vec4_t msh_vec4_scalar_add( msh_vec4_t v, float s );
+MSHVMDEF msh_vec2_t msh_vec2_scalar_add( msh_vec2_t v, msh_scalar_t s );
+MSHVMDEF msh_vec3_t msh_vec3_scalar_add( msh_vec3_t v, msh_scalar_t s );
+MSHVMDEF msh_vec4_t msh_vec4_scalar_add( msh_vec4_t v, msh_scalar_t s );
 
 MSHVMDEF msh_vec2_t msh_vec2_sub( msh_vec2_t a, msh_vec2_t b );
 MSHVMDEF msh_vec3_t msh_vec3_sub( msh_vec3_t a, msh_vec3_t b );
 MSHVMDEF msh_vec4_t msh_vec4_sub( msh_vec4_t a, msh_vec4_t b );
 
-MSHVMDEF msh_vec2_t msh_vec2_scalar_sub( msh_vec2_t v, float s );
-MSHVMDEF msh_vec3_t msh_vec3_scalar_sub( msh_vec3_t v, float s );
-MSHVMDEF msh_vec4_t msh_vec4_scalar_sub( msh_vec4_t v, float s );
+MSHVMDEF msh_vec2_t msh_vec2_scalar_sub( msh_vec2_t v, msh_scalar_t s );
+MSHVMDEF msh_vec3_t msh_vec3_scalar_sub( msh_vec3_t v, msh_scalar_t s );
+MSHVMDEF msh_vec4_t msh_vec4_scalar_sub( msh_vec4_t v, msh_scalar_t s );
 
 MSHVMDEF msh_vec2_t msh_vec2_mul( msh_vec2_t a, msh_vec2_t b );
 MSHVMDEF msh_vec3_t msh_vec3_mul( msh_vec3_t a, msh_vec3_t b );
 MSHVMDEF msh_vec4_t msh_vec4_mul( msh_vec4_t a, msh_vec4_t b );
 
-MSHVMDEF msh_vec2_t msh_vec2_scalar_mul( msh_vec2_t v, float s );
-MSHVMDEF msh_vec3_t msh_vec3_scalar_mul( msh_vec3_t v, float s );
-MSHVMDEF msh_vec4_t msh_vec4_scalar_mul( msh_vec4_t v, float s );
+MSHVMDEF msh_vec2_t msh_vec2_scalar_mul( msh_vec2_t v, msh_scalar_t s );
+MSHVMDEF msh_vec3_t msh_vec3_scalar_mul( msh_vec3_t v, msh_scalar_t s );
+MSHVMDEF msh_vec4_t msh_vec4_scalar_mul( msh_vec4_t v, msh_scalar_t s );
 
 MSHVMDEF msh_vec2_t msh_vec2_div( msh_vec2_t a, msh_vec2_t b );
 MSHVMDEF msh_vec3_t msh_vec3_div( msh_vec3_t a, msh_vec3_t b );
 MSHVMDEF msh_vec4_t msh_vec4_div( msh_vec4_t a, msh_vec4_t b );
 
-MSHVMDEF msh_vec2_t msh_vec2_scalar_div( msh_vec2_t v, float s );
-MSHVMDEF msh_vec3_t msh_vec3_scalar_div( msh_vec3_t v, float s );
-MSHVMDEF msh_vec4_t msh_vec4_scalar_div( msh_vec4_t v, float s );
+MSHVMDEF msh_vec2_t msh_vec2_scalar_div( msh_vec2_t v, msh_scalar_t s );
+MSHVMDEF msh_vec3_t msh_vec3_scalar_div( msh_vec3_t v, msh_scalar_t s );
+MSHVMDEF msh_vec4_t msh_vec4_scalar_div( msh_vec4_t v, msh_scalar_t s );
 
 MSHVMDEF msh_vec2_t msh_vec2_abs( msh_vec2_t v );
 MSHVMDEF msh_vec3_t msh_vec3_abs( msh_vec3_t v );
@@ -245,9 +245,9 @@ MSHVMDEF msh_vec2_t msh_vec2_sqrt( msh_vec2_t v );
 MSHVMDEF msh_vec3_t msh_vec3_sqrt( msh_vec3_t v );
 MSHVMDEF msh_vec4_t msh_vec4_sqrt( msh_vec4_t v );
 
-MSHVMDEF msh_vec2_t msh_vec2_clamp( msh_vec2_t v, float min, float max);
-MSHVMDEF msh_vec3_t msh_vec3_clamp( msh_vec3_t v, float min, float max);
-MSHVMDEF msh_vec4_t msh_vec4_clamp( msh_vec4_t v, float min, float max);
+MSHVMDEF msh_vec2_t msh_vec2_clamp( msh_vec2_t v, msh_scalar_t min, msh_scalar_t max);
+MSHVMDEF msh_vec3_t msh_vec3_clamp( msh_vec3_t v, msh_scalar_t min, msh_scalar_t max);
+MSHVMDEF msh_vec4_t msh_vec4_clamp( msh_vec4_t v, msh_scalar_t min, msh_scalar_t max);
 
 MSHVMDEF msh_vec2_t msh_vec2_invert( msh_vec2_t v );
 MSHVMDEF msh_vec3_t msh_vec3_invert( msh_vec3_t v );
@@ -257,19 +257,19 @@ MSHVMDEF msh_vec2_t msh_vec2_normalize( msh_vec2_t v );
 MSHVMDEF msh_vec3_t msh_vec3_normalize( msh_vec3_t v );
 MSHVMDEF msh_vec4_t msh_vec4_normalize( msh_vec4_t v );
 
-MSHVMDEF float msh_vec2_dot( msh_vec2_t a, msh_vec2_t b );
-MSHVMDEF float msh_vec3_dot( msh_vec3_t a, msh_vec3_t b );
-MSHVMDEF float msh_vec4_dot( msh_vec4_t a, msh_vec4_t b );
+MSHVMDEF msh_scalar_t msh_vec2_dot( msh_vec2_t a, msh_vec2_t b );
+MSHVMDEF msh_scalar_t msh_vec3_dot( msh_vec3_t a, msh_vec3_t b );
+MSHVMDEF msh_scalar_t msh_vec4_dot( msh_vec4_t a, msh_vec4_t b );
 
 MSHVMDEF msh_vec3_t msh_vec3_cross( msh_vec3_t a, msh_vec3_t b );
 
-MSHVMDEF float msh_vec2_norm( msh_vec2_t v );
-MSHVMDEF float msh_vec3_norm( msh_vec3_t v );
-MSHVMDEF float msh_vec4_norm( msh_vec4_t v );
+MSHVMDEF msh_scalar_t msh_vec2_norm( msh_vec2_t v );
+MSHVMDEF msh_scalar_t msh_vec3_norm( msh_vec3_t v );
+MSHVMDEF msh_scalar_t msh_vec4_norm( msh_vec4_t v );
 
-MSHVMDEF float msh_vec2_norm_sq( msh_vec2_t v );
-MSHVMDEF float msh_vec3_norm_sq( msh_vec3_t v );
-MSHVMDEF float msh_vec4_norm_sq( msh_vec4_t v );
+MSHVMDEF msh_scalar_t msh_vec2_norm_sq( msh_vec2_t v );
+MSHVMDEF msh_scalar_t msh_vec3_norm_sq( msh_vec3_t v );
+MSHVMDEF msh_scalar_t msh_vec4_norm_sq( msh_vec4_t v );
 
 MSHVMDEF int msh_vec2_equal( msh_vec2_t a, msh_vec2_t b );
 MSHVMDEF int msh_vec3_equal( msh_vec3_t a, msh_vec3_t b );
@@ -309,45 +309,45 @@ MSHVMDEF msh_mat2_t msh_mat2_add( msh_mat2_t a, msh_mat2_t b );
 MSHVMDEF msh_mat3_t msh_mat3_add( msh_mat3_t a, msh_mat3_t b );
 MSHVMDEF msh_mat4_t msh_mat4_add( msh_mat4_t a, msh_mat4_t b );
 
-MSHVMDEF msh_mat2_t msh_mat2_scalar_add( msh_mat2_t m, float s );
-MSHVMDEF msh_mat3_t msh_mat3_scalar_add( msh_mat3_t m, float s );
-MSHVMDEF msh_mat4_t msh_mat4_scalar_add( msh_mat4_t m, float s );
+MSHVMDEF msh_mat2_t msh_mat2_scalar_add( msh_mat2_t m, msh_scalar_t s );
+MSHVMDEF msh_mat3_t msh_mat3_scalar_add( msh_mat3_t m, msh_scalar_t s );
+MSHVMDEF msh_mat4_t msh_mat4_scalar_add( msh_mat4_t m, msh_scalar_t s );
 
 MSHVMDEF msh_mat2_t msh_mat2_sub( msh_mat2_t a, msh_mat2_t b );
 MSHVMDEF msh_mat3_t msh_mat3_sub( msh_mat3_t a, msh_mat3_t b );
 MSHVMDEF msh_mat4_t msh_mat4_sub( msh_mat4_t a, msh_mat4_t b );
 
-MSHVMDEF msh_mat2_t msh_mat2_scalar_sub( msh_mat2_t m, float s );
-MSHVMDEF msh_mat3_t msh_mat3_scalar_sub( msh_mat3_t m, float s );
-MSHVMDEF msh_mat4_t msh_mat4_scalar_sub( msh_mat4_t m, float s );
+MSHVMDEF msh_mat2_t msh_mat2_scalar_sub( msh_mat2_t m, msh_scalar_t s );
+MSHVMDEF msh_mat3_t msh_mat3_scalar_sub( msh_mat3_t m, msh_scalar_t s );
+MSHVMDEF msh_mat4_t msh_mat4_scalar_sub( msh_mat4_t m, msh_scalar_t s );
 
 MSHVMDEF msh_mat2_t msh_mat2_mul( msh_mat2_t a, msh_mat2_t b );
 MSHVMDEF msh_mat3_t msh_mat3_mul( msh_mat3_t a, msh_mat3_t b );
 MSHVMDEF msh_mat4_t msh_mat4_mul( msh_mat4_t a, msh_mat4_t b );
 
-MSHVMDEF msh_mat2_t msh_mat2_scalar_mul( msh_mat2_t m, float s );
-MSHVMDEF msh_mat3_t msh_mat3_scalar_mul( msh_mat3_t m, float s );
-MSHVMDEF msh_mat4_t msh_mat4_scalar_mul( msh_mat4_t m, float s );
+MSHVMDEF msh_mat2_t msh_mat2_scalar_mul( msh_mat2_t m, msh_scalar_t s );
+MSHVMDEF msh_mat3_t msh_mat3_scalar_mul( msh_mat3_t m, msh_scalar_t s );
+MSHVMDEF msh_mat4_t msh_mat4_scalar_mul( msh_mat4_t m, msh_scalar_t s );
 
 MSHVMDEF msh_vec2_t msh_mat2_vec2_mul( msh_mat2_t m, msh_vec2_t v );
 MSHVMDEF msh_vec3_t msh_mat3_vec3_mul( msh_mat3_t m, msh_vec3_t v );
 MSHVMDEF msh_vec4_t msh_mat4_vec4_mul( msh_mat4_t m, msh_vec4_t v );
 
-MSHVMDEF msh_mat2_t msh_mat2_scalar_div( msh_mat2_t m, float s );
-MSHVMDEF msh_mat3_t msh_mat3_scalar_div( msh_mat3_t m, float s );
-MSHVMDEF msh_mat4_t msh_mat4_scalar_div( msh_mat4_t m, float s );
+MSHVMDEF msh_mat2_t msh_mat2_scalar_div( msh_mat2_t m, msh_scalar_t s );
+MSHVMDEF msh_mat3_t msh_mat3_scalar_div( msh_mat3_t m, msh_scalar_t s );
+MSHVMDEF msh_mat4_t msh_mat4_scalar_div( msh_mat4_t m, msh_scalar_t s );
 
-MSHVMDEF float msh_mat2_trace( msh_mat2_t m );
-MSHVMDEF float msh_mat3_trace( msh_mat3_t m );
-MSHVMDEF float msh_mat4_trace( msh_mat4_t m );
+MSHVMDEF msh_scalar_t msh_mat2_trace( msh_mat2_t m );
+MSHVMDEF msh_scalar_t msh_mat3_trace( msh_mat3_t m );
+MSHVMDEF msh_scalar_t msh_mat4_trace( msh_mat4_t m );
 
-MSHVMDEF float msh_mat2_determinant( msh_mat2_t m );
-MSHVMDEF float msh_mat3_determinant( msh_mat3_t m );
-MSHVMDEF float msh_mat4_determinant( msh_mat4_t m );
+MSHVMDEF msh_scalar_t msh_mat2_determinant( msh_mat2_t m );
+MSHVMDEF msh_scalar_t msh_mat3_determinant( msh_mat3_t m );
+MSHVMDEF msh_scalar_t msh_mat4_determinant( msh_mat4_t m );
 
-MSHVMDEF float msh_mat2_frobenius_norm( msh_mat2_t m );
-MSHVMDEF float msh_mat3_frobenius_norm( msh_mat3_t m );
-MSHVMDEF float msh_mat4_frobenius_norm( msh_mat4_t m );
+MSHVMDEF msh_scalar_t msh_mat2_frobenius_norm( msh_mat2_t m );
+MSHVMDEF msh_scalar_t msh_mat3_frobenius_norm( msh_mat3_t m );
+MSHVMDEF msh_scalar_t msh_mat4_frobenius_norm( msh_mat4_t m );
 
 MSHVMDEF msh_mat2_t msh_mat2_inverse( msh_mat2_t m );
 MSHVMDEF msh_mat3_t msh_mat3_inverse( msh_mat3_t m );
@@ -361,18 +361,18 @@ MSHVMDEF msh_mat4_t msh_look_at( msh_vec3_t eye,
                         msh_vec3_t center, 
                         msh_vec3_t up );
 
-MSHVMDEF msh_mat4_t msh_frustum( float left,   float right, 
-                                 float bottom, float top, 
-                                 float z_near, float z_far );
+MSHVMDEF msh_mat4_t msh_frustum( msh_scalar_t left,   msh_scalar_t right, 
+                                 msh_scalar_t bottom, msh_scalar_t top, 
+                                 msh_scalar_t z_near, msh_scalar_t z_far );
 
-MSHVMDEF msh_mat4_t msh_perspective( float fovy, 
-                                     float aspect, 
-                                     float z_near, 
-                                     float z_far);
+MSHVMDEF msh_mat4_t msh_perspective( msh_scalar_t fovy, 
+                                     msh_scalar_t aspect, 
+                                     msh_scalar_t z_near, 
+                                     msh_scalar_t z_far);
 
-MSHVMDEF msh_mat4_t msh_ortho( float left,   float right, 
-                               float bottom, float top, 
-                               float z_near, float z_far );
+MSHVMDEF msh_mat4_t msh_ortho( msh_scalar_t left,   msh_scalar_t right, 
+                               msh_scalar_t bottom, msh_scalar_t top, 
+                               msh_scalar_t z_near, msh_scalar_t z_far );
 
 MSHVMDEF msh_vec3_t msh_project( msh_vec4_t obj, 
                                  msh_mat4_t model, 
@@ -387,7 +387,7 @@ MSHVMDEF msh_vec4_t msh_unproject( msh_vec3_t win,
 MSHVMDEF msh_mat4_t msh_translate( msh_mat4_t m, msh_vec3_t t );
 MSHVMDEF msh_mat4_t msh_scale( msh_mat4_t m, msh_vec3_t s );
 MSHVMDEF msh_mat4_t msh_rotate( msh_mat4_t m, 
-                       float angle, 
+                       msh_scalar_t angle, 
                        msh_vec3_t axis );
 
 MSHVMDEF int msh_mat2_equal( msh_mat2_t a, msh_mat2_t b );
@@ -413,12 +413,13 @@ void eig( msh_mat3_t * mat, msh_mat3_t * eigvec, msh_vec3_t * eigval );
  */
 
 #define msh_quat_zeros() ((msh_quat_t){{0, 0, 0, 0}})
+#define msh_quat_identity() ((msh_quat_t){{0, 0, 0, 1}})
 #define msh_quat(x,y,z,w) ((msh_quat_t){{ x, y, z, w }})
 
-MSHVMDEF msh_quat_t msh_quat_from_axis_angle( msh_vec3_t axis, float angle );
-MSHVMDEF msh_quat_t msh_quat_from_euler_angles( float pitch, 
-                                                float yaw, 
-                                                float roll );
+MSHVMDEF msh_quat_t msh_quat_from_axis_angle( msh_vec3_t axis, msh_scalar_t angle );
+MSHVMDEF msh_quat_t msh_quat_from_euler_angles( msh_scalar_t pitch, 
+                                                msh_scalar_t yaw, 
+                                                msh_scalar_t roll );
 MSHVMDEF msh_quat_t msh_quat_from_vectors( msh_vec3_t v1, msh_vec3_t v2 );
 
 MSHVMDEF msh_mat3_t msh_quat_to_mat3( msh_quat_t q );
@@ -427,20 +428,20 @@ MSHVMDEF msh_quat_t msh_mat3_to_quat( msh_mat3_t m );
 MSHVMDEF msh_quat_t msh_mat4_to_quat( msh_mat4_t m ); 
 
 MSHVMDEF msh_quat_t msh_quat_add( msh_quat_t a, msh_quat_t b );
-MSHVMDEF msh_quat_t msh_quat_scalar_add( msh_quat_t v, float s );
+MSHVMDEF msh_quat_t msh_quat_scalar_add( msh_quat_t v, msh_scalar_t s );
 
 MSHVMDEF msh_quat_t msh_quat_sub( msh_quat_t a, msh_quat_t b );
-MSHVMDEF msh_quat_t msh_quat_scalar_sub( msh_quat_t v, float s );
+MSHVMDEF msh_quat_t msh_quat_scalar_sub( msh_quat_t v, msh_scalar_t s );
 
 MSHVMDEF msh_quat_t msh_quat_mul( msh_quat_t a, msh_quat_t b );
-MSHVMDEF msh_quat_t msh_quat_scalar_mul( msh_quat_t v, float s );
+MSHVMDEF msh_quat_t msh_quat_scalar_mul( msh_quat_t v, msh_scalar_t s );
 
 MSHVMDEF msh_quat_t msh_quat_div( msh_quat_t a, msh_quat_t b );
-MSHVMDEF msh_quat_t msh_quat_scalar_div( msh_quat_t v, float s );
+MSHVMDEF msh_quat_t msh_quat_scalar_div( msh_quat_t v, msh_scalar_t s );
 
-MSHVMDEF float msh_quat_dot( msh_quat_t a,  msh_quat_t b );
-MSHVMDEF float msh_quat_norm( msh_quat_t q );
-MSHVMDEF float msh_quat_norm_sq( msh_quat_t q );
+MSHVMDEF msh_scalar_t msh_quat_dot( msh_quat_t a,  msh_quat_t b );
+MSHVMDEF msh_scalar_t msh_quat_norm( msh_quat_t q );
+MSHVMDEF msh_scalar_t msh_quat_norm_sq( msh_quat_t q );
 
 MSHVMDEF msh_quat_t msh_quat_normalize( msh_quat_t q );
 MSHVMDEF msh_quat_t msh_quat_conjugate( msh_quat_t q );
@@ -448,10 +449,11 @@ MSHVMDEF msh_quat_t msh_quat_inverse( msh_quat_t q );
 
 MSHVMDEF msh_quat_t msh_quat_lerp( msh_quat_t q, 
                                    msh_quat_t r, 
-                                   float t );
+                                   msh_scalar_t t );
 MSHVMDEF msh_quat_t msh_quat_slerp( msh_quat_t q, 
                                     msh_quat_t r, 
-                                    float t );
+                                    msh_scalar_t t );
+MSHVMDEF void msh_quat_print( msh_quat_t q );
 
 #ifdef __cplusplus
 }
@@ -541,19 +543,19 @@ msh_vec4_add( msh_vec4_t a, msh_vec4_t b )
 }
 
 MSHVMDEF inline msh_vec2_t 
-msh_vec2_scalar_add( msh_vec2_t v, float s )
+msh_vec2_scalar_add( msh_vec2_t v, msh_scalar_t s )
 {
   return (msh_vec2_t){{ v.x + s, v.y + s }};
 }
 
 MSHVMDEF inline msh_vec3_t 
-msh_vec3_scalar_add( msh_vec3_t v, float s )
+msh_vec3_scalar_add( msh_vec3_t v, msh_scalar_t s )
 {
   return (msh_vec3_t){{ v.x + s, v.y + s, v.z + s }};
 }
 
 MSHVMDEF inline msh_vec4_t 
-msh_vec4_scalar_add( msh_vec4_t v, float s )
+msh_vec4_scalar_add( msh_vec4_t v, msh_scalar_t s )
 {
   return (msh_vec4_t){{ v.x + s, v.y + s, v.z + s, v.w + s }};
 }
@@ -577,19 +579,19 @@ msh_vec4_sub( msh_vec4_t a, msh_vec4_t b )
 }
 
 MSHVMDEF inline msh_vec2_t 
-msh_vec2_scalar_sub( msh_vec2_t v, float s )
+msh_vec2_scalar_sub( msh_vec2_t v, msh_scalar_t s )
 {
   return (msh_vec2_t){{ v.x - s, v.y - s }};
 }
 
 MSHVMDEF inline msh_vec3_t 
-msh_vec3_scalar_sub( msh_vec3_t v, float s )
+msh_vec3_scalar_sub( msh_vec3_t v, msh_scalar_t s )
 {
   return (msh_vec3_t){{ v.x - s, v.y - s, v.z - s }};
 }
 
 MSHVMDEF inline msh_vec4_t 
-msh_vec4_scalar_sub( msh_vec4_t v, float s )
+msh_vec4_scalar_sub( msh_vec4_t v, msh_scalar_t s )
 {
   return (msh_vec4_t){{ v.x - s, v.y - s, v.z - s, v.w - s }};
 }
@@ -614,19 +616,19 @@ msh_vec4_mul( msh_vec4_t a, msh_vec4_t b )
 }
 
 MSHVMDEF inline msh_vec2_t 
-msh_vec2_scalar_mul( msh_vec2_t v, float s )
+msh_vec2_scalar_mul( msh_vec2_t v, msh_scalar_t s )
 {
   return (msh_vec2_t){{ v.x * s, v.y * s }};
 }
 
 MSHVMDEF inline msh_vec3_t 
-msh_vec3_scalar_mul( msh_vec3_t v, float s )
+msh_vec3_scalar_mul( msh_vec3_t v, msh_scalar_t s )
 {
   return (msh_vec3_t){{ v.x * s, v.y * s, v.z * s }};
 }
 
 MSHVMDEF inline msh_vec4_t 
-msh_vec4_scalar_mul( msh_vec4_t v, float s )
+msh_vec4_scalar_mul( msh_vec4_t v, msh_scalar_t s )
 {
   return (msh_vec4_t){{ v.x * s, v.y * s, v.z * s, v.w * s }};
 }
@@ -651,23 +653,23 @@ msh_vec4_div( msh_vec4_t a, msh_vec4_t b )
 }
 
 MSHVMDEF inline msh_vec2_t 
-msh_vec2_scalar_div( msh_vec2_t v, float s )
+msh_vec2_scalar_div( msh_vec2_t v, msh_scalar_t s )
 {
-  float denom = 1.0f / s;
+  msh_scalar_t denom = 1.0f / s;
   return (msh_vec2_t){{ v.x * denom, v.y * denom }};
 }
 
 MSHVMDEF inline msh_vec3_t 
-msh_vec3_scalar_div( msh_vec3_t v, float s )
+msh_vec3_scalar_div( msh_vec3_t v, msh_scalar_t s )
 {
-  float denom = 1.0f / s;
+  msh_scalar_t denom = 1.0f / s;
   return (msh_vec3_t){{ v.x * denom, v.y * denom, v.z * denom }};
 }
 
 MSHVMDEF inline msh_vec4_t 
-msh_vec4_scalar_div( msh_vec4_t v, float s )
+msh_vec4_scalar_div( msh_vec4_t v, msh_scalar_t s )
 {
-  float denom = 1.0f / s;
+  msh_scalar_t denom = 1.0f / s;
   return (msh_vec4_t){{ v.x * denom, v.y * denom, v.z * denom, v.w * denom }};
 }
 
@@ -708,7 +710,7 @@ msh_vec4_sqrt( msh_vec4_t v )
 }
 
 MSHVMDEF inline msh_vec2_t 
-msh_vec2_clamp( msh_vec2_t v, float min, float max )
+msh_vec2_clamp( msh_vec2_t v, msh_scalar_t min, msh_scalar_t max )
 {
   if ( min > max )
   {
@@ -719,7 +721,7 @@ msh_vec2_clamp( msh_vec2_t v, float min, float max )
 }
 
 MSHVMDEF inline msh_vec3_t 
-msh_vec3_clamp( msh_vec3_t v, float min, float max )
+msh_vec3_clamp( msh_vec3_t v, msh_scalar_t min, msh_scalar_t max )
 {
   if ( min > max )
   {
@@ -731,7 +733,7 @@ msh_vec3_clamp( msh_vec3_t v, float min, float max )
 }
 
 MSHVMDEF inline msh_vec4_t 
-msh_vec4_clamp( msh_vec4_t v, float min, float max )
+msh_vec4_clamp( msh_vec4_t v, msh_scalar_t min, msh_scalar_t max )
 {
   if ( min > max )
   {
@@ -765,39 +767,39 @@ msh_vec4_invert( msh_vec4_t v )
 MSHVMDEF inline msh_vec2_t 
 msh_vec2_normalize( msh_vec2_t v )
 {
-  float denom = 1.0f / sqrtf( v.x * v.x + v.y * v.y );
+  msh_scalar_t denom = 1.0f / sqrtf( v.x * v.x + v.y * v.y );
   return (msh_vec2_t){{ v.x * denom, v.y * denom }};
 }
 
 MSHVMDEF inline msh_vec3_t 
 msh_vec3_normalize( msh_vec3_t v )
 {
-  float denom = 1.0f / sqrtf( v.x * v.x + v.y * v.y + v.z * v.z );
+  msh_scalar_t denom = 1.0f / sqrtf( v.x * v.x + v.y * v.y + v.z * v.z );
   return (msh_vec3_t){{ v.x * denom, v.y * denom, v.z * denom }};
 }
 
 MSHVMDEF inline msh_vec4_t 
 msh_vec4_normalize( msh_vec4_t v )
 {
-  float denom = 1.0f / sqrtf( v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w );
+  msh_scalar_t denom = 1.0f / sqrtf( v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w );
   msh_vec4_t o = {{ v.x * denom, v.y * denom, v.z * denom, v.w * denom }};
   return o;
 }
 
 
-MSHVMDEF inline float 
+MSHVMDEF inline msh_scalar_t 
 msh_vec2_dot( msh_vec2_t a, msh_vec2_t b )
 {
   return a.x * b.x + a.y * b.y; 
 }
 
-MSHVMDEF inline float 
+MSHVMDEF inline msh_scalar_t 
 msh_vec3_dot( msh_vec3_t a, msh_vec3_t b )
 {
   return a.x * b.x + a.y * b.y + a.z * b.z; 
 }
 
-MSHVMDEF inline float 
+MSHVMDEF inline msh_scalar_t 
 msh_vec4_dot( msh_vec4_t a, msh_vec4_t b )
 {
   return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w; 
@@ -811,37 +813,37 @@ msh_vec3_cross( msh_vec3_t a, msh_vec3_t b )
                         ( a.x * b.y - a.y * b.x ) }};
 }
 
-MSHVMDEF inline float 
+MSHVMDEF inline msh_scalar_t 
 msh_vec2_norm( msh_vec2_t v )
 {
   return sqrtf( v.x * v.x + v.y * v.y ); 
 }
 
-MSHVMDEF inline float 
+MSHVMDEF inline msh_scalar_t 
 msh_vec3_norm( msh_vec3_t v )
 {
   return sqrtf( v.x * v.x + v.y * v.y + v.z * v.z ); 
 }
 
-MSHVMDEF inline float 
+MSHVMDEF inline msh_scalar_t 
 msh_vec4_norm( msh_vec4_t v )
 {
   return sqrtf( v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w ); 
 }
 
-MSHVMDEF inline float 
+MSHVMDEF inline msh_scalar_t 
 msh_vec2_norm_sq( msh_vec2_t v )
 {
   return v.x * v.x + v.y * v.y; 
 }
 
-MSHVMDEF inline float 
+MSHVMDEF inline msh_scalar_t 
 msh_vec3_norm_sq( msh_vec3_t v )
 {
   return v.x * v.x + v.y * v.y + v.z * v.z; 
 }
 
-MSHVMDEF inline float 
+MSHVMDEF inline msh_scalar_t 
 msh_vec4_norm_sq( msh_vec4_t v )
 {
   return v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w; 
@@ -1062,7 +1064,7 @@ msh_mat4_add( msh_mat4_t a, msh_mat4_t b )
 }
 
 MSHVMDEF inline msh_mat2_t
-msh_mat2_scalar_add( msh_mat2_t m, float s )
+msh_mat2_scalar_add( msh_mat2_t m, msh_scalar_t s )
 {
   msh_mat2_t o;
   o.data[0] = m.data[0] + s;
@@ -1073,7 +1075,7 @@ msh_mat2_scalar_add( msh_mat2_t m, float s )
 }
 
 MSHVMDEF inline msh_mat3_t
-msh_mat3_scalar_add( msh_mat3_t m, float s )
+msh_mat3_scalar_add( msh_mat3_t m, msh_scalar_t s )
 {
   msh_mat3_t o;
   o.data[0] = m.data[0] + s;
@@ -1089,7 +1091,7 @@ msh_mat3_scalar_add( msh_mat3_t m, float s )
 }
 
 MSHVMDEF inline msh_mat4_t
-msh_mat4_scalar_add( msh_mat4_t m, float s )
+msh_mat4_scalar_add( msh_mat4_t m, msh_scalar_t s )
 {
   msh_mat4_t o;
   o.data[ 0] = m.data[ 0] + s;
@@ -1163,7 +1165,7 @@ msh_mat4_sub( msh_mat4_t a, msh_mat4_t b )
 }
 
 MSHVMDEF inline msh_mat2_t
-msh_mat2_scalar_sub( msh_mat2_t m, float s )
+msh_mat2_scalar_sub( msh_mat2_t m, msh_scalar_t s )
 {
   msh_mat2_t o;
   o.data[0] = m.data[0] - s;
@@ -1174,7 +1176,7 @@ msh_mat2_scalar_sub( msh_mat2_t m, float s )
 }
 
 MSHVMDEF inline msh_mat3_t
-msh_mat3_scalar_sub( msh_mat3_t m, float s )
+msh_mat3_scalar_sub( msh_mat3_t m, msh_scalar_t s )
 {
   msh_mat3_t o;
   o.data[0] = m.data[0] - s;
@@ -1190,7 +1192,7 @@ msh_mat3_scalar_sub( msh_mat3_t m, float s )
 }
 
 MSHVMDEF inline msh_mat4_t
-msh_mat4_scalar_sub( msh_mat4_t m, float s )
+msh_mat4_scalar_sub( msh_mat4_t m, msh_scalar_t s )
 {
   msh_mat4_t o;
   o.data[ 0] = m.data[ 0] - s;
@@ -1286,7 +1288,7 @@ msh_mat4_mul( msh_mat4_t a, msh_mat4_t b )
 
 
 MSHVMDEF inline msh_mat2_t
-msh_mat2_scalar_mul( msh_mat2_t m, float s )
+msh_mat2_scalar_mul( msh_mat2_t m, msh_scalar_t s )
 {
   msh_mat2_t o;
   o.data[0] = m.data[0]*s;
@@ -1297,7 +1299,7 @@ msh_mat2_scalar_mul( msh_mat2_t m, float s )
 }
 
 MSHVMDEF inline msh_mat3_t
-msh_mat3_scalar_mul( msh_mat3_t m, float s )
+msh_mat3_scalar_mul( msh_mat3_t m, msh_scalar_t s )
 {
   msh_mat3_t o;
   o.data[0] = m.data[0]*s;
@@ -1313,7 +1315,7 @@ msh_mat3_scalar_mul( msh_mat3_t m, float s )
 }
 
 MSHVMDEF inline msh_mat4_t
-msh_mat4_scalar_mul( msh_mat4_t m, float s )
+msh_mat4_scalar_mul( msh_mat4_t m, msh_scalar_t s )
 {
   msh_mat4_t o;
   o.data[ 0] = m.data[ 0]*s;
@@ -1366,10 +1368,10 @@ msh_mat4_vec4_mul ( msh_mat4_t m, msh_vec4_t v )
 }
 
 MSHVMDEF inline msh_mat2_t
-msh_mat2_scalar_div( msh_mat2_t m, float s )
+msh_mat2_scalar_div( msh_mat2_t m, msh_scalar_t s )
 {
   msh_mat2_t o;
-  float denom = 1.0f / s;
+  msh_scalar_t denom = 1.0f / s;
   o.data[0] = m.data[0] * denom;
   o.data[1] = m.data[1] * denom;
   o.data[2] = m.data[2] * denom;
@@ -1378,10 +1380,10 @@ msh_mat2_scalar_div( msh_mat2_t m, float s )
 }
 
 MSHVMDEF inline msh_mat3_t
-msh_mat3_scalar_div( msh_mat3_t m, float s )
+msh_mat3_scalar_div( msh_mat3_t m, msh_scalar_t s )
 {
   msh_mat3_t o;
-  float denom = 1.0f / s;
+  msh_scalar_t denom = 1.0f / s;
   o.data[0] = m.data[0] * denom;
   o.data[1] = m.data[1] * denom;
   o.data[2] = m.data[2] * denom;
@@ -1395,10 +1397,10 @@ msh_mat3_scalar_div( msh_mat3_t m, float s )
 }
 
 MSHVMDEF inline msh_mat4_t
-msh_mat4_scalar_div( msh_mat4_t m, float s )
+msh_mat4_scalar_div( msh_mat4_t m, msh_scalar_t s )
 {
   msh_mat4_t o;
-  float denom = 1.0f / s;
+  msh_scalar_t denom = 1.0f / s;
   o.data[ 0] = m.data[ 0] * denom;
   o.data[ 1] = m.data[ 1] * denom;
   o.data[ 2] = m.data[ 2] * denom;
@@ -1418,35 +1420,35 @@ msh_mat4_scalar_div( msh_mat4_t m, float s )
   return o;
 }
 
-MSHVMDEF inline float
+MSHVMDEF inline msh_scalar_t
 msh_mat2_trace( msh_mat2_t m )
 {
   return m.data[0] + m.data[2];
 }
 
-MSHVMDEF inline float
+MSHVMDEF inline msh_scalar_t
 msh_mat3_trace( msh_mat3_t m )
 {
   return m.data[0] + m.data[4] + m.data[8];
 }
 
-MSHVMDEF inline float
+MSHVMDEF inline msh_scalar_t
 msh_mat4_trace( msh_mat4_t m )
 {
   return m.data[0] + m.data[5] + m.data[10] + m.data[15];
 }
 
-MSHVMDEF inline float
+MSHVMDEF inline msh_scalar_t
 msh_mat2_determinant( msh_mat2_t m )
 {
   return m.data[0] * m.data[3] - m.data[2] * m.data[1];
 }
 
-MSHVMDEF inline float
+MSHVMDEF inline msh_scalar_t
 msh_mat3_determinant( msh_mat3_t m )
 {
   /* get required cofactors */
-  float C[3];
+  msh_scalar_t C[3];
   C[0] = m.data[4] * m.data[8] - m.data[5] * m.data[7];
   C[1] = m.data[5] * m.data[6] - m.data[3] * m.data[8]; /* negated */
   C[2] = m.data[3] * m.data[7] - m.data[4] * m.data[6];
@@ -1454,11 +1456,11 @@ msh_mat3_determinant( msh_mat3_t m )
   return m.data[0] * C[0] + m.data[1] * C[1] + m.data[2] * C[2];
 }
 
-MSHVMDEF inline float
+MSHVMDEF inline msh_scalar_t
 msh_mat4_determinant( msh_mat4_t m )
 {
-  float C[4];
-  float coeffs[6];
+  msh_scalar_t C[4];
+  msh_scalar_t coeffs[6];
 
   /* coeffs are determinants of 2x2 matrices */
   coeffs[0] = m.data[10] * m.data[15] - m.data[14] * m.data[11];
@@ -1483,12 +1485,12 @@ msh_mat4_determinant( msh_mat4_t m )
                m.data[ 1] * coeffs[1]; /* negated */
 
   /* determinant */
-  float det = m.data[0] * C[0] + m.data[4]  * C[1] + 
+  msh_scalar_t det = m.data[0] * C[0] + m.data[4]  * C[1] + 
               m.data[8] * C[2] + m.data[12] * C[3];
   return det;
 }
 
-MSHVMDEF inline float 
+MSHVMDEF inline msh_scalar_t 
 msh_mat2_frobenius_norm( msh_mat2_t m )
 {
   return sqrtf( m.data[0] * m.data[0] +
@@ -1497,7 +1499,7 @@ msh_mat2_frobenius_norm( msh_mat2_t m )
                 m.data[3] * m.data[3] );
 }
 
-MSHVMDEF inline float 
+MSHVMDEF inline msh_scalar_t 
 msh_mat3_frobenius_norm( msh_mat3_t m )
 {
   return sqrtf( m.data[0] * m.data[0] +
@@ -1511,7 +1513,7 @@ msh_mat3_frobenius_norm( msh_mat3_t m )
                 m.data[8] * m.data[8] );
 }
 
-MSHVMDEF inline float 
+MSHVMDEF inline msh_scalar_t 
 msh_mat4_frobenius_norm( msh_mat4_t m )
 {
   return sqrtf( m.data[ 0] * m.data[ 0] +
@@ -1535,7 +1537,7 @@ msh_mat4_frobenius_norm( msh_mat4_t m )
 MSHVMDEF inline msh_mat2_t 
 msh_mat2_inverse( msh_mat2_t m )
 {
-  float denom = 1.0f / (m.data[0] * m.data[3] - m.data[2] * m.data[1]);
+  msh_scalar_t denom = 1.0f / (m.data[0] * m.data[3] - m.data[2] * m.data[1]);
   msh_mat2_t mi;
   mi.data[0] =  m.data[3] * denom;
   mi.data[1] = -m.data[1] * denom;
@@ -1566,7 +1568,7 @@ msh_mat3_inverse( msh_mat3_t m )
   */
 
   /* Calulate cofactor matrix */
-  float C[9];
+  msh_scalar_t C[9];
   C[0] = m.data[4] * m.data[8] - m.data[7] * m.data[5];
   C[1] = m.data[7] * m.data[2] - m.data[1] * m.data[8]; /*negated*/
   C[2] = m.data[1] * m.data[5] - m.data[4] * m.data[2];
@@ -1578,8 +1580,8 @@ msh_mat3_inverse( msh_mat3_t m )
   C[8] = m.data[0] * m.data[4] - m.data[3] * m.data[1];
 
   /* determinant */
-  float det = m.data[0] * C[0] + m.data[3] * C[1] + m.data[6] * C[2];
-  float denom = 1.0f / det;
+  msh_scalar_t det = m.data[0] * C[0] + m.data[3] * C[1] + m.data[6] * C[2];
+  msh_scalar_t denom = 1.0f / det;
 
   /* calculate inverse */
   msh_mat3_t mi;
@@ -1618,8 +1620,8 @@ msh_mat4_inverse( msh_mat4_t m )
           3  7 11 15                              */
 
   /* Calulate cofactor matrix */
-  float C[16];
-  float dets[6];
+  msh_scalar_t C[16];
+  msh_scalar_t dets[6];
 
   /* First 8 */
   /* dets are determinants of 2x2 matrices */
@@ -1663,9 +1665,9 @@ msh_mat4_inverse( msh_mat4_t m )
   /*33*/C[15] = m.data[ 2]*dets[1] - m.data[ 6]*dets[4] + m.data[10]*dets[2];
 
   /* determinant */
-  float det = m.data[0]*C[0] + m.data[4]*C[1] + 
+  msh_scalar_t det = m.data[0]*C[0] + m.data[4]*C[1] + 
               m.data[8]*C[2] + m.data[12]*C[3];
-  float denom = 1.0f / det;
+  msh_scalar_t denom = 1.0f / det;
 
   /* calculate inverse */
   msh_mat4_t mi;
@@ -1755,17 +1757,17 @@ msh_look_at( msh_vec3_t eye,
 }
 
 MSHVMDEF inline msh_mat4_t 
-msh_frustum( float left,   float right, 
-             float bottom, float top, 
-             float z_near, float z_far )
+msh_frustum( msh_scalar_t left,   msh_scalar_t right, 
+             msh_scalar_t bottom, msh_scalar_t top, 
+             msh_scalar_t z_near, msh_scalar_t z_far )
 {
-  float x_diff = right - left;
-  float y_diff = top - bottom;
-  float z_diff = z_far - z_near;
-  float a      = (right + left) / x_diff;
-  float b      = (top + bottom) / y_diff;
-  float c      = -(z_far + z_near ) / z_diff;
-  float d      = -(2.0f * z_far * z_near ) / z_diff;
+  msh_scalar_t x_diff = right - left;
+  msh_scalar_t y_diff = top - bottom;
+  msh_scalar_t z_diff = z_far - z_near;
+  msh_scalar_t a      = (right + left) / x_diff;
+  msh_scalar_t b      = (top + bottom) / y_diff;
+  msh_scalar_t c      = -(z_far + z_near ) / z_diff;
+  msh_scalar_t d      = -(2.0f * z_far * z_near ) / z_diff;
 
   msh_mat4_t o = {{ (2.0f*z_near)/x_diff,                 0.0f, 0.0f,  0.0f,
                                     0.0f, (2.0f*z_near)/y_diff, 0.0f,  0.0f,
@@ -1775,12 +1777,12 @@ msh_frustum( float left,   float right,
 }
 
 MSHVMDEF inline msh_mat4_t  
-msh_perspective( float fovy, 
-                 float aspect, 
-                 float z_near, 
-                 float z_far)
+msh_perspective( msh_scalar_t fovy, 
+                 msh_scalar_t aspect, 
+                 msh_scalar_t z_near, 
+                 msh_scalar_t z_far)
 {
-  float xmin, xmax, ymin, ymax;
+  msh_scalar_t xmin, xmax, ymin, ymax;
 
   ymax = z_near * tanf( fovy * 0.5f );
   ymin = -ymax;
@@ -1792,16 +1794,16 @@ msh_perspective( float fovy,
 }
 
 MSHVMDEF inline msh_mat4_t 
-msh_ortho( float left,   float right, 
-           float bottom, float top, 
-           float z_near, float z_far )
+msh_ortho( msh_scalar_t left,   msh_scalar_t right, 
+           msh_scalar_t bottom, msh_scalar_t top, 
+           msh_scalar_t z_near, msh_scalar_t z_far )
 {
-  float x_diff = right - left;
-  float y_diff = top - bottom;
-  float z_diff = z_far - z_near;
-  float tx     = -( right + left ) / x_diff;
-  float ty     = -( top + bottom ) / y_diff;
-  float tz     = -( z_near + z_far ) / z_diff;
+  msh_scalar_t x_diff = right - left;
+  msh_scalar_t y_diff = top - bottom;
+  msh_scalar_t z_diff = z_far - z_near;
+  msh_scalar_t tx     = -( right + left ) / x_diff;
+  msh_scalar_t ty     = -( top + bottom ) / y_diff;
+  msh_scalar_t tz     = -( z_near + z_far ) / z_diff;
 
   msh_mat4_t o = {{ 2.0f / x_diff,          0.0f,           0.0f, 0.0f,
                              0.0f, 2.0f / y_diff,           0.0f, 0.0f,
@@ -1867,11 +1869,11 @@ msh_scale( msh_mat4_t m, msh_vec3_t s )
  * http://www.euclideanspace.com/matrixhs/geometry/rotations/conversions/angleToMatrix/ 
  */
 MSHVMDEF inline msh_mat4_t
-msh_rotate( msh_mat4_t m, float angle, msh_vec3_t v )
+msh_rotate( msh_mat4_t m, msh_scalar_t angle, msh_vec3_t v )
 {
-  float c = cosf( angle );
-  float s = sinf( angle );
-  float t = 1.0 - c;
+  msh_scalar_t c = cosf( angle );
+  msh_scalar_t s = sinf( angle );
+  msh_scalar_t t = 1.0 - c;
 
   msh_vec3_t axis = msh_vec3_normalize( v );
 
@@ -1880,8 +1882,8 @@ msh_rotate( msh_mat4_t m, float angle, msh_vec3_t v )
   rotate.data[ 5] = c + axis.y * axis.y * t;
   rotate.data[10] = c + axis.z * axis.z * t;
 
-  float tmp_1 = axis.x * axis.y * t;
-  float tmp_2 = axis.z * s;
+  msh_scalar_t tmp_1 = axis.x * axis.y * t;
+  msh_scalar_t tmp_2 = axis.z * s;
 
   rotate.data[1] = tmp_1 + tmp_2;
   rotate.data[4] = tmp_1 - tmp_2;
@@ -1921,22 +1923,22 @@ msh_rotate( msh_mat4_t m, float angle, msh_vec3_t v )
  */
 
 MSHVMDEF inline msh_quat_t
-msh_quat_from_axis_angle( msh_vec3_t axis, float angle )
+msh_quat_from_axis_angle( msh_vec3_t axis, msh_scalar_t angle )
 {
-  float a = angle * 0.5;
-  float s = sinf(a);
+  msh_scalar_t a = angle * 0.5;
+  msh_scalar_t s = sinf(a);
   return (msh_quat_t){{ axis.x * s, axis.y * s, axis.z * s, cosf(a)}};
 }
 
 MSHVMDEF inline msh_quat_t 
-msh_quat_from_euler_angles( float pitch, float yaw, float roll )
+msh_quat_from_euler_angles( msh_scalar_t pitch, msh_scalar_t yaw, msh_scalar_t roll )
 {
-  double c1 = cos(pitch * 0.5 );
-  double s1 = sin(pitch * 0.5 );
-  double c2 = cos(yaw * 0.5 );
-  double s2 = sin(yaw * 0.5 );
-  double c3 = cos(roll * 0.5 );
-  double s3 = sin(roll * 0.5 );
+  msh_scalar_t c1 = cos(pitch * 0.5 );
+  msh_scalar_t s1 = sin(pitch * 0.5 );
+  msh_scalar_t c2 = cos(yaw * 0.5 );
+  msh_scalar_t s2 = sin(yaw * 0.5 );
+  msh_scalar_t c3 = cos(roll * 0.5 );
+  msh_scalar_t s3 = sin(roll * 0.5 );
 
   return msh_quat( c1*c2*c3 - s1*s2*s3, 
                    c1*c2*s3 + s1*s2*c3, 
@@ -1948,8 +1950,8 @@ msh_quat_from_euler_angles( float pitch, float yaw, float roll )
 MSHVMDEF inline msh_quat_t 
 msh_quat_from_vectors( msh_vec3_t v1, msh_vec3_t v2 )
 {
-    float norm_v1_norm_v2 = sqrt(msh_vec3_dot(v1, v1) * msh_vec3_dot(v2, v2));
-    float real_part = norm_v1_norm_v2 + msh_vec3_dot(v1, v2);
+    msh_scalar_t norm_v1_norm_v2 = sqrt(msh_vec3_dot(v1, v1) * msh_vec3_dot(v2, v2));
+    msh_scalar_t real_part = norm_v1_norm_v2 + msh_vec3_dot(v1, v2);
     msh_vec3_t v3;
 
     if (real_part < 1.e-6f * norm_v1_norm_v2)
@@ -1978,7 +1980,7 @@ msh_quat_add( msh_quat_t a, msh_quat_t b )
 }
 
 MSHVMDEF inline msh_quat_t 
-msh_quat_scalar_add( msh_quat_t v, float s )
+msh_quat_scalar_add( msh_quat_t v, msh_scalar_t s )
 {
   msh_quat_t o = v;
   o.re += s;
@@ -1992,7 +1994,7 @@ msh_quat_sub( msh_quat_t a, msh_quat_t b )
 }
 
 MSHVMDEF inline msh_quat_t 
-msh_quat_scalar_sub( msh_quat_t v, float s )
+msh_quat_scalar_sub( msh_quat_t v, msh_scalar_t s )
 {
   msh_quat_t o = v;
   o.re -= s;
@@ -2002,25 +2004,26 @@ msh_quat_scalar_sub( msh_quat_t v, float s )
 MSHVMDEF inline msh_quat_t 
 msh_quat_mul( msh_quat_t a, msh_quat_t b )
 {
-  /*
-  NOTE: This is implementation of mathematically easier to express formulation
-  of multiplication, however it will be slower than explicit multiplications of
-  the components 
-  msh_quat_t o;
-  o.re = a.re * b.re - msh_vec3_dot( a.im, b.im );
-  o.im = msh_vec3_add( msh_vec3_cross( a.im, b.im ), 
-         msh_vec3_add( msh_vec3_scalar_mul( b.im, a.re), 
-                       msh_vec3_scalar_mul( a.im, b.re )));
-  return o;
-  */
-  return (msh_quat_t){{ a.w*b.x + b.w*a.x + a.y*b.z - b.y*a.z,
-                        a.w*b.y + b.w*a.y - a.x*b.z + b.x*a.z,
-                        a.w*b.z + b.w*a.z + a.x*a.y - b.x*a.y,
+  
+  // NOTE: This is implementation of mathematically easier to express formulation
+  // of multiplication, however it will be slower than explicit multiplications of
+  // the components 
+  // msh_quat_t o;
+  // o.re = a.re * b.re - msh_vec3_dot( a.im, b.im );
+  // o.im = msh_vec3_add( msh_vec3_cross( a.im, b.im ), 
+  //        msh_vec3_add( msh_vec3_scalar_mul( b.im, a.re), 
+  //                      msh_vec3_scalar_mul( a.im, b.re )));
+  // return o;
+  
+
+  return (msh_quat_t){{ a.w*b.x + a.x*b.w + a.y*b.z - a.z*b.y,
+                        a.w*b.y + a.y*b.w + a.z*b.x - a.x*b.z,
+                        a.w*b.z + a.z*b.w + a.x*b.y - a.y*b.x,
                         a.w*b.w - a.x*b.x - a.y*b.y - a.z*b.z }};
 }
 
 MSHVMDEF inline msh_quat_t 
-msh_quat_scalar_mul( msh_quat_t v, float s )
+msh_quat_scalar_mul( msh_quat_t v, msh_scalar_t s )
 {
   msh_quat_t o;
   o.im = msh_vec3_scalar_mul(v.im, s);
@@ -2035,25 +2038,25 @@ msh_quat_div( msh_quat_t a, msh_quat_t b )
 }
 
 MSHVMDEF inline msh_quat_t 
-msh_quat_scalar_div( msh_quat_t v, float s )
+msh_quat_scalar_div( msh_quat_t v, msh_scalar_t s )
 {
-  float denom = 1.0f / s;
+  msh_scalar_t denom = 1.0f / s;
   return (msh_quat_t){{ v.x * denom, v.y * denom, v.z * denom, v.w * denom }};
 }
 
-float 
+msh_scalar_t 
 msh_quat_dot( msh_quat_t a,  msh_quat_t b )
 {
   return ( a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w );
 }
 
-float 
+msh_scalar_t 
 msh_quat_norm( msh_quat_t q )
 {
   return sqrtf( q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w );
 }
 
-float 
+msh_scalar_t 
 msh_quat_norm_sq( msh_quat_t q )
 {
   return ( q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w );
@@ -2062,7 +2065,7 @@ msh_quat_norm_sq( msh_quat_t q )
 MSHVMDEF inline msh_quat_t 
 msh_quat_normalize( msh_quat_t q )
 {
-  float denom = 1.0f / msh_quat_norm( q );
+  msh_scalar_t denom = 1.0f / msh_quat_norm( q );
   msh_quat_t o;
   o.im = msh_vec3_scalar_mul( q.im, denom );
   o.re = q.re * denom;
@@ -2082,7 +2085,7 @@ MSHVMDEF inline msh_quat_t
 msh_quat_inverse( msh_quat_t q )
 {
   msh_quat_t o;
-  float denom = 1.0f / msh_quat_norm_sq( q );
+  msh_scalar_t denom = 1.0f / msh_quat_norm_sq( q );
   o.x = -q.x * denom;
   o.y = -q.y * denom;
   o.z = -q.z * denom;
@@ -2093,7 +2096,7 @@ msh_quat_inverse( msh_quat_t q )
 MSHVMDEF inline msh_quat_t 
 msh_quat_lerp( msh_quat_t q, 
                msh_quat_t r, 
-               float t )
+               msh_scalar_t t )
 {
   msh_quat_t o;
   o.x = q.x * (1.0f-t) + r.x * t;
@@ -2106,9 +2109,9 @@ msh_quat_lerp( msh_quat_t q,
 MSHVMDEF inline msh_quat_t 
 msh_quat_slerp( msh_quat_t q, 
                 msh_quat_t r, 
-                float t )
+                msh_scalar_t t )
 {
-  float a = acosf( msh_quat_dot(q, r) );
+  msh_scalar_t a = acosf( msh_quat_dot(q, r) );
   msh_quat_t o;
   if ( fabs( a ) > 1e-6 )
   {
@@ -2123,10 +2126,10 @@ msh_quat_slerp( msh_quat_t q,
 }
 
 MSHVMDEF inline msh_quat_t
-msh_quat_from_angle_axis( msh_vec3_t axis, float angle )
+msh_quat_from_angle_axis( msh_vec3_t axis, msh_scalar_t angle )
 {
-    float a = angle * 0.5f;
-    float s = sinf(a);
+    msh_scalar_t a = angle * 0.5f;
+    msh_scalar_t s = sinf(a);
     return (msh_quat_t){{ axis.x * s, axis.y * s, axis.z * s, cosf(a) }};
 }
 
@@ -2134,17 +2137,17 @@ MSHVMDEF inline msh_mat3_t
 msh_quat_to_mat3( msh_quat_t q )
 {
   msh_mat3_t o;
-  float xx = q.x * q.x ;
-  float xy = q.x * q.y ;
-  float xz = q.x * q.z ;
-  float xw = q.x * q.w ;
+  msh_scalar_t xx = q.x * q.x ;
+  msh_scalar_t xy = q.x * q.y ;
+  msh_scalar_t xz = q.x * q.z ;
+  msh_scalar_t xw = q.x * q.w ;
 
-  float yy = q.y * q.y ;
-  float yz = q.y * q.z ;
-  float yw = q.y * q.w ;
+  msh_scalar_t yy = q.y * q.y ;
+  msh_scalar_t yz = q.y * q.z ;
+  msh_scalar_t yw = q.y * q.w ;
 
-  float zz = q.z * q.z ;
-  float zw = q.z * q.w ;
+  msh_scalar_t zz = q.z * q.z ;
+  msh_scalar_t zw = q.z * q.w ;
 
   o.data[0] = 1.0f - 2.0f * (yy +  zz);
   o.data[1] = 2.0f * (xy + zw);
@@ -2170,11 +2173,11 @@ msh_quat_to_mat4( msh_quat_t q )
 MSHVMDEF inline msh_quat_t
 msh_mat3_to_quat( msh_mat3_t m )
 {
-  float tr = m.data[0] + m.data[4] + m.data[8];
+  msh_scalar_t tr = m.data[0] + m.data[4] + m.data[8];
   msh_quat_t q;
-  if ( fabs(tr) > MSH_FLT_EPSILON )
+  if ( tr > MSH_FLT_EPSILON )
   {
-    float s = sqrtf( tr + 1.0f ) * 2.0f;
+    msh_scalar_t s = sqrtf( tr + 1.0f ) * 2.0f;
     q.w = 0.25f * s;
     q.x = ( m.data[5] - m.data[7] ) / s;
     q.y = ( m.data[6] - m.data[2] ) / s;
@@ -2182,7 +2185,7 @@ msh_mat3_to_quat( msh_mat3_t m )
   }
   else if ( ( m.data[0] > m.data[4]) && (m.data[0] > m.data[8] ) )
   {
-    float s = sqrtf( 1.0f + m.data[0] - m.data[4] - m.data[8]) * 2.0f;
+    msh_scalar_t s = sqrtf( 1.0f + m.data[0] - m.data[4] - m.data[8]) * 2.0f;
     q.w = ( m.data[5] - m.data[7] ) / s;
     q.x = 0.25f * s;
     q.y = ( m.data[3] + m.data[1] ) / s;
@@ -2190,7 +2193,7 @@ msh_mat3_to_quat( msh_mat3_t m )
   }
   else if ( m.data[4] > m.data[8] )
   {
-    float s = sqrtf( 1.0f + m.data[4] - m.data[0] - m.data[8]) * 2.0f;
+    msh_scalar_t s = sqrtf( 1.0f + m.data[4] - m.data[0] - m.data[8]) * 2.0f;
     q.w = ( m.data[6] - m.data[2] ) / s;
     q.x = ( m.data[3] + m.data[1] ) / s;
     q.y = 0.25f * s;
@@ -2198,7 +2201,7 @@ msh_mat3_to_quat( msh_mat3_t m )
   } 
   else
   {
-    float s = sqrtf( 1.0f + m.data[8] - m.data[0] - m.data[4] ) * 2.0f;
+    msh_scalar_t s = sqrtf( 1.0f + m.data[8] - m.data[0] - m.data[4] ) * 2.0f;
     q.w = ( m.data[1] - m.data[3] ) / s;
     q.x = ( m.data[6] + m.data[2] ) / s;
     q.y = ( m.data[7] + m.data[5] ) / s;
@@ -2222,33 +2225,33 @@ msh_mat4_to_quat( msh_mat4_t m )
 MSHVMDEF inline void
 msh_vec2_fprint( msh_vec2_t v, FILE *stream )
 {
-  fprintf( stream, "%10.5f %10.5f\n", v.x, v.y );
+  fprintf( stream, "%12.7f %12.7f\n", v.x, v.y );
 }
 
 MSHVMDEF inline void
 msh_vec3_fprint( msh_vec3_t v, FILE *stream )
 {
-  fprintf( stream, "%10.5f %10.5f %10.5f\n", v.x, v.y, v.z );
+  fprintf( stream, "%12.7f %12.7f %12.7f\n", v.x, v.y, v.z );
 }
 
 MSHVMDEF inline void
 msh_vec4_fprint( msh_vec4_t v, FILE *stream )
 {
-  fprintf( stream, "%10.5f %10.5f %10.5f %10.5f\n", 
+  fprintf( stream, "%12.7f %12.7f %12.7f %12.7f\n", 
                    v.x, v.y, v.z, v.w );
 }
 
 MSHVMDEF inline void
 msh_quat_fprint( msh_quat_t v, FILE *stream )
 {
-  fprintf( stream, "%10.5f %10.5f %10.5f %10.5f\n", 
+  fprintf( stream, "%12.7f %12.7f %12.7f %12.7f\n", 
                    v.w, v.x, v.y, v.z );
 }
 
 MSHVMDEF inline void
 msh_mat2_fprint( msh_mat2_t m, FILE *stream )
 {
-  fprintf( stream, "%10.5f %10.5f\n%10.5f %10.5f\n\n", 
+  fprintf( stream, "%12.7f %12.7f\n%12.7f %12.7f\n\n", 
                     m.data[0], m.data[2], 
                     m.data[1], m.data[3] );
 }
@@ -2256,9 +2259,9 @@ msh_mat2_fprint( msh_mat2_t m, FILE *stream )
 MSHVMDEF inline void
 msh_mat3_fprint( msh_mat3_t m, FILE *stream )
 {
-  fprintf( stream, "%10.5f %10.5f %10.5f\n"
-                   "%10.5f %10.5f %10.5f\n"
-                   "%10.5f %10.5f %10.5f\n\n", 
+  fprintf( stream, "%12.7f %12.7f %12.7f\n"
+                   "%12.7f %12.7f %12.7f\n"
+                   "%12.7f %12.7f %12.7f\n\n", 
                    m.data[0], m.data[3], m.data[6],
                    m.data[1], m.data[4], m.data[7],
                    m.data[2], m.data[5], m.data[8] );
@@ -2267,10 +2270,10 @@ msh_mat3_fprint( msh_mat3_t m, FILE *stream )
 MSHVMDEF inline void
 msh_mat4_fprint( msh_mat4_t m, FILE *stream )
 {
-  fprintf( stream, "%10.5f %10.5f %10.5f %10.5f\n"
-                   "%10.5f %10.5f %10.5f %10.5f\n"
-                   "%10.5f %10.5f %10.5f %10.5f\n"
-                   "%10.5f %10.5f %10.5f %10.5f\n\n",
+  fprintf( stream, "%12.7f %12.7f %12.7f %12.7f\n"
+                   "%12.7f %12.7f %12.7f %12.7f\n"
+                   "%12.7f %12.7f %12.7f %12.7f\n"
+                   "%12.7f %12.7f %12.7f %12.7f\n\n",
                    m.data[0], m.data[4], m.data[8],  m.data[12],
                    m.data[1], m.data[5], m.data[9],  m.data[13],
                    m.data[2], m.data[6], m.data[10], m.data[14],

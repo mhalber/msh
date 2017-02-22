@@ -1279,7 +1279,7 @@ mshgfx_shader_prog_set_uniform_4u( const mshgfx_shader_prog_t *p,
 #ifdef MSH_VEC_MATH
 void
 mshgfx_shader_prog_set_uniform_2fv( const mshgfx_shader_prog_t *p, 
-                                 const char *attrib_name, const msh_vec2_t* v)
+                                   const char *attrib_name, const msh_vec2_t* v)
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
   glUniform2fv( location, 1, &(v->data[0]) );

@@ -18,9 +18,9 @@ CAM_OBJS = $(CAM_SRCS:%.c=$(OUT_DIR)%.o)
 
 
 # Compile and link options
-CC = clang
-WARNINGS = -Wall -Wextra -Wpedantic
-CFLAGS = -O0 -ggdb -std=gnu11 -I../ 
+CC = clang++
+WARNINGS = -Wall -Wextra 
+CFLAGS = -O0 -ggdb -std=c++11 -I../ -I/usr/local/include/ 
 
 # Libraries and Frameworks
 FRAMEWORKS = -framework opengl
@@ -41,7 +41,7 @@ cam: $(CAM_OBJS)
 
 
 clean:
-		rm -f $(OUT_DIR)*.o ${BIN_DIR}${ARGPARSE_EXE}
+		rm -f $(OUT_DIR)*.o ${BIN_DIR}${ARGPARSE_EXE} ${BIN_DIR}${GFX_EXE} ${BIN_DIR}${CAM_EXE}
 
 
 # Compile command
