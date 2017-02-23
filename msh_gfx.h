@@ -89,7 +89,11 @@
   #include <OpenGL/gl3.h>
 #endif
 
-#define GLFW_INCLUDE_NONE
+#ifdef __linux__
+  #include "glad/glad.h"
+#endif
+
+//#define GLFW_INCLUDE_NONE
 #include "GLFW/glfw3.h"
 
 #ifndef MSH_VEC_MATH
@@ -277,7 +281,7 @@ void mshgfx_background_tex( mshgfx_texture_t *tex );
 
 #ifdef MSH_VEC_MATH
 void mshgfx_background_flat4v( msh_vec4_t col );
-void mshgfx_background_gradient4v( msh_vec4_t col1, msh_vec4_t col2 );
+void mshgfx_background_gradient4fv( msh_vec4_t col1, msh_vec4_t col2 );
 #endif /*MSH_VEC_MATH*/
 
 
@@ -523,8 +527,15 @@ mshgfx_window_create( const char * title, int pos_x, int pos_y,
   
   /* actually create window */
   window = glfwCreateWindow( res_x, res_y, title, NULL, NULL );
-
   if(!window) return NULL;
+
+#ifdef __linux__
+  glfwMakeContextCurrent(window);
+  if(!gladLoadGL()) {
+    printf("Something went wrong!\n");
+    exit(-1);
+  }
+#endif
 
   /* change position */
   if( pos_x >= 0 && pos_y >= 0 )

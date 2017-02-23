@@ -1,4 +1,4 @@
-
+OS_NAME := $(shell uname -s)
 # Useful Directories
 BIN_DIR = ../bin/
 OUT_DIR = out/
@@ -19,25 +19,36 @@ CAM_OBJS = $(CAM_SRCS:%.c=$(OUT_DIR)%.o)
 
 # Compile and link options
 CC = clang++
+ifeq ($(OS_NAME), Linux)
+CC = gcc
+endif
 WARNINGS = -Wall -Wextra 
-CFLAGS = -O0 -ggdb -std=c++11 -I../ -I/usr/local/include/ 
+CFLAGS = -O0 -ggdb -std=gnu11 -I../ -I/usr/local/include/ 
 
 # Libraries and Frameworks
+ifeq ($(OS_NAME), Darwin)
 FRAMEWORKS = -framework opengl
 GFX_LIBS = -lglfw3
 CAM_LIBS = -lglfw3
+endif
+
+ifeq ($(OS_NAME), Linux)
+GL_LIBS = -lglfw3 -lGL -lGLU -lX11 -lXi -lXrandr -lXxf86vm -lXinerama -lXcursor -lrt -lm -pthread -ldl -lm
+GFX_LIBS = $(GL_LIBS)  -L/usr/local/lib/ -lglad
+CAM_LIBS = $(GL_LIBS) -L/usr/local/lib/ -lglad
+endif
 
 # Make targets
 all: clean argparse gfx cam
 
 argparse: $(ARGPARSE_OBJS)
-		time $(CC) $(FRAMEWORKS) $(CFLAGS) $(ARGPARSE_OBJS) -o ${BIN_DIR}${ARGPARSE_EXE}
+		$(CC) $(FRAMEWORKS) $(CFLAGS) $(ARGPARSE_OBJS) -o ${BIN_DIR}${ARGPARSE_EXE}
 
 gfx: $(GFX_OBJS)
-		time $(CC) $(FRAMEWORKS) $(CFLAGS) $(GFX_OBJS) $(GFX_LIBS) -o ${BIN_DIR}${GFX_EXE}
+		$(CC) $(FRAMEWORKS) $(CFLAGS) $(GFX_OBJS) $(GFX_LIBS) -o ${BIN_DIR}${GFX_EXE}
 
 cam: $(CAM_OBJS)
-		time $(CC) $(FRAMEWORKS) $(CFLAGS) $(CAM_OBJS) $(CAM_LIBS) -o ${BIN_DIR}${CAM_EXE}
+		$(CC) $(FRAMEWORKS) $(CFLAGS) $(CAM_OBJS) $(CAM_LIBS) -o ${BIN_DIR}${CAM_EXE}
 
 
 clean:
@@ -46,7 +57,7 @@ clean:
 
 # Compile command
 $(OUT_DIR)%.o: %.c
-		time $(CC) $(WARNINGS) $(CFLAGS) -c $< -o $@
+		$(CC) $(WARNINGS) $(CFLAGS) -c $< -o $@
 
 # GNU Make: targets that don't build files
 .PHONY: all clean

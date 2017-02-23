@@ -117,12 +117,12 @@ int main( void )
   mshgfx_shader_prog_create_from_source_vf( &triangle_shader,
                                             vs_source,
                                             fs_source );
-  // msh_viewport_init(&viewports[0], (msh_vec2_t){{0, 0}}, 
-  //                                  (msh_vec2_t){{window_width/2, window_height/2}});
-  // msh_viewport_init(&viewports[1], (msh_vec2_t){{window_width/2, 0}}, 
-  //                                  (msh_vec2_t){{window_width/2, window_height/2}});
-  // msh_viewport_init(&viewports[2], (msh_vec2_t){{0, 0}}, 
-  //                                  (msh_vec2_t){{window_width, window_height}});
+  msh_viewport_init(&viewports[0], (msh_vec2_t){{0, 0}}, 
+                                   (msh_vec2_t){{window_width/2, window_height/2}});
+  msh_viewport_init(&viewports[1], (msh_vec2_t){{window_width/2, 0}}, 
+                                   (msh_vec2_t){{window_width/2, window_height/2}});
+  msh_viewport_init(&viewports[2], (msh_vec2_t){{0, 0}}, 
+                                   (msh_vec2_t){{window_width, window_height}});
 
   mshgfx_framebuffer_init( &fb, window_width, window_height );
 
