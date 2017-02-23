@@ -118,6 +118,10 @@ int init()
 
 int display()
 {
+  int w, h;
+  glfwGetFramebufferSize( win, &w, &h );
+  glViewport( 0, 0, w, h);
+  float aspect_ratio = (float)w/h;
 
   /* NOTE: How to push controls only to the camera to allow custom controls */
   int state = glfwGetMouseButton(win, GLFW_MOUSE_BUTTON_LEFT);
@@ -130,7 +134,7 @@ int display()
     cur_pos = (msh_vec2_t){.x = (float)x, 
                            .y = (float)y};
 
-    msh_arcball_camera_update( &camera, prev_pos, cur_pos, msh_vec4(0, 0, 1024, 1024));
+    msh_arcball_camera_update( &camera, prev_pos, cur_pos, msh_vec4(0, 0, w, h));
 
     t = glfwGetTime();
     prev_pos = cur_pos;
@@ -145,10 +149,6 @@ int display()
   static float near = 0.1f;
   static float far  = 100.0f;
   static float fovy = 35.0f * (M_PI/180.0f);
-
-  int w, h;
-  glfwGetFramebufferSize( win, &w, &h );
-  float aspect_ratio = (float)w/h;
 
   msh_mat4_t projection = msh_perspective( fovy, 
                                            aspect_ratio, 
