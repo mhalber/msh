@@ -44,9 +44,10 @@ char* cube_fs_src = (char*) MSHGFX_SHADER_HEAD MSHGFX_SHADER_STRINGIFY
   }
 );
 
-static msh_vec3_t eye = msh_vec3( 0.0f, 0.0f, 5.0f );
+static msh_vec3_t eye = msh_vec3( 4.0f, 4.0f, 15.0f );
 static msh_vec3_t target = msh_vec3( 0.0f, 0.0f, 0.0f );
 static msh_vec3_t up = msh_vec3( 0.0f, 1.0f, 0.0f );
+static float offsets[11][11];
 
 /* Actual code */
 int init()
@@ -111,7 +112,13 @@ int init()
   /* compile shader */
   mshgfx_shader_prog_create_from_source_vf( &cube_shader, 
                                             cube_vs_src, cube_fs_src );
-
+  for(int i = -5 ; i < 6 ; ++i )
+  {
+    for(int j = -5 ; j < 6 ; ++j )
+    {
+      offsets[i+5][j+5] = drand48() - 0.5;
+    }
+  }
 
   return 1;
 }
@@ -168,14 +175,20 @@ int display()
                                            aspect_ratio, 
                                            near, 
                                            far );
-  static msh_mat4_t model = msh_mat4_identity();
-
-  msh_mat4_t mvp = msh_mat4_mul( msh_mat4_mul( projection, camera.view ), model );
 
   mshgfx_shader_prog_use( &cube_shader );
-  mshgfx_shader_prog_set_uniform_4fm( &cube_shader, "mvp", &mvp );
-  mshgfx_geometry_draw( &cube_geo, GL_TRIANGLES );
- 
+
+  for(int i = -5 ; i < 6 ; ++i )
+  {
+    for(int j = -5 ; j < 6 ; ++j )
+    {
+      msh_mat4_t model = msh_translate( msh_mat4_identity(), 
+                                        msh_vec3( i, offsets[i+5][j+5] , j) );
+      msh_mat4_t mvp = msh_mat4_mul( msh_mat4_mul( projection, camera.view ), model );
+      mshgfx_shader_prog_set_uniform_4fm( &cube_shader, "mvp", &mvp );
+      mshgfx_geometry_draw( &cube_geo, GL_TRIANGLES );
+    }
+  }
   return 1;
 }
 
