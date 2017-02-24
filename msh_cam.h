@@ -202,7 +202,6 @@ msh_arcball_camera_update( msh_camera_t * camera,
                            const msh_vec4_t viewport ) 
 {
   /* NOTE: Without look at point, how can we rotate about a non zero point?? */
-
   if( scroll_state )
   {
     msh_mat3_t cur_rot = msh_quat_to_mat3( camera->orientation );
@@ -230,7 +229,6 @@ msh_arcball_camera_update( msh_camera_t * camera,
                             camera->position.z, 0.0);
     /* Compute the quaternion rotation from inputs */
     msh_mat3_t cur_rot = msh_quat_to_mat3( camera->orientation );
-    msh_mat3_print( cur_rot );
     msh_vec3_t p0 = msh_mat3_vec3_mul( cur_rot, 
                           msh__screen_to_sphere(scrn_p0.x, scrn_p0.y, viewport) );
     msh_vec3_t p1 = msh_mat3_vec3_mul( cur_rot, 
