@@ -116,6 +116,13 @@ int init()
   return 1;
 }
 
+msh_scalar_t scroll_state = 0.0f;
+
+void scroll_callback(GLFWwindow* win, double xoffset, double yoffset)
+{
+  scroll_state = yoffset;
+}
+
 int display()
 {
   int w, h;
@@ -124,18 +131,24 @@ int display()
   float aspect_ratio = (float)w/h;
 
   /* NOTE: How to push controls only to the camera to allow custom controls */
-  int state = glfwGetMouseButton(win, GLFW_MOUSE_BUTTON_LEFT);
+  int left_press = glfwGetMouseButton(win, GLFW_MOUSE_BUTTON_LEFT);
+  int right_press = glfwGetMouseButton(win, GLFW_MOUSE_BUTTON_RIGHT);
   double x, y;
   double t = 0;
   glfwGetCursorPos( win, &x, &y );
 
-  if (state == GLFW_PRESS)
+  if( left_press == GLFW_PRESS || right_press == GLFW_PRESS || scroll_state != 0 )
   {
     cur_pos = (msh_vec2_t){.x = (float)x, 
                            .y = (float)y};
 
-    msh_arcball_camera_update( &camera, prev_pos, cur_pos, msh_vec4(0, 0, w, h));
-
+    msh_arcball_camera_update( &camera, 
+                               prev_pos, cur_pos,
+                               left_press,
+                               right_press,
+                               scroll_state,
+                               msh_vec4(0, 0, w, h));
+    scroll_state = 0.0f;
     t = glfwGetTime();
     prev_pos = cur_pos;
   }
@@ -143,6 +156,7 @@ int display()
   {
     cur_pos = (msh_vec2_t){.x = (float)x, .y = (float)y}; 
     prev_pos = (msh_vec2_t){.x = (float)x, .y = (float)y}; 
+    scroll_state = 0.0f;
   }
   mshgfx_background_gradient4fv( msh_vec4( 0.194f, 0.587f, 0.843f, 1.0f ), 
                                  msh_vec4( 0.067f, 0.265f, 0.394f, 1.0f ) );
@@ -176,6 +190,7 @@ int main()
   
   mshgfx_window_activate( win );
   mshgfx_window_set_callback_refresh( win, refresh );
+  glfwSetScrollCallback( win, scroll_callback );
   
   init();
 

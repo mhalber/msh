@@ -144,8 +144,8 @@ I like this more. It should store things like the speed, interface interaction *
 // } mshcam_controls_t;
 
 
-void msh_arcball_controls_update( msh_camera_t *camera );
-void msh_first_person_controls_update( msh_camera_t *camera );
+// void msh_arcball_controls_update( msh_camera_t *camera );
+// void msh_first_person_controls_update( msh_camera_t *camera );
 
 #ifdef __cplusplus
 }
@@ -160,10 +160,12 @@ msh__screen_to_sphere( msh_scalar_t x, msh_scalar_t y, msh_vec4_t viewport )
 {
   msh_scalar_t w = viewport.data[2] - viewport.data[0];
   msh_scalar_t h = viewport.data[3] - viewport.data[1];
-  msh_vec3_t p = msh_vec3( 2.0f * x / w - 1.0f, 1.0f - 2.0f * (y - 1) / h, 0.0f );
+  msh_scalar_t r = (w > h)? h : w;
+  msh_vec3_t p = msh_vec3( (x - w * 0.5) / r, 
+                           ((h - y) - h*0.5) / r, 
+                           0.0f );
   msh_scalar_t l_sq = p.x * p.x + p.y * p.y;
   msh_scalar_t l = sqrt( l_sq );
-
   p.z = (l_sq > 0.5) ? (0.5 / l) : (sqrt( 1.0 - l_sq));
   p = msh_vec3_normalize(p);
   return p;
@@ -194,35 +196,61 @@ MSHCAMDEF void
 msh_arcball_camera_update( msh_camera_t * camera, 
                            const msh_vec2_t scrn_p0,  
                            const msh_vec2_t scrn_p1,
+                           const int left_press,
+                           const int right_press,
+                           const msh_scalar_t scroll_state,
                            const msh_vec4_t viewport ) 
 {
-  /* Current orientation and position */
-  msh_quat_t q = camera->orientation;
-  msh_quat_t p = msh_quat(camera->position.x, 
-                          camera->position.y, 
-                          camera->position.z, 0.0);
-  
-  /* Compute the quaternion rotation from inputs */
-  msh_mat3_t cur_rot = msh_quat_to_mat3( camera->orientation );
-  msh_vec3_t p0 = msh_mat3_vec3_mul( cur_rot, 
-                        msh__screen_to_sphere(scrn_p0.x, scrn_p0.y, viewport) );
-  msh_vec3_t p1 = msh_mat3_vec3_mul( cur_rot, 
-                        msh__screen_to_sphere(scrn_p1.x, scrn_p1.y, viewport) );
-  
-  /* compute rotation */
-  msh_quat_t r = msh_quat_from_vectors( p1, p0 ); 
-  r = msh_quat_slerp( msh_quat_identity(), r, 3.5 );
+  /* NOTE: Without look at point, how can we rotate about a non zero point?? */
 
-  /* Modify orientation and position */
-  q = msh_quat_normalize( msh_quat_mul( r, q ) );
-  p = msh_quat_mul( msh_quat_mul( r, p ), msh_quat_conjugate( r ) );
-  
-  camera->position = msh_vec3( p.x, p.y, p.z );
-  camera->orientation = q;
-  
+  if( scroll_state )
+  {
+    msh_mat3_t cur_rot = msh_quat_to_mat3( camera->orientation );
+    msh_vec3_t forward = msh_vec3_scalar_mul( cur_rot.col[2], -scroll_state );
+    camera->position = msh_vec3_add( camera->position, forward );
+  }
+  else if(right_press)
+  {
+    msh_mat3_t cur_rot = msh_quat_to_mat3( camera->orientation );
+    msh_scalar_t w = viewport.data[2] - viewport.data[0]; 
+    msh_scalar_t h = viewport.data[3] - viewport.data[1];
+    msh_vec2_t disp = msh_vec2( (scrn_p1.x - scrn_p0.x) / w,
+                                (scrn_p1.y - scrn_p0.y) / h );
+    msh_vec3_t u = msh_vec3_scalar_mul( cur_rot.col[0], -disp.x );
+    msh_vec3_t v = msh_vec3_scalar_mul( cur_rot.col[1], disp.y );
+    camera->position = msh_vec3_add( camera->position, u );
+    camera->position = msh_vec3_add( camera->position, v );
+  }
+  else if(left_press) 
+  { 
+    /* Current orientation and position */
+    msh_quat_t q = camera->orientation;
+    msh_quat_t p = msh_quat(camera->position.x, 
+                            camera->position.y, 
+                            camera->position.z, 0.0);
+    /* Compute the quaternion rotation from inputs */
+    msh_mat3_t cur_rot = msh_quat_to_mat3( camera->orientation );
+    msh_mat3_print( cur_rot );
+    msh_vec3_t p0 = msh_mat3_vec3_mul( cur_rot, 
+                          msh__screen_to_sphere(scrn_p0.x, scrn_p0.y, viewport) );
+    msh_vec3_t p1 = msh_mat3_vec3_mul( cur_rot, 
+                          msh__screen_to_sphere(scrn_p1.x, scrn_p1.y, viewport) );
+    
+    /* compute rotation */
+    msh_quat_t r = msh_quat_from_vectors( p1, p0 ); 
+    r = msh_quat_slerp( msh_quat_identity(), r, 3.5 );
+
+    /* Modify orientation and position */
+    q = msh_quat_normalize( msh_quat_mul( r, q ) );
+    p = msh_quat_mul( msh_quat_mul( r, p ), msh_quat_conjugate( r ) );
+    
+    camera->position = msh_vec3( p.x, p.y, p.z );
+    camera->orientation = q;
+  }
+
   /* Orientation and position are esentailly an inverse of view matrix.
-     Thus we will convert them to a matrix form and invert to obtain
-     view matrix. Note that we can use affine inverse formula */
+  Thus we will convert them to a matrix form and invert to obtain
+  view matrix. Note that we can use affine inverse formula */
   msh_mat3_t inv_o = msh_mat3_transpose(msh_quat_to_mat3( camera->orientation ));
   msh_vec3_t inv_p = msh_mat3_vec3_mul( inv_o, camera->position );
   camera->view = msh_mat3_to_mat4(inv_o);
