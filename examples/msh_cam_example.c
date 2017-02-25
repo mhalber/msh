@@ -5,20 +5,9 @@
 #define MSH_VEC_MATH_IMPLEMENTATION
 #define MSH_GFX_IMPLEMENTATION
 #define MSH_CAM_IMPLEMENTATION
-#define ARCBALL_CAMERA_IMPLEMENTATION
 #include "msh_vec_math.h"
 #include "msh_gfx.h"
 #include "msh_cam.h"
-
-/* Global data */
-/* NOTE: Types should be in msh_ namespace and the functions should have the 
-  identifier like mshgfx or mshcam */
-static mshgfx_window_t *win; 
-static mshgfx_geometry_t cube_geo;
-static mshgfx_shader_prog_t cube_shader;
-static msh_camera_t camera;
-static msh_vec2_t prev_pos;
-static msh_vec2_t cur_pos;
 
 /* Shaders */
 char* cube_vs_src = (char*) MSHGFX_SHADER_HEAD MSHGFX_SHADER_STRINGIFY
@@ -44,19 +33,87 @@ char* cube_fs_src = (char*) MSHGFX_SHADER_HEAD MSHGFX_SHADER_STRINGIFY
   }
 );
 
-static msh_vec3_t eye = msh_vec3( 4.0f, 4.0f, 15.0f );
-static msh_vec3_t target = msh_vec3( 0.0f, 0.0f, 0.0f );
-static msh_vec3_t up = msh_vec3( 0.0f, 1.0f, 0.0f );
+
+/* simple i/o state */
+typedef struct mouse_state
+{
+  msh_vec2_t prev_pos;
+  msh_vec2_t cur_pos;
+  int x_scroll_state;
+  int y_scroll_state;
+  int lmb_state;
+  int rmb_state;
+  int mmb_state;
+  int shift_key_state;
+  int super_key_state;
+  int alt_key_state;
+  int ctrl_key_state;
+} mouse_state_t;
+
+
+/* Global data */
+static mshgfx_window_t *win; 
+static mshgfx_geometry_t cube_geo;
+static mshgfx_shader_prog_t cube_shader;
+static msh_camera_t camera;
+static mouse_state_t mouse;
 static float offsets[11][11];
 
+static void 
+mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
+{
+  if( !glfwGetWindowAttrib(window, GLFW_FOCUSED) ) return;
+  mouse.lmb_state       = 0;
+  mouse.rmb_state       = 0;
+  mouse.mmb_state       = 0;
+  mouse.shift_key_state = 0;
+  mouse.super_key_state = 0;
+  mouse.alt_key_state   = 0;
+  mouse.ctrl_key_state  = 0;
+
+  if( action == GLFW_PRESS )
+  {
+    if( button == GLFW_MOUSE_BUTTON_LEFT )   mouse.lmb_state = 1;
+    if( button == GLFW_MOUSE_BUTTON_RIGHT )  mouse.rmb_state = 1;
+    if( button == GLFW_MOUSE_BUTTON_MIDDLE ) mouse.mmb_state = 1;
+    if( mods & GLFW_MOD_SHIFT )              mouse.shift_key_state = 1;
+    if( mods & GLFW_MOD_SUPER )              mouse.super_key_state = 1;
+    if( mods & GLFW_MOD_ALT )                mouse.alt_key_state   = 1;
+    if( mods & GLFW_MOD_CONTROL )            mouse.ctrl_key_state  = 1;
+  }
+}
+
+static void 
+mouse_scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+  if( !glfwGetWindowAttrib(window, GLFW_FOCUSED) ) return;
+  mouse.x_scroll_state = xoffset;
+  mouse.y_scroll_state = yoffset;
+}
+
+static void
+mouse_refresh( GLFWwindow *window )
+{
+  mouse.prev_pos  = mouse.cur_pos;
+  double x, y;
+  glfwGetCursorPos( window, &x, &y );
+  mouse.cur_pos.x = x;
+  mouse.cur_pos.y = y;
+  
+  mouse.x_scroll_state = 0;
+  mouse.y_scroll_state = 0;
+
+}
+
 /* Actual code */
+
 int init()
 {
   /* setup view matrix */
   msh_arcball_camera_init( &camera,
-                           eye,
-                           target,
-                           up,
+                           msh_vec3(15.0, 15.0, 15.0),
+                           msh_vec3(0.0, 0.0, 0.0),
+                           msh_vec3(0.0, 1.0, 0.0),
                            0.75,
                            1.0, 
                            0.1, 100.0 );
@@ -100,11 +157,11 @@ int init()
   };
   
   mshgfx_geometry_data_t cube_data;
-  cube_data.positions   = &(positions[0]);
-  cube_data.colors_a    = &(colors[0]);
-  cube_data.indices     = &(indices[0]);
-  cube_data.n_vertices  = vertex_count;
-  cube_data.n_elements  = indices_count;
+  cube_data.positions  = &(positions[0]);
+  cube_data.colors_a   = &(colors[0]);
+  cube_data.indices    = &(indices[0]);
+  cube_data.n_vertices = vertex_count;
+  cube_data.n_elements = indices_count;
 
   mshgfx_geometry_init( &cube_geo, &cube_data, 
                         POSITION | COLOR_A | STRUCTURED );  
@@ -116,19 +173,13 @@ int init()
   {
     for(int j = -5 ; j < 6 ; ++j )
     {
-      offsets[i+5][j+5] = drand48() - 0.5;
+      offsets[i+5][j+5] = sin((i-5)*0.5) * cos((j-5)*0.5);
     }
   }
 
   return 1;
 }
 
-msh_scalar_t scroll_state = 0.0f;
-
-void scroll_callback(GLFWwindow* win, double xoffset, double yoffset)
-{
-  scroll_state = yoffset;
-}
 
 int display()
 {
@@ -137,34 +188,17 @@ int display()
   glViewport( 0, 0, w, h);
   float aspect_ratio = (float)w/h;
 
-  /* NOTE: How to push controls only to the camera to allow custom controls */
-  int left_press = glfwGetMouseButton(win, GLFW_MOUSE_BUTTON_LEFT);
-  int right_press = glfwGetMouseButton(win, GLFW_MOUSE_BUTTON_RIGHT);
-  double x, y;
-  double t = 0;
-  glfwGetCursorPos( win, &x, &y );
+  /* NOTE: How to push controls only to the camera to allow custom controls? */
+  msh_arcball_camera_update( &camera, 
+                              mouse.prev_pos, mouse.cur_pos,
+                              mouse.lmb_state,
+                              mouse.rmb_state,
+                              mouse.y_scroll_state,
+                              msh_vec4(0, 0, w, h));
+  /* TODO: Scroll behaves a bit differently than the rest, how can we avoid mouse_refresh? */
+  mouse_refresh( win );
 
-  if( left_press == GLFW_PRESS || right_press == GLFW_PRESS || scroll_state != 0 )
-  {
-    cur_pos = (msh_vec2_t){.x = (float)x, 
-                           .y = (float)y};
 
-    msh_arcball_camera_update( &camera, 
-                               prev_pos, cur_pos,
-                               left_press,
-                               right_press,
-                               scroll_state,
-                               msh_vec4(0, 0, w, h));
-    scroll_state = 0.0f;
-    t = glfwGetTime();
-    prev_pos = cur_pos;
-  }
-  else
-  {
-    cur_pos = (msh_vec2_t){.x = (float)x, .y = (float)y}; 
-    prev_pos = (msh_vec2_t){.x = (float)x, .y = (float)y}; 
-    scroll_state = 0.0f;
-  }
   mshgfx_background_gradient4fv( msh_vec4( 0.194f, 0.587f, 0.843f, 1.0f ), 
                                  msh_vec4( 0.067f, 0.265f, 0.394f, 1.0f ) );
   static float near = 0.1f;
@@ -203,7 +237,8 @@ int main()
   
   mshgfx_window_activate( win );
   mshgfx_window_set_callback_refresh( win, refresh );
-  glfwSetScrollCallback( win, scroll_callback );
+  glfwSetMouseButtonCallback( win, mouse_button_callback );
+  glfwSetScrollCallback( win, mouse_scroll_callback );
   
   init();
 
