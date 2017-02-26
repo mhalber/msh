@@ -50,6 +50,10 @@ typedef struct mouse_state
   int ctrl_key_state;
 } mouse_state_t;
 
+typedef struct keyboard_state
+{
+  int pressed[GLFW_KEY_LAST];
+} keyboard_state_t;
 
 /* Global data */
 static mshgfx_window_t *win; 
@@ -57,6 +61,7 @@ static mshgfx_geometry_t cube_geo;
 static mshgfx_shader_prog_t cube_shader;
 static msh_camera_t camera;
 static mouse_state_t mouse;
+static keyboard_state_t keyboard;
 static float offsets[11][11];
 
 static void 
@@ -92,6 +97,17 @@ mouse_scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 }
 
 static void
+keyboard_callback( GLFWwindow *window, int key, int scancode, int action, int mods)
+{
+  keyboard.pressed[ key ] = 0;
+
+  if( action == GLFW_PRESS )
+  {
+    keyboard.pressed[ key ] = 1;
+  }
+}
+
+static void
 mouse_refresh( GLFWwindow *window )
 {
   mouse.prev_pos  = mouse.cur_pos;
@@ -102,7 +118,6 @@ mouse_refresh( GLFWwindow *window )
   
   mouse.x_scroll_state = 0;
   mouse.y_scroll_state = 0;
-
 }
 
 /* Actual code */
@@ -188,15 +203,23 @@ int display()
   glViewport( 0, 0, w, h);
   float aspect_ratio = (float)w/h;
 
-  /* NOTE: How to push controls only to the camera to allow custom controls? */
+  /*
   msh_arcball_camera_update( &camera, 
                               mouse.prev_pos, mouse.cur_pos,
                               mouse.lmb_state,
                               mouse.rmb_state,
                               mouse.y_scroll_state,
                               msh_vec4(0, 0, w, h));
-  /* TODO: Scroll behaves a bit differently than the rest, how can we avoid mouse_refresh? */
-  mouse_refresh( win );
+  */
+  msh_flythrough_camera( &camera, 
+                         mouse.prev_pos, mouse.cur_pos,
+                         mouse.lmb_state,
+                         keyboard.pressed[GLFW_KEY_W], 
+                         keyboard.pressed[GLFW_KEY_S],
+                         keyboard.pressed[GLFW_KEY_A],
+                         keyboard.pressed[GLFW_KEY_D] );
+ 
+  mouse_refresh( win ); 
 
 
   mshgfx_background_gradient4fv( msh_vec4( 0.194f, 0.587f, 0.843f, 1.0f ), 
@@ -239,6 +262,7 @@ int main()
   mshgfx_window_set_callback_refresh( win, refresh );
   glfwSetMouseButtonCallback( win, mouse_button_callback );
   glfwSetScrollCallback( win, mouse_scroll_callback );
+  glfwSetKeyCallback( win, keyboard_callback );
   
   init();
 
