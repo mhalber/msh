@@ -5,6 +5,7 @@
 #define MSH_VEC_MATH_IMPLEMENTATION
 #define MSH_GFX_IMPLEMENTATION
 #define MSH_CAM_IMPLEMENTATION
+#define FLYTHROUGH_CAMERA_IMPLEMENTATION
 #include "msh_vec_math.h"
 #include "msh_gfx.h"
 #include "msh_cam.h"
@@ -101,10 +102,13 @@ keyboard_callback( GLFWwindow *window, int key, int scancode, int action, int mo
 {
   keyboard.pressed[ key ] = 0;
 
-  if( action == GLFW_PRESS )
+  if( action == GLFW_PRESS || action == GLFW_REPEAT )
   {
     keyboard.pressed[ key ] = 1;
   }
+
+  if( keyboard.pressed[GLFW_KEY_ESCAPE] ) exit(1);
+
 }
 
 static void
@@ -125,8 +129,8 @@ mouse_refresh( GLFWwindow *window )
 int init()
 {
   /* setup view matrix */
-  msh_arcball_camera_init( &camera,
-                           msh_vec3(15.0, 15.0, 15.0),
+  msh_camera_init( &camera,
+                           msh_vec3(0.0, 0.0, 5.0),
                            msh_vec3(0.0, 0.0, 0.0),
                            msh_vec3(0.0, 1.0, 0.0),
                            0.75,
@@ -211,6 +215,7 @@ int display()
                               mouse.y_scroll_state,
                               msh_vec4(0, 0, w, h));
   */
+
   msh_flythrough_camera( &camera, 
                          mouse.prev_pos, mouse.cur_pos,
                          mouse.lmb_state,
@@ -218,7 +223,21 @@ int display()
                          keyboard.pressed[GLFW_KEY_S],
                          keyboard.pressed[GLFW_KEY_A],
                          keyboard.pressed[GLFW_KEY_D] );
- 
+
+
+  
+  // static msh_vec3_t eye =  msh_vec3(5.0, 0.0, 5.0);
+  // static msh_vec3_t look = msh_vec3(0.0, 0.0, -1);
+  // static msh_vec3_t up  =  msh_vec3(0.0, 1.0, 0.0);
+  // flythrough_camera_update( &(eye.x), &(look.x), &(up.x),
+  //                           &(camera.view.col[0].x), 0.001, 50, 0.15, 85,
+  //                           /*mouse.cur_pos.x - mouse.prev_pos.x*/ 0.0,
+  //                           mouse.cur_pos.y - mouse.prev_pos.y,
+  //                           keyboard.pressed[GLFW_KEY_W], 
+  //                           keyboard.pressed[GLFW_KEY_A],
+  //                           keyboard.pressed[GLFW_KEY_S],
+  //                           keyboard.pressed[GLFW_KEY_D], 0, 0, 0 );
+  
   mouse_refresh( win ); 
 
 

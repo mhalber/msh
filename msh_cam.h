@@ -202,7 +202,7 @@ msh__screen_to_sphere( msh_scalar_t x, msh_scalar_t y, msh_vec4_t viewport )
 
 
 MSHCAMDEF void
-msh_arcball_camera_init( msh_camera_t * camera,
+msh_camera_init( msh_camera_t * camera,
                          const msh_vec3_t eye,
                          const msh_vec3_t center, 
                          const msh_vec3_t up,
@@ -296,11 +296,13 @@ msh_flythrough_camera( msh_camera_t *camera,
                        int key_d_state )
 {
   msh_mat3_t r  = msh_quat_to_mat3( camera->orientation );
-  msh_vec3_t n  = msh_vec3( -r.col[2].x, -r.col[2].y, -r.col[2].z );
-  msh_vec3_t in = msh_vec3(  r.col[2].x,  r.col[2].y,  r.col[2].z );
-  msh_vec3_t v  = msh_vec3(  r.col[0].x,  r.col[0].y,  r.col[0].z );
-  msh_vec3_t iv = msh_vec3( -r.col[0].x,  -r.col[0].y, -r.col[0].z );
-  
+  msh_scalar_t speed = 0.2;
+  msh_vec3_t n  = msh_vec3( -speed * r.col[2].x, -speed * r.col[2].y, -speed * r.col[2].z );
+  msh_vec3_t in = msh_vec3(  speed * r.col[2].x,  speed * r.col[2].y,  speed * r.col[2].z );
+  msh_vec3_t v  = msh_vec3(  speed * r.col[0].x,  speed * r.col[0].y,  speed * r.col[0].z );
+  msh_vec3_t iv = msh_vec3( -speed * r.col[0].x,  -speed * r.col[0].y, -speed * r.col[0].z );
+
+
   if( key_w_state ) camera->position = msh_vec3_add( camera->position, n );
   if( key_s_state ) camera->position = msh_vec3_add( camera->position, in );
   if( key_a_state ) camera->position = msh_vec3_add( camera->position, iv );
@@ -308,26 +310,30 @@ msh_flythrough_camera( msh_camera_t *camera,
 
   if( lmb_state )
   {
-        /* Current orientation and position */
+    /* Current orientation and position */
     msh_quat_t q = camera->orientation;
-    /* Compute the quaternion rotation from inputs */
-    msh_mat3_t cur_rot = msh_quat_to_mat3( camera->orientation );
     msh_vec4_t viewport = msh_vec4( 0, 0, 1024, 1024 );
-    msh_vec3_t p0 = msh_mat3_vec3_mul( cur_rot, 
-                          msh__screen_to_sphere(scrn_p0.x, scrn_p0.y, viewport) );
-    msh_vec3_t p1 = msh_mat3_vec3_mul( cur_rot, 
-                          msh__screen_to_sphere(scrn_p1.x, scrn_p1.y, viewport) );
-    
-    /* compute rotation */
-    msh_quat_t r = msh_quat_from_vectors( p1, p0 ); 
-    r = msh_quat_slerp( msh_quat_identity(), r, 3.5 );
 
-    /* Modify orientation and position */
-    q = msh_quat_normalize( msh_quat_mul( r, q ) );
-    
+    /* Compute the quaternion rotation from inputs */
+    msh_mat3_t cur_rot = msh_mat3_identity();
+    msh_vec3_t p0 = msh_mat3_vec3_mul( cur_rot, 
+                          msh__screen_to_sphere(scrn_p0.x, 512.0, viewport) );
+    msh_vec3_t p1 = msh_mat3_vec3_mul( cur_rot, 
+                          msh__screen_to_sphere(scrn_p1.x, 512.0, viewport) );
+
+    msh_quat_t r1 = msh_quat_from_vectors( p0, p1 ); 
+    q = msh_quat_normalize( msh_quat_mul( r1, q ) );
+
+    cur_rot = msh_quat_to_mat3( q );
+    msh_vec3_t p2 = msh_mat3_vec3_mul( cur_rot, 
+                          msh__screen_to_sphere(512.0, scrn_p0.y, viewport) );
+    msh_vec3_t p3 = msh_mat3_vec3_mul( cur_rot, 
+                          msh__screen_to_sphere(512.0, scrn_p1.y, viewport) );
+    msh_quat_t r2 = msh_quat_from_vectors( p2, p3 ); 
+    q = msh_quat_normalize( msh_quat_mul( r2, q ) );
+
     camera->orientation = q;
   }
-
 
   msh_mat3_t inv_o = msh_mat3_transpose(msh_quat_to_mat3( camera->orientation ));
   msh_vec3_t inv_p = msh_mat3_vec3_mul( inv_o, camera->position );
@@ -338,5 +344,4 @@ msh_flythrough_camera( msh_camera_t *camera,
   camera->view.col[3].z = -inv_p.z;
   camera->view.col[3].w = 1.0f;
 }
-
 #endif
