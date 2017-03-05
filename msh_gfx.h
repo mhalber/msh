@@ -93,7 +93,7 @@
   #include "glad/glad.h"
 #endif
 
-//#define GLFW_INCLUDE_NONE
+#define GLFW_INCLUDE_NONE
 #include "GLFW/glfw3.h"
 
 #ifndef MSH_VEC_MATH
@@ -106,7 +106,7 @@ typedef union vec2
 
 #endif
 
-
+/* TODO: Change names of the enums */
 enum mshgfx_shader_type
 {
   VERTEX_SHADER,
@@ -155,7 +155,7 @@ typedef struct mshgfx_shader_prog
   GLint linked;
 } mshgfx_shader_prog_t;
 
-typedef struct mshgfx_texture
+typedef struct mshgfx_texture2d
 {
   unsigned int id;
   int width;
@@ -163,7 +163,18 @@ typedef struct mshgfx_texture
   int n_comp;
   GLenum type;
   unsigned int unit;
-} mshgfx_texture_t;
+} mshgfx_texture2d_t;
+
+typedef struct mshgfx_texture3d
+{
+  unsigned int id;
+  int width;
+  int height;
+  int depth;
+  int n_comp;
+  GLenum type;
+  unsigned int unit;
+} mshgfx_texture3d_t;
 
 typedef int msh_internal_data_type;
 typedef int msh_geometry_properties_flags;
@@ -249,14 +260,14 @@ void mshgfx_window_set_callback_refresh( mshgfx_window_t *window,
  */
 
 int mshgfx_framebuffer_init( mshgfx_framebuffer_t * fb, int width, int height );
-int mshgfx_framebuffer_attach( mshgfx_texture_t *tex, unsigned int attachements,
+int mshgfx_framebuffer_attach( mshgfx_texture2d_t *tex, unsigned int attachements,
                             int n_textures );
 int mshgfx_framebuffer_bind( mshgfx_framebuffer_t * fb );
 int mshgfx_framebuffer_attach_color_texture( mshgfx_framebuffer_t *fb, 
-                                          mshgfx_texture_t *tex,
+                                          mshgfx_texture2d_t *tex,
                                           GLuint *attachement, int n );
 int mshgfx_framebuffer_attach_depth_texture( mshgfx_framebuffer_t *fb, 
-                                          mshgfx_texture_t *tex );
+                                          mshgfx_texture2d_t *tex );
 int mshgfx_framebuffer_add_color_renderbuffer( mshgfx_framebuffer_t *fb );
 int mshgfx_framebuffer_add_depth_renderbuffer( mshgfx_framebuffer_t *fb );
 int mshgfx_framebuffer_check_status( mshgfx_framebuffer_t * fb );
@@ -277,7 +288,7 @@ void msh_viewport_end();
 void mshgfx_background_flat4f( float r, float g, float b, float a);
 void mshgfx_background_gradient4f( float r1, float g1, float b1, float a1,
                                    float r2, float g2, float b2, float a2 );
-void mshgfx_background_tex( mshgfx_texture_t *tex );
+void mshgfx_background_tex( mshgfx_texture2d_t *tex );
 
 #ifdef MSH_VEC_MATH
 void mshgfx_background_flat4v( msh_vec4_t col );
@@ -435,44 +446,87 @@ void mshgfx_geometry_draw( mshgfx_geometry_t * geo, GLenum draw_mode );
  * =============================================================================
  */
 
-void mshgfx_texture_init_u8( mshgfx_texture_t *tex,                              
-                             const unsigned char *data, 
-                             const int w, 
-                             const int h, 
-                             const int n_comp, 
-                             const unsigned int unit );
-
-void mshgfx_texture_init_u16( mshgfx_texture_t *tex,
-                              const unsigned short *data, 
+void mshgfx_texture2d_init_u8( mshgfx_texture2d_t *tex,                              
+                              const unsigned char *data, 
                               const int w, 
                               const int h, 
                               const int n_comp, 
                               const unsigned int unit );
 
-void mshgfx_texture_init_u32( mshgfx_texture_t *tex,
-                              const unsigned int *data, 
-                              const int w, 
-                              const int h, 
-                              const int n_comp, 
-                              const unsigned int unit );
+void mshgfx_texture2d_init_u16( mshgfx_texture2d_t *tex,
+                                const unsigned short *data, 
+                                const int w, 
+                                const int h, 
+                                const int n_comp, 
+                                const unsigned int unit );
+
+void mshgfx_texture2d_init_u32( mshgfx_texture2d_t *tex,
+                                const unsigned int *data, 
+                                const int w, 
+                                const int h, 
+                                const int n_comp, 
+                                const unsigned int unit );
 
 
-void mshgfx_texture_init_r32( mshgfx_texture_t *tex,
-                              const float *data, 
-                              const int w, 
-                              const int h, 
-                              const int n_comp, 
-                              const unsigned int unit );
+void mshgfx_texture2d_init_r32( mshgfx_texture2d_t *tex,
+                                const float *data, 
+                                const int w, 
+                                const int h, 
+                                const int n_comp, 
+                                const unsigned int unit );
 
 
-void mshgfx_texture_update_u8(  mshgfx_texture_t *tex, const unsigned char *data );
-void mshgfx_texture_update_u16( mshgfx_texture_t *tex, const unsigned short *data );
-void mshgfx_texture_update_u32( mshgfx_texture_t *tex, const unsigned int *data );
-void mshgfx_texture_update_r32( mshgfx_texture_t *tex, const float *data );
+void mshgfx_texture2d_update_u8(  mshgfx_texture2d_t *tex, const unsigned char *data );
+void mshgfx_texture2d_update_u16( mshgfx_texture2d_t *tex, const unsigned short *data );
+void mshgfx_texture2d_update_u32( mshgfx_texture2d_t *tex, const unsigned int *data );
+void mshgfx_texture2d_update_r32( mshgfx_texture2d_t *tex, const float *data );
 
-void mshgfx_texture_use( const mshgfx_texture_t *tex );
+void mshgfx_texture2d_use( const mshgfx_texture2d_t *tex );
+void mshgfx_texture2d_free( mshgfx_texture2d_t *tex );
 
-void mshgfx_texture_free( mshgfx_texture_t *tex );
+
+void mshgfx_texture3d_init_u8( mshgfx_texture3d_t *tex,                              
+                               const unsigned char *data, 
+                               const int w, 
+                               const int h,
+                               const int d, 
+                               const int n_comp, 
+                               const unsigned int unit );
+
+void mshgfx_texture3d_init_u16( mshgfx_texture3d_t *tex,
+                                const unsigned short *data, 
+                                const int w, 
+                                const int h,
+                                const int d, 
+                                const int n_comp, 
+                                const unsigned int unit );
+
+void mshgfx_texture3d_init_u32( mshgfx_texture3d_t *tex,
+                                const unsigned int *data, 
+                                const int w, 
+                                const int h,
+                                const int d, 
+                                const int n_comp, 
+                                const unsigned int unit );
+
+
+void mshgfx_texture3d_init_r32( mshgfx_texture3d_t *tex,
+                                const float *data, 
+                                const int w, 
+                                const int h,
+                                const int d, 
+                                const int n_comp, 
+                                const unsigned int unit );
+
+
+void mshgfx_texture3d_update_u8(  mshgfx_texture3d_t *tex, const unsigned char *data );
+void mshgfx_texture3d_update_u16( mshgfx_texture3d_t *tex, const unsigned short *data );
+void mshgfx_texture3d_update_u32( mshgfx_texture3d_t *tex, const unsigned int *data );
+void mshgfx_texture3d_update_r32( mshgfx_texture3d_t *tex, const float *data );
+
+void mshgfx_texture3d_use( const mshgfx_texture3d_t *tex );
+void mshgfx_texture3d_free( mshgfx_texture3d_t *tex );
+
 
 #endif /* MSH_GFX_H */
 
@@ -633,7 +687,7 @@ mshgfx_framebuffer_bind( mshgfx_framebuffer_t *fb )
 
 int
 mshgfx_framebuffer_attach_color_texture( mshgfx_framebuffer_t *fb, 
-                                      mshgfx_texture_t *tex,
+                                      mshgfx_texture2d_t *tex,
                                       GLuint *attachement, int n )
 {
   if(!fb) return 0;
@@ -649,7 +703,7 @@ mshgfx_framebuffer_attach_color_texture( mshgfx_framebuffer_t *fb,
 }
 
 int mshgfx_framebuffer_attach_depth_texture( mshgfx_framebuffer_t *fb, 
-                                          mshgfx_texture_t *tex )
+                                          mshgfx_texture2d_t *tex )
 {
   if(!fb) return 0;
   // NOTE: We should test if texture sizes are the same
@@ -721,7 +775,7 @@ mshgfx_framebuffer_terminate(mshgfx_framebuffer_t *fb)
  * =============================================================================
  */
 
-int msh_viewport_init(msh_viewport_t *v, msh_point2_t p1, msh_point2_t p2)
+int msh_viewport_init(msh_viewport_t *v, msh_vec2_t p1, msh_vec2_t p2)
 {
   glEnable(GL_SCISSOR_TEST);
   v->p1 = p1;
@@ -801,7 +855,7 @@ mshgfx_background_gradient4f( float r1, float g1, float b1, float a1,
 }
 
 void 
-mshgfx_background_tex( mshgfx_texture_t *tex )
+mshgfx_background_tex( mshgfx_texture2d_t *tex )
 {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
   glDisable(GL_DEPTH_TEST);
@@ -842,7 +896,7 @@ mshgfx_background_tex( mshgfx_texture_t *tex )
   }
   
   mshgfx_shader_prog_use( &background_shader );
-  mshgfx_texture_use( tex );
+  mshgfx_texture2d_use( tex );
   mshgfx_shader_prog_set_uniform_1i( &background_shader, "fb_tex", tex->unit );
 
   glBindVertexArray( background_vao );
@@ -1319,7 +1373,7 @@ mshgfx_shader_prog_set_uniform_3fvc( const mshgfx_shader_prog_t *p,
                                   const unsigned int count )
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
-  glUniform3fv( location, count, &( v->data[0] ) );
+  glUniform3fv( location, count, &(v->data[0] ) );
 }
 
 void
@@ -1660,7 +1714,7 @@ mshgfx_geometry_draw( mshgfx_geometry_t * geo,
 /* TODO (maciej): Format defining macro */
 
 void 
-mshgfx_texture_update_u8( mshgfx_texture_t *tex, const unsigned char *data )
+mshgfx_texture2d_update_u8( mshgfx_texture2d_t *tex, const unsigned char *data )
 {
   glActiveTexture ( GL_TEXTURE0 + tex->unit );
   glBindTexture( GL_TEXTURE_2D, tex->id );
@@ -1695,7 +1749,7 @@ mshgfx_texture_update_u8( mshgfx_texture_t *tex, const unsigned char *data )
 }
 
 void 
-mshgfx_texture_update_u16( mshgfx_texture_t *tex, const unsigned short *data )
+mshgfx_texture2d_update_u16( mshgfx_texture2d_t *tex, const unsigned short *data )
 {
   assert( tex->n_comp > 0 && tex->n_comp <= 1 );
 
@@ -1733,7 +1787,7 @@ mshgfx_texture_update_u16( mshgfx_texture_t *tex, const unsigned short *data )
 }
 
 void 
-mshgfx_texture_update_u32( mshgfx_texture_t *tex, const unsigned int *data )
+mshgfx_texture2d_update_u32( mshgfx_texture2d_t *tex, const unsigned int *data )
 {
   assert( tex->n_comp > 0 && tex->n_comp <= 1 );
 
@@ -1771,7 +1825,7 @@ mshgfx_texture_update_u32( mshgfx_texture_t *tex, const unsigned int *data )
 }
 
 void 
-mshgfx_texture_update_r32( mshgfx_texture_t *tex, const float *data )
+mshgfx_texture2d_update_r32( mshgfx_texture2d_t *tex, const float *data )
 {
   assert( tex->n_comp > 0 && tex->n_comp <= 1 );
 
@@ -1810,9 +1864,9 @@ mshgfx_texture_update_r32( mshgfx_texture_t *tex, const float *data )
 
 
 static inline void 
-mshgfx__texture_init_type( mshgfx_texture_t *tex, const int type, 
-                           const int w, const int h, const int n_comp,
-                           const unsigned int unit )
+mshgfx__texture2d_init_type( mshgfx_texture2d_t *tex, const int type, 
+                            const int w, const int h, const int n_comp,
+                            const unsigned int unit )
 {
   tex->width  = w;
   tex->height = h;
@@ -1826,78 +1880,331 @@ mshgfx__texture_init_type( mshgfx_texture_t *tex, const int type,
   /* TODO(maciej): Move the texture parameters out */
   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT );
+  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT );
 }
 
 void 
-mshgfx_texture_init_u8( mshgfx_texture_t *tex,
+mshgfx_texture2d_init_u8( mshgfx_texture2d_t *tex,
                         const unsigned char *data, 
                         const int w, 
                         const int h, 
                         const int n_comp,  
                         const unsigned int unit )
 {
-  mshgfx__texture_init_type( tex, GL_UNSIGNED_BYTE, w, h, n_comp, unit );
-  mshgfx_texture_update_u8( tex, data );
+  mshgfx__texture2d_init_type( tex, GL_UNSIGNED_BYTE, w, h, n_comp, unit );
+  mshgfx_texture2d_update_u8( tex, data );
 
   glBindTexture( GL_TEXTURE_2D, 0 );
 }
 
 
 void 
-mshgfx_texture_init_u16( mshgfx_texture_t *tex,
+mshgfx_texture2d_init_u16( mshgfx_texture2d_t *tex,
                          const unsigned short *data, 
                          const int w, 
                          const int h, 
                          const int n_comp,  
                          const unsigned int unit )
 {
-  mshgfx__texture_init_type( tex, GL_UNSIGNED_SHORT, w, h, n_comp, unit );
-  mshgfx_texture_update_u16( tex, data );
+  mshgfx__texture2d_init_type( tex, GL_UNSIGNED_SHORT, w, h, n_comp, unit );
+  mshgfx_texture2d_update_u16( tex, data );
 
   glBindTexture( GL_TEXTURE_2D, 0 );
 }
 
 void 
-mshgfx_texture_init_u32( mshgfx_texture_t *tex,
+mshgfx_texture2d_init_u32( mshgfx_texture2d_t *tex,
                          const unsigned int *data, 
                          const int w, 
                          const int h, 
                          const int n_comp,  
                          const unsigned int unit )
 {
-  mshgfx__texture_init_type( tex, GL_UNSIGNED_INT, w, h, n_comp, unit );
-  mshgfx_texture_update_u32( tex, data );
+  mshgfx__texture2d_init_type( tex, GL_UNSIGNED_INT, w, h, n_comp, unit );
+  mshgfx_texture2d_update_u32( tex, data );
 
   glBindTexture( GL_TEXTURE_2D, 0 );
 }
 
 void 
-mshgfx_texture_init_r32( mshgfx_texture_t *tex,
+mshgfx_texture2d_init_r32( mshgfx_texture2d_t *tex,
                          const float *data, 
                          const int w, 
                          const int h, 
                          const int n_comp,  
                          const unsigned int unit )
 {
-  mshgfx__texture_init_type( tex, GL_FLOAT, w, h, n_comp, unit );
-  mshgfx_texture_update_r32( tex, data );
+  mshgfx__texture2d_init_type( tex, GL_FLOAT, w, h, n_comp, unit );
+  mshgfx_texture2d_update_r32( tex, data );
 
   glBindTexture( GL_TEXTURE_2D, 0 );
 }
 
 void 
-mshgfx_texture_use( const mshgfx_texture_t *tex)
+mshgfx_texture2d_use( const mshgfx_texture2d_t *tex)
 {
     glActiveTexture( GL_TEXTURE0 + tex->unit );
     glBindTexture( GL_TEXTURE_2D, tex->id );
 }
 
 void 
-mshgfx_texture_free( mshgfx_texture_t *tex )
+mshgfx_texture2d_free( mshgfx_texture2d_t *tex )
 {
     glDeleteTextures( 1, &tex->id );
     tex->id = 0;
 }
+
+
+
+void 
+mshgfx_texture3d_update_u8( mshgfx_texture3d_t *tex, const unsigned char *data )
+{
+  glActiveTexture ( GL_TEXTURE0 + tex->unit );
+  glBindTexture( GL_TEXTURE_3D, tex->id );
+
+  GLint internal_format;
+  GLenum format = 0;
+  switch( tex->n_comp )
+  {
+    case 1:
+      internal_format = GL_R8;
+      format = GL_RED;
+      break;
+    case 2:
+      internal_format = GL_RG;
+      break;
+    case 3:
+      internal_format = GL_RGB;
+      format = GL_RGB;
+      break;
+    case 4:
+      internal_format = GL_RGBA;
+      format = GL_RGBA;
+      break;
+    default:
+      internal_format = GL_RGB;
+      format = GL_RGB;
+  }
+
+  glTexImage3D( GL_TEXTURE_3D, 0, internal_format, 
+                tex->width, tex->height, tex->depth, 0, format, GL_UNSIGNED_BYTE, data );
+  glBindTexture( GL_TEXTURE_3D, 0 );
+}
+
+void 
+mshgfx_texture3d_update_u16( mshgfx_texture3d_t *tex, const unsigned short *data )
+{
+  assert( tex->n_comp > 0 && tex->n_comp <= 1 );
+
+  glActiveTexture ( GL_TEXTURE0 + tex->unit );
+  glBindTexture( GL_TEXTURE_3D, tex->id );
+
+  GLint internal_format;
+  GLenum format;
+  switch( tex->n_comp )
+  {
+    case 1:
+      internal_format = GL_R16;
+      format = GL_RED;
+      break;
+    case 2:
+      internal_format = GL_RG16;
+      format = GL_RG;
+      break;
+    case 3:
+      internal_format = GL_RGB16;
+      format = GL_RGB;
+      break;
+    case 4:
+      internal_format = GL_RGBA16;
+      format = GL_RGBA;
+      break;
+    default:
+      internal_format = GL_RGB;
+      format = GL_RGB;
+  }
+
+  glTexImage3D( GL_TEXTURE_3D, 0, internal_format, 
+                tex->width, tex->height, tex->depth, 0, format, GL_UNSIGNED_SHORT, data );
+  glBindTexture( GL_TEXTURE_3D, 0 );
+}
+
+void 
+mshgfx_texture3d_update_u32( mshgfx_texture3d_t *tex, const unsigned int *data )
+{
+  assert( tex->n_comp > 0 && tex->n_comp <= 1 );
+
+  glActiveTexture ( GL_TEXTURE0 + tex->unit );
+  glBindTexture( GL_TEXTURE_3D, tex->id );
+
+  GLint internal_format;
+  GLenum format;
+  switch( tex->n_comp )
+  {
+    case 1:
+      internal_format = GL_R32UI;
+      format = GL_RED;
+      break;
+    case 2:
+      internal_format = GL_RG32UI;
+      format = GL_RG;
+      break;
+    case 3:
+      internal_format = GL_RGB32UI;
+      format = GL_RGB;
+      break;
+    case 4:
+      internal_format = GL_RGBA32UI;
+      format = GL_RGBA;
+      break;
+    default:
+      internal_format = GL_RGB;
+      format = GL_RGB;
+  }
+
+  glTexImage3D( GL_TEXTURE_3D, 0, internal_format, 
+                tex->width, tex->height, tex->depth, 0, format, GL_UNSIGNED_INT, data );
+  glBindTexture( GL_TEXTURE_3D, 0 );
+}
+
+void 
+mshgfx_texture3d_update_r32( mshgfx_texture3d_t *tex, const float *data )
+{
+  assert( tex->n_comp > 0 && tex->n_comp <= 1 );
+
+  glActiveTexture ( GL_TEXTURE0 + tex->unit );
+  glBindTexture( GL_TEXTURE_3D, tex->id );
+
+  GLint internal_format;
+  GLenum format;
+  switch( tex->n_comp )
+  {
+    case 1:
+      internal_format = GL_R32F;
+      format = GL_RED;
+      break;
+    case 2:
+      internal_format = GL_RG32F;
+      format = GL_RG;
+      break;
+    case 3:
+      internal_format = GL_RGB32F;
+      format = GL_RGB;
+      break;
+    case 4:
+      internal_format = GL_RGBA32F;
+      format = GL_RGBA;
+      break;
+    default:
+      internal_format = GL_RGB;
+      format = GL_RGB;
+  }
+
+  glTexImage3D( GL_TEXTURE_3D, 0, internal_format, 
+                tex->width, tex->height, tex->depth, 0, format, GL_FLOAT, data );
+  glBindTexture( GL_TEXTURE_3D, 0 );
+}
+
+
+static inline void 
+mshgfx__texture3d_init_type( mshgfx_texture3d_t *tex, const int type, 
+                           const int w, const int h, const int d, 
+                           const int n_comp, const unsigned int unit )
+{
+  tex->width  = w;
+  tex->height = h;
+  tex->depth  = d;
+  tex->n_comp = n_comp; 
+  tex->type   = type;
+  tex->unit   = unit;
+  glGenTextures( 1, &tex->id );
+  
+  glActiveTexture ( GL_TEXTURE0 + tex->unit );
+  glBindTexture( GL_TEXTURE_3D, tex->id );
+
+  /* TODO(maciej): Move the texture parameters out */
+  glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+  glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+  glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT );
+  glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT );
+}
+
+void 
+mshgfx_texture3d_init_u8( mshgfx_texture3d_t *tex,
+                          const unsigned char *data, 
+                          const int w, 
+                          const int h,
+                          const int d, 
+                          const int n_comp,  
+                          const unsigned int unit )
+{
+  mshgfx__texture3d_init_type( tex, GL_UNSIGNED_BYTE, w, h, d, n_comp, unit );
+  mshgfx_texture3d_update_u8( tex, data );
+
+  glBindTexture( GL_TEXTURE_3D, 0 );
+}
+
+
+void 
+mshgfx_texture3d_init_u16( mshgfx_texture3d_t *tex,
+                           const unsigned short *data, 
+                           const int w, 
+                           const int h,
+                           const int d, 
+                           const int n_comp,  
+                           const unsigned int unit )
+{
+  mshgfx__texture3d_init_type( tex, GL_UNSIGNED_SHORT, w, h, d, n_comp, unit );
+  mshgfx_texture3d_update_u16( tex, data );
+
+  glBindTexture( GL_TEXTURE_3D, 0 );
+}
+
+void 
+mshgfx_texture3d_init_u32( mshgfx_texture3d_t *tex,
+                           const unsigned int *data, 
+                           const int w, 
+                           const int h,
+                           const int d, 
+                           const int n_comp,  
+                           const unsigned int unit )
+{
+  mshgfx__texture3d_init_type( tex, GL_UNSIGNED_INT, w, h, d, n_comp, unit );
+  mshgfx_texture3d_update_u32( tex, data );
+
+  glBindTexture( GL_TEXTURE_3D, 0 );
+}
+
+void 
+mshgfx_texture3d_init_r32( mshgfx_texture3d_t *tex,
+                           const float *data, 
+                           const int w, 
+                           const int h,
+                           const int d, 
+                           const int n_comp,  
+                           const unsigned int unit )
+{
+  mshgfx__texture3d_init_type( tex, GL_FLOAT, w, h, d, n_comp, unit );
+  mshgfx_texture3d_update_r32( tex, data );
+
+  glBindTexture( GL_TEXTURE_3D, 0 );
+}
+
+void 
+mshgfx_texture3d_use( const mshgfx_texture3d_t *tex)
+{
+    glActiveTexture( GL_TEXTURE0 + tex->unit );
+    glBindTexture( GL_TEXTURE_3D, tex->id );
+}
+
+void 
+mshgfx_texture3d_free( mshgfx_texture3d_t *tex )
+{
+    glDeleteTextures( 1, &tex->id );
+    tex->id = 0;
+}
+
 
 
 #endif /* MSH_GFX_IMPLEMENTATION */
