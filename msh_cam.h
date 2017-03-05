@@ -133,19 +133,47 @@ typedef struct msh_camera
 
 } msh_camera_t;
 
+/* TODO: Design better simple api for basic version of the camera
+ A) Use of msh_camera_t should be optional 
+ B) Implement simple camera for flythrough.
+ C) Make the camera use lookat point
 
-/* NOTE: Possibly hold all the ogl related stuff in controls. But probably it
-should just be a way to configure the controls to specific needs. 
-I like this more. It should store things like the speed, interface interaction */
+MOST BASIC / ADVANCED API --->  Everything else will build from this method.
 
-// typedef struct mshcam_controls
-// {
-// 
-// } mshcam_controls_t;
+void msh_arcball_camera_update( msh_scalar_t pos[3],
+                                msh_scalar_t look_at[3]
+                                msh_scalar_t up[3],
+
+                                msh_scalar_t fovy,
+                                msh_scalar_t aspect_ratio,
+                                msh_scalar_t near, msh_scalar_t far,
+                                
+                                msh_scalar_t p0_x, msh_scalar_t p1_y,
+                                msh_scalar_t p1_x, msh_scalar_t p1_y,
+                                int lmb_press, int rmb_press,
+                                msh_scalar_t scroll,
+                                
+                                msh_scalar_t w, ms_scalar_t h,
+                                
+                                msh_scalar_t * view,
+                                msh_scalar_t * quaternion,
+                                msh_scalar_t * proj );
+*/
 
 
-// void msh_arcball_controls_update( msh_camera_t *camera );
-// void msh_first_person_controls_update( msh_camera_t *camera );
+/* TODO: Specify control schemes that will mimic certain software */
+/* basic:
+    - lmb: rotation
+    - rmb: pan
+    - scroll: zoom;
+  blender:
+    - mmb: rotation
+    - shift+mmb: pan
+    - ctrl+mmb: zoom(smooth)
+    - scroll: zoom
+    - ctrl+scroll: pan in x
+    - shift+scroll: pan in y
+*/
 
 #ifdef __cplusplus
 }
@@ -174,7 +202,7 @@ msh__screen_to_sphere( msh_scalar_t x, msh_scalar_t y, msh_vec4_t viewport )
 
 
 MSHCAMDEF void
-msh_arcball_camera_init( msh_camera_t * camera,
+msh_camera_init( msh_camera_t * camera,
                          const msh_vec3_t eye,
                          const msh_vec3_t center, 
                          const msh_vec3_t up,
@@ -196,19 +224,19 @@ MSHCAMDEF void
 msh_arcball_camera_update( msh_camera_t * camera, 
                            const msh_vec2_t scrn_p0,  
                            const msh_vec2_t scrn_p1,
-                           const int left_press,
-                           const int right_press,
-                           const msh_scalar_t scroll_state,
+                           const int lmb_state,
+                           const int rmb_state,
+                           const msh_scalar_t scroll_state, 
                            const msh_vec4_t viewport ) 
 {
-  /* NOTE: Without look at point, how can we rotate about a non zero point?? */
+
   if( scroll_state )
   {
     msh_mat3_t cur_rot = msh_quat_to_mat3( camera->orientation );
     msh_vec3_t forward = msh_vec3_scalar_mul( cur_rot.col[2], -scroll_state );
     camera->position = msh_vec3_add( camera->position, forward );
   }
-  else if(right_press)
+  else if(rmb_state)
   {
     msh_mat3_t cur_rot = msh_quat_to_mat3( camera->orientation );
     msh_scalar_t w = viewport.data[2] - viewport.data[0]; 
@@ -220,7 +248,7 @@ msh_arcball_camera_update( msh_camera_t * camera,
     camera->position = msh_vec3_add( camera->position, u );
     camera->position = msh_vec3_add( camera->position, v );
   }
-  else if(left_press) 
+  else if(lmb_state) 
   { 
     /* Current orientation and position */
     msh_quat_t q = camera->orientation;
@@ -247,8 +275,8 @@ msh_arcball_camera_update( msh_camera_t * camera,
   }
 
   /* Orientation and position are esentailly an inverse of view matrix.
-  Thus we will convert them to a matrix form and invert to obtain
-  view matrix. Note that we can use affine inverse formula */
+     Thus we will convert them to a matrix form and invert to obtain
+     view matrix. Note that we can use affine inverse formula */
   msh_mat3_t inv_o = msh_mat3_transpose(msh_quat_to_mat3( camera->orientation ));
   msh_vec3_t inv_p = msh_mat3_vec3_mul( inv_o, camera->position );
   camera->view = msh_mat3_to_mat4(inv_o);
@@ -258,4 +286,62 @@ msh_arcball_camera_update( msh_camera_t * camera,
   camera->view.col[3].w = 1.0f;
 }
 
+void
+msh_flythrough_camera( msh_camera_t *camera,
+                       msh_vec2_t scrn_p0, msh_vec2_t scrn_p1,
+                       int lmb_state,
+                       int key_w_state, 
+                       int key_s_state,
+                       int key_a_state,
+                       int key_d_state )
+{
+  msh_mat3_t r  = msh_quat_to_mat3( camera->orientation );
+  msh_scalar_t speed = 0.2;
+  msh_vec3_t n  = msh_vec3( -speed * r.col[2].x, -speed * r.col[2].y, -speed * r.col[2].z );
+  msh_vec3_t in = msh_vec3(  speed * r.col[2].x,  speed * r.col[2].y,  speed * r.col[2].z );
+  msh_vec3_t v  = msh_vec3(  speed * r.col[0].x,  speed * r.col[0].y,  speed * r.col[0].z );
+  msh_vec3_t iv = msh_vec3( -speed * r.col[0].x,  -speed * r.col[0].y, -speed * r.col[0].z );
+
+
+  if( key_w_state ) camera->position = msh_vec3_add( camera->position, n );
+  if( key_s_state ) camera->position = msh_vec3_add( camera->position, in );
+  if( key_a_state ) camera->position = msh_vec3_add( camera->position, iv );
+  if( key_d_state ) camera->position = msh_vec3_add( camera->position, v );
+
+  if( lmb_state )
+  {
+    /* Current orientation and position */
+    msh_quat_t q = camera->orientation;
+    msh_vec4_t viewport = msh_vec4( 0, 0, 1024, 1024 );
+
+    /* Compute the quaternion rotation from inputs */
+    msh_mat3_t cur_rot = msh_mat3_identity();
+    msh_vec3_t p0 = msh_mat3_vec3_mul( cur_rot, 
+                          msh__screen_to_sphere(scrn_p0.x, 512.0, viewport) );
+    msh_vec3_t p1 = msh_mat3_vec3_mul( cur_rot, 
+                          msh__screen_to_sphere(scrn_p1.x, 512.0, viewport) );
+
+    msh_quat_t r1 = msh_quat_from_vectors( p0, p1 ); 
+    q = msh_quat_normalize( msh_quat_mul( r1, q ) );
+
+    cur_rot = msh_quat_to_mat3( q );
+    msh_vec3_t p2 = msh_mat3_vec3_mul( cur_rot, 
+                          msh__screen_to_sphere(512.0, scrn_p0.y, viewport) );
+    msh_vec3_t p3 = msh_mat3_vec3_mul( cur_rot, 
+                          msh__screen_to_sphere(512.0, scrn_p1.y, viewport) );
+    msh_quat_t r2 = msh_quat_from_vectors( p2, p3 ); 
+    q = msh_quat_normalize( msh_quat_mul( r2, q ) );
+
+    camera->orientation = q;
+  }
+
+  msh_mat3_t inv_o = msh_mat3_transpose(msh_quat_to_mat3( camera->orientation ));
+  msh_vec3_t inv_p = msh_mat3_vec3_mul( inv_o, camera->position );
+  
+  camera->view = msh_mat3_to_mat4(inv_o);
+  camera->view.col[3].x = -inv_p.x;
+  camera->view.col[3].y = -inv_p.y;
+  camera->view.col[3].z = -inv_p.z;
+  camera->view.col[3].w = 1.0f;
+}
 #endif
