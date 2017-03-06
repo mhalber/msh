@@ -224,20 +224,6 @@ int display()
                          keyboard.pressed[GLFW_KEY_A],
                          keyboard.pressed[GLFW_KEY_D] );
 
-
-  
-  // static msh_vec3_t eye =  msh_vec3(5.0, 0.0, 5.0);
-  // static msh_vec3_t look = msh_vec3(0.0, 0.0, -1);
-  // static msh_vec3_t up  =  msh_vec3(0.0, 1.0, 0.0);
-  // flythrough_camera_update( &(eye.x), &(look.x), &(up.x),
-  //                           &(camera.view.col[0].x), 0.001, 50, 0.15, 85,
-  //                           /*mouse.cur_pos.x - mouse.prev_pos.x*/ 0.0,
-  //                           mouse.cur_pos.y - mouse.prev_pos.y,
-  //                           keyboard.pressed[GLFW_KEY_W], 
-  //                           keyboard.pressed[GLFW_KEY_A],
-  //                           keyboard.pressed[GLFW_KEY_S],
-  //                           keyboard.pressed[GLFW_KEY_D], 0, 0, 0 );
-  
   mouse_refresh( win ); 
 
 
