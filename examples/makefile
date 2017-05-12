@@ -16,9 +16,12 @@ CAM_EXE = msh_cam_example
 CAM_SRCS = msh_cam_example.c
 CAM_OBJS = $(CAM_SRCS:%.c=$(OUT_DIR)%.o)
 
+MSH_EXE = msh_example
+MSH_SRCS = msh_example.c
+MSH_OBJS = $(MSH_SRCS:%.c=$(OUT_DIR)%.o)
 
 # Compile and link options
-CC = clang++
+CC = clang
 ifeq ($(OS_NAME), Linux)
 CC = gcc
 endif
@@ -39,7 +42,7 @@ CAM_LIBS = $(GL_LIBS) -L/usr/local/lib/ -lglad
 endif
 
 # Make targets
-all: clean argparse gfx cam
+all: clean argparse msh
 
 argparse: $(ARGPARSE_OBJS)
 		$(CC) $(FRAMEWORKS) $(CFLAGS) $(ARGPARSE_OBJS) -o ${BIN_DIR}${ARGPARSE_EXE}
@@ -49,10 +52,14 @@ gfx: $(GFX_OBJS)
 
 cam: $(CAM_OBJS)
 		$(CC) $(FRAMEWORKS) $(CFLAGS) $(CAM_OBJS) $(CAM_LIBS) -o ${BIN_DIR}${CAM_EXE}
+		
+msh: $(MSH_OBJS)
+		$(CC) $(FRAMEWORKS) $(CFLAGS) $(MSH_OBJS) $(MSH_LIBS) -o ${BIN_DIR}${MSH_EXE}
+
 
 
 clean:
-		rm -f $(OUT_DIR)*.o ${BIN_DIR}${ARGPARSE_EXE} ${BIN_DIR}${GFX_EXE} ${BIN_DIR}${CAM_EXE}
+		rm -f $(OUT_DIR)*.o ${BIN_DIR}${ARGPARSE_EXE} ${BIN_DIR}${GFX_EXE} ${BIN_DIR}${CAM_EXE} ${BIN_DIR}${MSH_EXE}
 
 
 # Compile command

@@ -390,6 +390,9 @@ MSHVMDEF msh_mat4_t msh_rotate( msh_mat4_t m,
                        msh_scalar_t angle, 
                        msh_vec3_t axis );
 
+MSHVMDEF msh_vec3_t msh_mat3_to_euler( msh_mat3_t m );
+MSHVMDEF msh_mat3_t msh_mat3_from_euler( msh_vec3_t euler_angles );
+
 MSHVMDEF int msh_mat2_equal( msh_mat2_t a, msh_mat2_t b );
 MSHVMDEF int msh_mat3_equal( msh_mat3_t a, msh_mat3_t b );
 MSHVMDEF int msh_mat4_equal( msh_mat4_t a, msh_mat4_t b );
@@ -1914,6 +1917,53 @@ msh_rotate( msh_mat4_t m, msh_scalar_t angle, msh_vec3_t v )
                               msh_vec4_scalar_mul(m.col[2], rotate.data[10])));
   result.col[3]=m.col[3];
   return result;
+}
+
+// Euler angles decoded as yaw, pitch, roll
+// from https://www.geometrictools.com/Documentation/EulerAngles.pdf
+MSHVMDEF inline msh_vec3_t 
+msh_mat3_to_euler( msh_mat3_t m )
+{
+  msh_scalar_t pi = 3.14159265359;
+  msh_vec3_t angles;
+  if( m.col[2].x < 1.0 )
+  {
+    if ( m.col[2].x > -1.0)
+    {
+      angles.y = asin(m.col[2].x);
+      angles.x = atan2( -m.col[2].y, m.col[2].z );
+      angles.z = atan2( -m.col[1].x, m.col[0].x );
+    }
+    else
+    {
+      angles.y = -pi * 0.5;
+      angles.x = -atan2(m.col[0].y, m.col[1].y );
+      angles.z = 0.0;
+    }
+  }
+  else
+  {
+    angles.y = pi * 0.5;
+    angles.x = atan2(m.col[0].y, m.col[1].y );
+    angles.z = 0;
+  }
+  return angles;
+}
+
+
+// Euler angles decoded as yaw, pitch, roll
+MSHVMDEF inline msh_mat3_t 
+msh_mat3_from_euler( msh_vec3_t euler_angles )
+{
+  msh_scalar_t sx = sin( euler_angles.x );
+  msh_scalar_t sy = sin( euler_angles.y );
+  msh_scalar_t sz = sin( euler_angles.z );
+  msh_scalar_t cx = cos( euler_angles.x );
+  msh_scalar_t cy = cos( euler_angles.y );
+  msh_scalar_t cz = cos( euler_angles.z );
+  return ((msh_mat3_t){{cy*cz,          cy*sz,          -sy, 
+                        sx*sy*cz-cx*sz, cx*cz+sx*sy*sz, sx*cy, 
+                        cx*sy*cz+sx*sz, cx*sy*sz-sx*cz, cx*cy}});
 }
 
 /*

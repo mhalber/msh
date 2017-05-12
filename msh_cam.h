@@ -189,8 +189,8 @@ msh__screen_to_sphere( msh_scalar_t x, msh_scalar_t y, msh_vec4_t viewport )
   msh_scalar_t w = viewport.data[2] - viewport.data[0];
   msh_scalar_t h = viewport.data[3] - viewport.data[1];
   msh_scalar_t r = (w > h)? h : w;
-  msh_vec3_t p = msh_vec3( (x - w * 0.5) / r, 
-                           ((h - y) - h*0.5) / r, 
+  msh_vec3_t p = msh_vec3( (x - w * 0.5f) / r, 
+                           ((h - y) - h*0.5f) / r, 
                            0.0f );
   msh_scalar_t l_sq = p.x * p.x + p.y * p.y;
   msh_scalar_t l = sqrt( l_sq );

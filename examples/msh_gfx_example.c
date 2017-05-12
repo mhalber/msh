@@ -34,7 +34,7 @@ char *fs_source = (char *)MSHGFX_SHADER_HEAD MSHGFX_SHADER_STRINGIFY(
 msh_viewport_t viewports[3];
 mshgfx_shader_prog_t triangle_shader;
 mshgfx_geometry_t triangle_geo;
-mshgfx_texture_t fb_texture;
+mshgfx_texture2d_t fb_texture;
 mshgfx_framebuffer_t fb;
 
 int window_display(void)

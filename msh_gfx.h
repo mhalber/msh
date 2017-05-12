@@ -183,6 +183,16 @@ typedef struct mshgfx_shader_prog
 } mshgfx_shader_prog_t;
 
 // NOTE(maciej): Should textures know that they are attached and fail?
+typedef struct mshgfx_texture1d
+{
+  uint32_t id;
+  int32_t width;
+  int32_t n_comp;
+  uint32_t type;
+  uint32_t unit;
+} mshgfx_texture1d_t;
+
+
 typedef struct mshgfx_texture2d
 {
   uint32_t id;
@@ -292,8 +302,22 @@ int32_t mshgfx_framebuffer_free( mshgfx_framebuffer_t *fb );
  *       TEXTURES
  * =============================================================================
  */
+void mshgfx_texture1d_init( mshgfx_texture1d_t *tex,
+                            const void *data, 
+                            const int32_t type,
+                            const int32_t w, 
+                            const int32_t n_comp, 
+                            const uint32_t unit,
+                            const int32_t user_flags );
+ 
 
-void mshgfx_texture2d_init( mshgfx_texture2d_t *tex,                              
+void mshgfx_texture1d_update( mshgfx_texture1d_t *tex, 
+                              const void *data, const uint32_t type );
+
+void mshgfx_texture1d_use( const mshgfx_texture1d_t *tex );
+void mshgfx_texture1d_free( mshgfx_texture1d_t *tex );
+
+void mshgfx_texture2d_init( mshgfx_texture2d_t *tex,
                             const void *data, 
                             const int32_t type,
                             const int32_t w, 
@@ -310,7 +334,7 @@ void mshgfx_texture2d_use( const mshgfx_texture2d_t *tex );
 void mshgfx_texture2d_free( mshgfx_texture2d_t *tex );
 
 
-void mshgfx_texture3d_init( mshgfx_texture3d_t *tex,                              
+void mshgfx_texture3d_init( mshgfx_texture3d_t *tex,
                             const void *data, 
                             const int32_t type,
                             const int32_t w, 
@@ -538,8 +562,7 @@ mshgfx_renderbuffer_init( mshgfx_renderbuffer_t * rb,
 }
 
 int32_t 
-mshgfx_renderbuffer_free( mshgfx_renderbuffer_t * rb, 
-                          int32_t width, int32_t height )
+mshgfx_renderbuffer_free( mshgfx_renderbuffer_t * rb )
 {
   glDeleteRenderbuffers(1, &rb->id);
   return 1;
@@ -1251,16 +1274,19 @@ mshgfx_shader_prog_set_uniform_2fv( const mshgfx_shader_prog_t *p,
                                    const char *attrib_name, const msh_vec2_t* v)
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
-  glUniform2fv( location, 1, &(v->data[0]) );
+  float vec[2] = { (float)v->data[0], (float)v->data[1] };
+  glUniform2fv( location, 1, &(vec[0]) );
 }
 
+// TODO: Fix this!!!
 void
 mshgfx_shader_prog_set_uniform_2fvc( const mshgfx_shader_prog_t *p, 
                                   const char *attrib_name, const msh_vec2_t* v, 
                                   const uint32_t count )
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
-  glUniform2fv( location, count, &( v->data[0] ) );
+  float vec[2] = { (float)v->data[0], (float)v->data[1] };
+  glUniform2fv( location, count, &( vec[0] ) );
 }
 
 void
@@ -1268,16 +1294,19 @@ mshgfx_shader_prog_set_uniform_3fv( const mshgfx_shader_prog_t *p,
                                  const char *attrib_name, const msh_vec3_t * v)
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
-  glUniform3fv( location, 1, &(v->data[0]) );
+  float vec[3] = { (float)v->data[0], (float)v->data[1], (float)v->data[2]  };
+  glUniform3fv( location, 1, &(vec[0]) );
 }
 
+// TODO: Fix this!!!
 void
 mshgfx_shader_prog_set_uniform_3fvc( const mshgfx_shader_prog_t *p, 
                                   const char *attrib_name, const msh_vec3_t * v, 
                                   const uint32_t count )
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
-  glUniform3fv( location, count, &(v->data[0] ) );
+  float vec[3] = { (float)v->data[0], (float)v->data[1], (float)v->data[2]  };
+  glUniform3fv( location, count, &(vec[0] ) );
 }
 
 void
@@ -1285,7 +1314,8 @@ mshgfx_shader_prog_set_uniform_4fv( const mshgfx_shader_prog_t *p,
                                   const char *attrib_name, const msh_vec4_t *v )
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
-  glUniform4fv( location, 1, &(v->data[0]) );
+  float vec[4] = { (float)v->data[0], (float)v->data[1], (float)v->data[2], (float)v->data[3] };
+  glUniform4fv( location, 1, &(vec[0]) );
 }
 
 void
@@ -1294,7 +1324,8 @@ mshgfx_shader_prog_set_uniform_4fvc( const mshgfx_shader_prog_t *p,
                                   const uint32_t count )
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
-  glUniform4fv( location, count, &(v->data[0]) );
+  float vec[4] = { (float)v->data[0], (float)v->data[1], (float)v->data[2], (float)v->data[3] };
+  glUniform4fv( location, count, &(vec[0]) );
 }
 
 void
@@ -1302,7 +1333,10 @@ mshgfx_shader_prog_set_uniform_3fm( const mshgfx_shader_prog_t *p,
                                  const char *attrib_name, const msh_mat3_t *m )
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
-  glUniformMatrix3fv( location, 1, GL_FALSE, &(m->data[0]) );
+  float mat[9] = { (float)m->data[0], (float)m->data[1], (float)m->data[2], 
+                   (float)m->data[3], (float)m->data[4], (float)m->data[5], 
+                   (float)m->data[6], (float)m->data[7], (float)m->data[8] };
+  glUniformMatrix3fv( location, 1, GL_FALSE, &(mat[0]) );
 }
 
 void
@@ -1311,7 +1345,10 @@ mshgfx_shader_prog_set_uniform_3fmc( const mshgfx_shader_prog_t *p,
                                   const uint32_t count )
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
-  glUniformMatrix3fv( location, count, GL_FALSE, &(m->data[0]) );
+  float mat[9] = { (float)m->data[0], (float)m->data[1], (float)m->data[2], 
+                   (float)m->data[3], (float)m->data[4], (float)m->data[5], 
+                   (float)m->data[6], (float)m->data[7], (float)m->data[8] };
+  glUniformMatrix3fv( location, count, GL_FALSE, &(mat[0]) );
 }
 
 void
@@ -1319,7 +1356,11 @@ mshgfx_shader_prog_set_uniform_4fm( const mshgfx_shader_prog_t *p,
                                  const char *attrib_name, const msh_mat4_t *m )
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
-  glUniformMatrix4fv( location, 1, GL_FALSE, &(m->data[0]) );
+  float mat[16] = { (float)m->data[0], (float)m->data[1], (float)m->data[2], (float)m->data[3],
+                   (float)m->data[4], (float)m->data[5], (float)m->data[6], (float)m->data[7],
+                   (float)m->data[8], (float)m->data[9], (float)m->data[10], (float)m->data[11],
+                   (float)m->data[12], (float)m->data[13], (float)m->data[14], (float)m->data[15] };
+  glUniformMatrix4fv( location, 1, GL_FALSE, &(mat[0]) );
 }
 
 void
@@ -1328,7 +1369,11 @@ mshgfx_shader_prog_set_uniform_4fmc( const mshgfx_shader_prog_t *p,
                                   const uint32_t count  )
 {
   GLuint location = glGetUniformLocation( p->id, attrib_name );
-  glUniformMatrix4fv( location, count, GL_FALSE, &(m->data[0]) );
+  float mat[16] = { (float)m->data[0], (float)m->data[1], (float)m->data[2], (float)m->data[3],
+                   (float)m->data[4], (float)m->data[5], (float)m->data[6], (float)m->data[7],
+                   (float)m->data[8], (float)m->data[9], (float)m->data[10], (float)m->data[11],
+                   (float)m->data[12], (float)m->data[13], (float)m->data[14], (float)m->data[15] };
+  glUniformMatrix4fv( location, count, GL_FALSE, &(mat[0]) );
 }
 
 #endif /* MSH_VEC_MATH */
@@ -1591,7 +1636,7 @@ mshgfx_geometry_free( mshgfx_geometry_t * geo )
 
 void 
 mshgfx_geometry_draw( mshgfx_geometry_t * geo, 
-                  uint32_t draw_mode ) 
+                      uint32_t draw_mode ) 
 {
   msh_geometry_properties_flags flags = geo->flags;
 
@@ -1616,6 +1661,105 @@ mshgfx_geometry_draw( mshgfx_geometry_t * geo,
  */
 
 /* TODO (maciej): Format defining macro? */
+
+void 
+mshgfx_texture1d_update( mshgfx_texture1d_t *tex, 
+                         const void *data, const uint32_t type )
+{
+  glActiveTexture ( GL_TEXTURE0 + tex->unit );
+  glBindTexture( GL_TEXTURE_2D, tex->id );
+
+  GLint internal_format;
+  uint32_t format = 0;
+  switch( tex->n_comp )
+  {
+    case 1:
+      format = GL_RED;
+      if( type == GL_UNSIGNED_BYTE )  internal_format = GL_R8;
+      if( type == GL_UNSIGNED_SHORT ) internal_format = GL_R16; 
+      if( type == GL_UNSIGNED_INT )   internal_format = GL_R32UI;
+      if( type == GL_FLOAT )          internal_format = GL_R32F;
+      break;
+    case 2:
+      format = GL_RG;
+      if( type == GL_UNSIGNED_BYTE )  internal_format = GL_RG;
+      if( type == GL_UNSIGNED_SHORT ) internal_format = GL_RG16;
+      if( type == GL_UNSIGNED_INT )   internal_format = GL_RG32UI;
+      if( type == GL_FLOAT )          internal_format = GL_RG32F;
+      break;
+    case 3:
+      format = GL_RGB;
+      if( type == GL_UNSIGNED_BYTE )  internal_format = GL_RGB8;
+      if( type == GL_UNSIGNED_SHORT ) internal_format = GL_RGB16;
+      if( type == GL_UNSIGNED_INT )   internal_format = GL_RGB32UI;
+      if( type == GL_FLOAT )          internal_format = GL_RGB32F;
+      break;
+    case 4:
+      format = GL_RGBA;
+      if( type == GL_UNSIGNED_BYTE )  internal_format = GL_RGBA8;
+      if( type == GL_UNSIGNED_SHORT ) internal_format = GL_RGBA16;
+      if( type == GL_UNSIGNED_INT )   internal_format = GL_RGBA32UI;
+      if( type == GL_FLOAT )          internal_format = GL_RGBA32F;
+      break;
+    default:
+      internal_format = GL_RGBA;
+      format = GL_RGB;
+  }
+
+  glTexImage1D( GL_TEXTURE_1D, 0, internal_format, 
+                tex->width, 0, format, type, data );
+  glBindTexture( GL_TEXTURE_1D, 0 );
+}
+
+void 
+mshgfx_texture1d_init( mshgfx_texture1d_t *tex,
+                       const void *data,
+                       const int32_t type,
+                       const int32_t w, 
+                       const int32_t n_comp,  
+                       const uint32_t unit,
+                       const int32_t user_flags )
+{
+  tex->width  = w;
+  tex->n_comp = n_comp; 
+  tex->type   = type;
+  tex->unit   = unit;
+  glGenTextures( 1, &tex->id );
+  
+  glActiveTexture ( GL_TEXTURE0 + tex->unit );
+  glBindTexture( GL_TEXTURE_1D, tex->id );
+
+  GLuint filtering = GL_NEAREST;
+  GLuint wrapping   = GL_CLAMP_TO_EDGE;
+  if ( user_flags & MSH_NEAREST )              filtering = GL_NEAREST; 
+  if ( user_flags & MSH_LINEAR )               filtering = GL_LINEAR;
+  if ( user_flags & MSH_CLAMP_TO_EDGE )        wrapping = GL_CLAMP_TO_EDGE;       
+  if ( user_flags & MSH_CLAMP_TO_BORDER )      wrapping = GL_CLAMP_TO_BORDER;     
+  if ( user_flags & MSH_REPEAT )               wrapping = GL_REPEAT;              
+  if ( user_flags & MSH_MIRRORED_REPEAT )      wrapping = GL_MIRRORED_REPEAT;     
+
+  glTexParameteri( GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, filtering );
+  glTexParameteri( GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, filtering );
+  glTexParameteri( GL_TEXTURE_1D, GL_TEXTURE_WRAP_S, wrapping );
+
+  mshgfx_texture1d_update( tex, data, type );
+
+  glBindTexture( GL_TEXTURE_1D, 0 );
+}
+
+void 
+mshgfx_texture1d_use( const mshgfx_texture1d_t *tex)
+{
+    glActiveTexture( GL_TEXTURE0 + tex->unit );
+    glBindTexture( GL_TEXTURE_1D, tex->id );
+}
+
+void 
+mshgfx_texture1d_free( mshgfx_texture1d_t *tex )
+{
+    glDeleteTextures( 1, &tex->id );
+    tex->id = 0;
+}
 
 
 void 
@@ -1773,15 +1917,15 @@ mshgfx_texture3d_update( mshgfx_texture3d_t *tex,
 
 
 void 
-mshgfx_texture3d_init_u8( mshgfx_texture3d_t *tex,
-                          const void *data, 
-                          const int32_t type,
-                          const int32_t w, 
-                          const int32_t h,
-                          const int32_t d, 
-                          const int32_t n_comp,  
-                          const uint32_t unit,
-                          const int32_t user_flags )
+mshgfx_texture3d_init( mshgfx_texture3d_t *tex,
+                       const void *data, 
+                       const int32_t type,
+                       const int32_t w, 
+                       const int32_t h,
+                       const int32_t d, 
+                       const int32_t n_comp,  
+                       const uint32_t unit,
+                       const int32_t user_flags )
 {
   tex->width  = w;
   tex->height = h;
