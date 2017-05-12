@@ -85,6 +85,7 @@ int main()
   printf("Clamping -1.5f to 0-1 range: %f\n", msh_clamp01(-1.5));
   printf("Clamping 259 to 0-255 range: %d\n", msh_clamp(259, 0, 255));
   printf("Clamping -59 to 0-255 range: %d\n", msh_clamp(-59, 0, 255));
+  
   // ARRAY test
   msh_array(int32_t) array = NULL;
   msh_array_init( array, 5 );
