@@ -79,13 +79,14 @@
 ////////////////////////////////////////////////////////////////////////////////
 #ifndef msh_PI
 #define msh_PI          3.1415926535897932384626433832
+#define msh_TWO_PI      6.2831853072
 #define msh_INV_PI      0.3183098862
 #define msh_PI_OVER_TWO 1.5707963268
 #endif
 
 
 #ifndef msh_rad2deg
-#define msh_rad2deg(x) ((x) * 180.0 * msh_INVPI)
+#define msh_rad2deg(x) ((x) * 180.0 * msh_INV_PI)
 #endif
 
 #ifndef msh_deg2rad
@@ -133,7 +134,7 @@
 #endif
 
 #ifndef msh_abs
-#define msh_abs(x) ((x)<0 ? -(x) : (x))
+#define msh_abs(x) ((x) < 0 ? -(x) : (x))
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////

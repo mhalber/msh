@@ -274,7 +274,7 @@ msh__arg_compare ( const void * data_a, const void * data_b )
   const msh_arg_t * arg_b = (const msh_arg_t *)data_b;
 
   if (  arg_a->position >= 0 && arg_b->position >= 0 ) 
-    return 0;
+    return (arg_a->position - arg_b->position);
 
   if ( arg_a->position < 0 && arg_b->position < 0 ) 
     return strncmp( arg_a->name, arg_b->name, MSH_MAX_NAME_LEN );
@@ -576,6 +576,7 @@ msh__parse_argument( msh_arg_t * arg,
       /* copy length and pointer */                                            \
       argument->num_vals = num_vals;                                           \
       argument->values = (void*)values;                                        \
+            printf("Argument %zu Name: %s Position %d\n", argparse->n_args, name, argument->position );                             \
       return 1;                                                                \
     }                                                                          \
     else                                                                       \
@@ -658,6 +659,7 @@ msh_parse_arguments( int argc,
   for ( i = 0 ; i < argparse->n_required ; ++i )
   {
     msh_arg_t * cur_arg = &(argparse->args[i]);
+    printf("TEST : %zu Name: %s Position: %d\n", i, cur_arg->name, cur_arg->position);
     if ( !msh__parse_argument( cur_arg, argc, argv, &argv_index ) ) return 0;
   }
  

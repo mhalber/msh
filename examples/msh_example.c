@@ -31,6 +31,11 @@ int main()
   printf("Clamping -1.5f to 0-1 range: %f\n", msh_clamp01(-1.5));
   printf("Clamping 259 to 0-255 range: %d\n", msh_clamp(259, 0, 255));
   printf("Clamping -59 to 0-255 range: %d\n", msh_clamp(-59, 0, 255));
+  printf("256 %s within the range 0 - 512\n", msh_within(256, 0, 512) ? "is" : "is not" );
+  printf("1444 %s within the range 0 - 512\n", msh_within(1444, 0, 512) ? "is" : "is not" );
+  printf("Absolute value of -3.712 is : %f\n", msh_abs(-3.712) );
+  printf("PI is equal to : %f rad ( %f deg )\n", msh_deg2rad(msh_rad2deg(msh_PI)), 
+                                                 msh_rad2deg(msh_PI) );
 
   // ARRAY test
   msh_array(int32_t) array = NULL;
