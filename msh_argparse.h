@@ -576,7 +576,6 @@ msh__parse_argument( msh_arg_t * arg,
       /* copy length and pointer */                                            \
       argument->num_vals = num_vals;                                           \
       argument->values = (void*)values;                                        \
-            printf("Argument %zu Name: %s Position %d\n", argparse->n_args, name, argument->position );                             \
       return 1;                                                                \
     }                                                                          \
     else                                                                       \
@@ -659,7 +658,6 @@ msh_parse_arguments( int argc,
   for ( i = 0 ; i < argparse->n_required ; ++i )
   {
     msh_arg_t * cur_arg = &(argparse->args[i]);
-    printf("TEST : %zu Name: %s Position: %d\n", i, cur_arg->name, cur_arg->position);
     if ( !msh__parse_argument( cur_arg, argc, argv, &argv_index ) ) return 0;
   }
  
