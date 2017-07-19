@@ -91,7 +91,7 @@
 
 
 #ifndef MSH_CAM_H
-#define MHSCAM_H
+#define MSH_CAM_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -220,8 +220,29 @@ msh_camera_init( msh_camera_t * camera,
   camera->position        = msh_vec4_to_vec3( view_inverse.col[3] );
 }
 
+static msh_vec2_t start_p = msh_vec2(-1, -1);
+
+MSHCAMDEF void
+msh_camera_update_perspective( msh_camera_t *camera,
+                               const msh_scalar_t fovy, 
+                               const msh_scalar_t aspect_ratio,
+                               const msh_scalar_t znear, 
+                               const msh_scalar_t zfar )
+{
+  camera->proj = msh_perspective( fovy, aspect_ratio, znear, zfar );
+}
+
+MSHCAMDEF void
+msh_camera_update_ortho( msh_camera_t *camera,
+                         const msh_scalar_t left,  const msh_scalar_t right, 
+                         const  msh_scalar_t bottom, const msh_scalar_t top, 
+                         const msh_scalar_t znear, const msh_scalar_t zfar )
+{
+  camera->proj = msh_ortho( left, right, bottom, top, znear, zfar );
+}
+
 MSHCAMDEF void 
-msh_arcball_camera_update( msh_camera_t * camera, 
+msh_arcball_camera_update( msh_camera_t *camera, 
                            const msh_vec2_t scrn_p0,  
                            const msh_vec2_t scrn_p1,
                            const int lmb_state,
@@ -229,7 +250,6 @@ msh_arcball_camera_update( msh_camera_t * camera,
                            const msh_scalar_t scroll_state, 
                            const msh_vec4_t viewport ) 
 {
-
   if( scroll_state )
   {
     msh_mat3_t cur_rot = msh_quat_to_mat3( camera->orientation );
@@ -243,8 +263,8 @@ msh_arcball_camera_update( msh_camera_t * camera,
     msh_scalar_t h = viewport.data[3] - viewport.data[1];
     msh_vec2_t disp = msh_vec2( (scrn_p1.x - scrn_p0.x) / w,
                                 (scrn_p1.y - scrn_p0.y) / h );
-    msh_vec3_t u = msh_vec3_scalar_mul( cur_rot.col[0], -disp.x );
-    msh_vec3_t v = msh_vec3_scalar_mul( cur_rot.col[1], disp.y );
+    msh_vec3_t u = msh_vec3_scalar_mul( cur_rot.col[0], 5 * -disp.x );
+    msh_vec3_t v = msh_vec3_scalar_mul( cur_rot.col[1], 5 * disp.y );
     camera->position = msh_vec3_add( camera->position, u );
     camera->position = msh_vec3_add( camera->position, v );
   }

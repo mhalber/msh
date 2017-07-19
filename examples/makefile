@@ -20,6 +20,10 @@ MSH_EXE = msh_example
 MSH_SRCS = msh_example.c
 MSH_OBJS = $(MSH_SRCS:%.c=$(OUT_DIR)%.o)
 
+DRAW_EXE = msh_draw_example
+DRAW_SRCS = msh_draw_example.c
+DRAW_OBJS = $(DRAW_SRCS:%.c=$(OUT_DIR)%.o)
+
 # Compile and link options
 CC = clang
 ifeq ($(OS_NAME), Linux)
@@ -33,6 +37,7 @@ ifeq ($(OS_NAME), Darwin)
 FRAMEWORKS = -framework opengl
 GFX_LIBS = -lglfw3
 CAM_LIBS = -lglfw3
+DRAW_LIBS = -lglfw3
 endif
 
 ifeq ($(OS_NAME), Linux)
@@ -42,7 +47,7 @@ CAM_LIBS = $(GL_LIBS) -L/usr/local/lib/ -lglad
 endif
 
 # Make targets
-all: clean argparse msh
+all: clean draw
 
 argparse: $(ARGPARSE_OBJS)
 		$(CC) $(FRAMEWORKS) $(CFLAGS) $(ARGPARSE_OBJS) -o ${BIN_DIR}${ARGPARSE_EXE}
@@ -55,6 +60,9 @@ cam: $(CAM_OBJS)
 		
 msh: $(MSH_OBJS)
 		$(CC) $(FRAMEWORKS) $(CFLAGS) $(MSH_OBJS) $(MSH_LIBS) -o ${BIN_DIR}${MSH_EXE}
+
+draw: $(DRAW_OBJS)
+		$(CC) $(FRAMEWORKS) $(CFLAGS) $(DRAW_OBJS) $(DRAW_LIBS) -o ${BIN_DIR}${DRAW_EXE}
 
 
 

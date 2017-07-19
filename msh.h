@@ -64,14 +64,16 @@
 #ifndef MSH
 #define MSH
 
-//#ifdef MSH_VEC_MATH_INCLUDE_HEADERS
+#ifndef MSH_NO_C_HEADERS
 #include <stdio.h>
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <stdarg.h>
 #include <stdbool.h>
-//#endif
+#endif
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -153,11 +155,19 @@
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
+// Printing
+////////////////////////////////////////////////////////////////////////////////
+
+#define msh_cprintf(cond, fmt, ...) do { if(cond){ printf (fmt, ##__VA_ARGS__);} } while (0)
+#define msh_eprintf(fmt, ...) do { fprintf(stderr, fmt, ##__VA_ARGS__); } while (0)
+#define msh_panic_eprintf(fmt, ...) do { fprintf(stderr, fmt, ##__VA_ARGS__); exit(-1); } while (0)
+#define msh_panic_ceprintf(cond, fmt, ...) do { if(cond){ fprintf(stderr, fmt, ##__VA_ARGS__); exit(-1);} } while (0)
+
+////////////////////////////////////////////////////////////////////////////////
 // Debug
 ////////////////////////////////////////////////////////////////////////////////
 
-// NOTE(maciej): This is shameslessly ripped out from gb.happen
-
+// NOTE(maciej): This is shameslessly ripped out from gb.h
 #ifndef MSH_DEBUG_TRAP
   #if defined(_MSC_VER)
     #if _MSC_VER < 1300
@@ -230,12 +240,16 @@ typedef struct msh_array_header
 #define msh_array(T) T *
 
 #ifndef MSH_ARRAY_GROW_FORMULA
-#define MSH_ARRAY_GROW_FORMULA(x) ( 1.5*(x) + 8 )
+#define MSH_ARRAY_GROW_FORMULA(x) ( 1.5*(x) + 2 )
 #endif
 
 #define msh__array_header(a)     ((msh_array_header_t*)(a) - 1)
 #define msh_array_count(a)       ((a) ? msh__array_header(a)->count : 0)
+#define msh_array_size(a)        ((a) ? msh__array_header(a)->count : 0)
 #define msh_array_capacity(a)    ((a) ? msh__array_header(a)->capacity : 0)
+#define msh_array_empty(a)       ((a) ? (msh__array_header(a)->count > 0) : 0)
+#define msh_array_front(a)       ((a) ? &a[0] : NULL)
+#define msh_array_back(a)        ((a) ? &a[msh__array_header(a)->count - 1] : NULL)
 
 #define msh_array_init(a, n) do                                                \
 {                                                                              \
@@ -276,7 +290,6 @@ typedef struct msh_array_header
 { \
   if( !a || msh__array_header(a)->capacity < msh__array_header(a)->count + 1 )     \
   { \
-    printf("Growing array " #a "at val " #v "\n"); \
     msh__array_grow(a); \
   }\
   (a)[msh__array_header(a)->count++] = v; \

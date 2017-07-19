@@ -1644,6 +1644,7 @@ mshgfx_geometry_draw( mshgfx_geometry_t * geo,
   
   if ( flags & STRUCTURED )
   {
+
     glDrawElements( draw_mode, geo->n_elements, GL_UNSIGNED_INT, 0 );
   }
   else
