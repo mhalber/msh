@@ -1,16 +1,15 @@
 #include "msh.h"
+
+#define MSH_DRAW_IMPLEMENTATION
 #include "msh_draw.h"
-#define GLFW_INCLUDE_COREARB
-#include "GLFW/glfw3.h"
+
 
 
 
 int main( int argc, char** argv )
 {
-  int width = 640;
-  int height = 480;
   GLFWwindow* window;
-  msh_draw_ctx draw_ctx;
+  msh_draw_ctx_t draw_ctx;
 
   // Initialize GLFW and create window
   if( !glfwInit() )
@@ -42,10 +41,14 @@ int main( int argc, char** argv )
   // Draw loop
   while( !glfwWindowShouldClose(window) )
   {
-    glViewport(0, 0, width, height);
-    glClearColor( 1.0, 0.0, 0.0, 1.0 );
+    int fb_w, fb_h;
+    glfwGetFramebufferSize( window, &fb_w, &fb_h );
+    glViewport( 0, 0, fb_w, fb_h );
+    glClearColor( 1.0, 1.0, 1.0, 1.0 );
     glClear(GL_COLOR_BUFFER_BIT);
 
+
+    msh_draw_triangle( &draw_ctx, 0.5, 0.0, 0.2 );
 
 
     glfwSwapBuffers(window);
