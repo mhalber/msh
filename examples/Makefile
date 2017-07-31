@@ -2,8 +2,12 @@ OS_NAME := $(shell uname -s)
 # Useful Directories
 BIN_DIR = ../bin/
 OUT_DIR = out/
+EXTERN_DIR = ../extern/
 
 # List of source files
+EXTERN_SRCS = $(EXTERN_DIR)/glad/glad.c
+EXTERN_OBJS = $(OUT_DIR)/glad.o
+
 ARGPARSE_EXE = msh_argparse_example
 ARGPARSE_SRCS = msh_argparse_example.c
 ARGPARSE_OBJS = $(ARGPARSE_SRCS:%.c=$(OUT_DIR)%.o)
@@ -30,7 +34,7 @@ ifeq ($(OS_NAME), Linux)
 CC = gcc
 endif
 WARNINGS = -Wall -Wextra 
-CFLAGS = -O0 -ggdb -std=gnu11 -I../ -I/usr/local/include/ 
+CFLAGS = -O0 -ggdb -std=gnu11 -I../ -I$(EXTERN_DIR) -I/usr/local/include/ 
 
 # Libraries and Frameworks
 ifeq ($(OS_NAME), Darwin)
@@ -44,6 +48,7 @@ ifeq ($(OS_NAME), Linux)
 GL_LIBS = -lglfw3 -lGL -lGLU -lX11 -lXi -lXrandr -lXxf86vm -lXinerama -lXcursor -lrt -lm -pthread -ldl -lm
 GFX_LIBS = $(GL_LIBS)  -L/usr/local/lib/ -lglad
 CAM_LIBS = $(GL_LIBS) -L/usr/local/lib/ -lglad
+DRAW_LIBS = $(GL_LIBS)
 endif
 
 # Make targets
@@ -61,8 +66,8 @@ cam: $(CAM_OBJS)
 msh: $(MSH_OBJS)
 		$(CC) $(FRAMEWORKS) $(CFLAGS) $(MSH_OBJS) $(MSH_LIBS) -o ${BIN_DIR}${MSH_EXE}
 
-draw: $(DRAW_OBJS)
-		$(CC) $(FRAMEWORKS) $(CFLAGS) $(DRAW_OBJS) $(DRAW_LIBS) -o ${BIN_DIR}${DRAW_EXE}
+draw: $(DRAW_OBJS) $(EXTERN_OBJS)
+		$(CC) $(FRAMEWORKS) $(CFLAGS) $(DRAW_OBJS) $(EXTERN_OBJS) $(DRAW_LIBS) -o ${BIN_DIR}${DRAW_EXE}
 
 
 
@@ -71,7 +76,10 @@ clean:
 
 
 # Compile command
-$(OUT_DIR)%.o: %.c
+$(OUT_DIR)%.o: %.c 
+		$(CC) $(WARNINGS) $(CFLAGS) -c $< -o $@
+
+$(OUT_DIR)%.o: ../extern/glad/%.c
 		$(CC) $(WARNINGS) $(CFLAGS) -c $< -o $@
 
 # GNU Make: targets that don't build files
