@@ -220,8 +220,6 @@ msh_camera_init( msh_camera_t * camera,
   camera->position        = msh_vec4_to_vec3( view_inverse.col[3] );
 }
 
-static msh_vec2_t start_p = msh_vec2(-1, -1);
-
 MSHCAMDEF void
 msh_camera_update_perspective( msh_camera_t *camera,
                                const msh_scalar_t fovy, 

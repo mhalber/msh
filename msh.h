@@ -160,8 +160,8 @@
 
 #define msh_cprintf(cond, fmt, ...) do { if(cond){ printf (fmt, ##__VA_ARGS__);} } while (0)
 #define msh_eprintf(fmt, ...) do { fprintf(stderr, fmt, ##__VA_ARGS__); } while (0)
-#define msh_panic_eprintf(fmt, ...) do { fprintf(stderr, fmt, ##__VA_ARGS__); exit(-1); } while (0)
-#define msh_panic_ceprintf(cond, fmt, ...) do { if(cond){ fprintf(stderr, fmt, ##__VA_ARGS__); exit(-1);} } while (0)
+#define msh_panic_eprintf(fmt, ...) do { fprintf(stderr, fmt, ##__VA_ARGS__); exit(EXIT_FAILURE); } while (0)
+#define msh_panic_ceprintf(cond, fmt, ...) do { if(cond){ fprintf(stderr, fmt, ##__VA_ARGS__); exit(EXIT_FAILURE);} } while (0)
 
 ////////////////////////////////////////////////////////////////////////////////
 // Debug
