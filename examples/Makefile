@@ -1,4 +1,8 @@
+# TODOs 
+#  [ ] Ensure this builds on all 3 systems(Cygwin for windows for now)!
+
 OS_NAME := $(shell uname -s)
+
 # Useful Directories
 BIN_DIR = ../bin/
 OUT_DIR = out/
@@ -30,11 +34,11 @@ DRAW_OBJS = $(DRAW_SRCS:%.c=$(OUT_DIR)%.o)
 
 # Compile and link options
 CC = clang
-ifeq ($(OS_NAME), Linux)
-CC = gcc
+ifeq ($(OS_NAME), CYGWIN_NT-10.0)
+CC = /bin/x86_64-w64-mingw32-gcc.exe
 endif
 WARNINGS = -Wall -Wextra 
-CFLAGS = -O0 -ggdb -std=gnu11 -I../ -I$(EXTERN_DIR) -I/usr/local/include/ 
+CFLAGS = -O0 -ggdb -std=gnu11 -I/usr/x86_64-w64-mingw32/sys-root/mingw/include -I../ -I$(EXTERN_DIR)  
 
 # Libraries and Frameworks
 ifeq ($(OS_NAME), Darwin)
@@ -44,8 +48,8 @@ CAM_LIBS = -lglfw3
 DRAW_LIBS = -lglfw3
 endif
 
-ifeq ($(OS_NAME), Linux)
-GL_LIBS = -lglfw3 -lGL -lGLU -lX11 -lXi -lXrandr -lXxf86vm -lXinerama -lXcursor -lrt -lm -pthread -ldl -lm
+ifeq ($(OS_NAME), CYGWIN_NT-10.0)
+GL_LIBS = -L/usr/local/lib -lglfw3 -lGL -lGLU -lX11 -lXi -lXrandr -lXinerama -lXcursor -lrt -lm -pthread -ldl -lm
 GFX_LIBS = $(GL_LIBS)  -L/usr/local/lib/ -lglad
 CAM_LIBS = $(GL_LIBS) -L/usr/local/lib/ -lglad
 DRAW_LIBS = $(GL_LIBS)
