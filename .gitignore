@@ -1,6 +1,7 @@
 *.dSYM
 **/*.dSYM
 libs/**
+extern/**
 .vscode/**
 bin/**
 examples/out/**
