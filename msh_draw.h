@@ -54,11 +54,11 @@
 #ifndef MSH_DRAW_H
 #define MSH_DRAW_H
 
-#ifdef __APPLE__
-  #include <OpenGL/gl3.h>
-#else
+// #ifdef __APPLE__
+  // #include <OpenGL/gl3.h>
+// #else
   #include "glad/glad.h"
-#endif
+// #endif
 
 #define GLFW_INCLUDE_NONE
 #include "GLFW/glfw3.h"
@@ -103,6 +103,7 @@ typedef struct msh_draw_cmd
   msh_cmd_type type;
   int paint_idx;
   float geometry[10];
+  float z_idx;
 } msh_draw_cmd_t;
 
 typedef struct msh_draw_ctx
@@ -117,6 +118,8 @@ typedef struct msh_draw_ctx
   int paint_buf_capacity;
   msh_draw_paint_t* paint_buf;
   int paint_idx;
+
+  float z_idx;
 
 #ifdef MSH_DRAW_OPENGL
   msh_draw_opengl_backend_t backend;
@@ -202,6 +205,9 @@ msh_draw_init_ctx( msh_draw_ctx_t* ctx )
   ctx->paint_buf_capacity = MSH_DRAW_INIT_CMD_BUF_SIZE;
   ctx->paint_buf = (msh_draw_paint_t*)malloc( ctx->paint_buf_capacity * sizeof(msh_draw_paint_t) );
 
+  // Setup z indexing
+  ctx->z_idx = 0.0f;
+
 #ifdef MSH_DRAW_OPENGL
   // create shader
   const char* vert_shdr_src = (const char*) "#version 330 core\n" MSH_DRAW_STRINGIFY
@@ -286,11 +292,14 @@ msh_draw_init_ctx( msh_draw_ctx_t* ctx )
 
 int msh_draw_new_frame( msh_draw_ctx_t* ctx )
 {
-  // reset indices
+  // Reset indices
   ctx->cmd_idx = 0;
   ctx->cmd_buf_size = 0;
   ctx->paint_idx = 0;
   ctx->paint_buf_size = 1;
+
+  // Reset z indexing
+  ctx->z_idx = 0.0f;
 
   // Add default material
   ctx->paint_buf[ctx->paint_idx] = (msh_draw_paint_t){.fill_color = (msh_draw_color_t){.r=1.0f, .g=0.0f, .b=0.0f}};
@@ -312,59 +321,56 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
 {
   // Sort draw calls
   // NOTE(maciej): This suggests a standardized size for each
-  // qsort( ctx->cmd_buf, ctx->cmd_buf_size, sizeof(msh_draw_cmd_t), msh_draw__cmd_compare );
+  qsort( ctx->cmd_buf, ctx->cmd_buf_size, sizeof(msh_draw_cmd_t), msh_draw__cmd_compare );
   
   // TODO(maciej): This should be adaptive as well.
   // TODO(maciej): This should be replaced and constructer per material idx.
   int ogl_idx = 0;
-  static float* ogl_buf = NULL;
-  if( !ogl_buf )
-  {
-   ogl_buf = malloc( 4096 * sizeof(float) ); 
-  }
+  float ogl_buf[4096];
+  // if( !ogl_buf )
+  // {
+  //  ogl_buf = malloc( 4096 * sizeof(float) ); 
+  // }
 
   // NOTE(maciej): REthink this
   int i = 0;
-  int cur_paint_idx = 0;
   int n_draw_calls = 0;
-  for( int i = 0; i < ctx->cmd_buf_size; ++i )
-  {
-    msh_draw_cmd_t* cur_cmd = &ctx->cmd_buf[i];
-    printf("%d | %d - Uploading triangle with material %d\n", i, ctx->cmd_buf_size, cur_cmd->paint_idx );
-  }
 
-  //NOTE(maciej): Below is incorrect.
-  i=0;
   while( i < ctx->cmd_buf_size )
   {
     ogl_idx = 0;
     msh_draw_cmd_t* cur_cmd = &ctx->cmd_buf[i];
+
     int cur_paint_idx = cur_cmd->paint_idx;
 
     while( cur_paint_idx == cur_cmd->paint_idx )
     {
       cur_paint_idx = cur_cmd->paint_idx;
-      float x_pos = cur_cmd->geometry[0];
-      float y_pos = cur_cmd->geometry[1];
-      float size  = cur_cmd->geometry[2];
+      if( cur_cmd->type == MSHD_TRIANGLE )
+      {
+        float x_pos = cur_cmd->geometry[0];
+        float y_pos = cur_cmd->geometry[1];
+        float size  = cur_cmd->geometry[2];
 
-      ogl_buf[ogl_idx+0] = x_pos - size;
-      ogl_buf[ogl_idx+1] = y_pos - size;
-      ogl_buf[ogl_idx+2] = 0.0f;
+        // TODO(maciej): can we not populate this?
+        ogl_buf[ogl_idx+0] = x_pos - size;
+        ogl_buf[ogl_idx+1] = y_pos - size;
+        ogl_buf[ogl_idx+2] = cur_cmd->z_idx;
 
-      ogl_buf[ogl_idx+3] = x_pos + size;
-      ogl_buf[ogl_idx+4] = y_pos - size;
-      ogl_buf[ogl_idx+5] = 0.0f;
+        ogl_buf[ogl_idx+3] = x_pos + size;
+        ogl_buf[ogl_idx+4] = y_pos - size;
+        ogl_buf[ogl_idx+5] = cur_cmd->z_idx;
 
-      ogl_buf[ogl_idx+6] = x_pos;
-      ogl_buf[ogl_idx+7] = y_pos + size;
-      ogl_buf[ogl_idx+8] = 0.0f;
+        ogl_buf[ogl_idx+6] = x_pos;
+        ogl_buf[ogl_idx+7] = y_pos + 0.8*size;
+        ogl_buf[ogl_idx+8] = cur_cmd->z_idx;
 
-      ogl_idx += 9;
+        ogl_idx += 9;
+      }
 
-      printf("%d | %d - Uploading triangle %f %f %f using material %d\n", i, ctx->cmd_buf_size, x_pos, y_pos, size, cur_paint_idx );
-      cur_cmd = &ctx->cmd_buf[i++];
-      if( i >= ctx->cmd_buf_size ) break;
+      // printf("%d | %d - Uploading triangle %f %f %f using material %d\n", i, ctx->cmd_buf_size, x_pos, y_pos, size, cur_paint_idx );
+      cur_cmd = &ctx->cmd_buf[++i];
+      if( i >= ctx->cmd_buf_size || ogl_idx >= 4000 ) break;
     }
 
 #ifdef MSH_DRAW_OPENGL
@@ -464,8 +470,10 @@ msh_draw_triangle( msh_draw_ctx_t* ctx, float x, float y, float s )
   cmd.geometry[0] = x;
   cmd.geometry[1] = y;
   cmd.geometry[2] = s;
+  cmd.z_idx = ctx->z_idx;
+  ctx->z_idx -= 0.01;
   ctx->cmd_buf[ctx->cmd_idx] = cmd;
   ctx->cmd_buf_size += 1;
-  printf("Adding trinagle with material %d | %d\n", ctx->cmd_buf[ctx->cmd_idx].paint_idx, ctx->cmd_buf_size );
+  // printf("Adding trinagle with material %d | %d\n", ctx->cmd_buf[ctx->cmd_idx].paint_idx, ctx->cmd_buf_size );
 }
 #endif /*MSH_DRAW_IMPLEMENTATION */

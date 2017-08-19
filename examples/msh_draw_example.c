@@ -22,7 +22,7 @@ int main( int argc, char** argv )
   glfwWindowHint( GLFW_CONTEXT_VERSION_MINOR, 1 );
   glfwWindowHint( GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE );
   glfwWindowHint( GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE );
-  window = glfwCreateWindow( 640, 480, "Simple example", NULL, NULL );
+  window = glfwCreateWindow( 512, 512, "Simple example", NULL, NULL );
 
   if( !window )
   {
@@ -43,40 +43,93 @@ int main( int argc, char** argv )
   // Draw loop
   float y1 = 0.0f;
   float y2 = 0.0f;
-  GLuint query;
-  // GLuint64 elapsed_time;
- 
-  // glGenQueries(1, &query);
 
+  GLuint query;
+  GLuint64 elapsed_time;
+  glGenQueries(1, &query);
+glEnable(GL_DEPTH_TEST);
   while( !glfwWindowShouldClose(window) )
   {
     int done = 0;
-    // glBeginQuery(GL_TIME_ELAPSED,query);
+    glBeginQuery(GL_TIME_ELAPSED,query);
     int fb_w, fb_h;
     glfwGetFramebufferSize( window, &fb_w, &fb_h );
     glViewport( 0, 0, fb_w, fb_h );
     glClearColor( 0.8f, 0.8f, 0.8f, 1.0f );
-    glClear(GL_COLOR_BUFFER_BIT);
-
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+    
     msh_draw_new_frame( &draw_ctx );
     ttTime();
+  float size = 0.15;
     msh_draw_fill_color( &draw_ctx, 0.01f, 0.02f, 0.25f);
-    msh_draw_triangle( &draw_ctx, 0.0f, 0.0f, 0.5f );
+    msh_draw_triangle( &draw_ctx, 0.0f, 0.7f, size );
     msh_draw_fill_color( &draw_ctx, 0.91f, 0.02f, 0.25f);
-    msh_draw_triangle( &draw_ctx, 0.0f, -0.25f, 0.5f );
-    msh_draw_render( &draw_ctx );
-    printf("Time Elapsed: %f s\n", ttTime() );
+    msh_draw_triangle( &draw_ctx, 0.0f, 0.35f, size );
+    msh_draw_fill_color( &draw_ctx, 0.01f, 0.02f, 0.25f);
+    msh_draw_triangle( &draw_ctx, 0.0f, 0.0f, size );
+    msh_draw_fill_color( &draw_ctx, 0.91f, 0.02f, 0.25f);
+    msh_draw_triangle( &draw_ctx, 0.0f, -0.35f, size );
+    msh_draw_fill_color( &draw_ctx, 0.01f, 0.02f, 0.25f);
+    msh_draw_triangle( &draw_ctx, 0.0f, -0.7f, size );
 
-    // glEndQuery(GL_TIME_ELAPSED);
-    // while (!done) {
-    //   glGetQueryObjectiv(query, 
-    //                     GL_QUERY_RESULT_AVAILABLE, 
-    //                     &done);
-    //         }
-    // glGetQueryObjectui64v(query, GL_QUERY_RESULT, &elapsed_time);
+    msh_draw_fill_color( &draw_ctx, 0.01f, 0.02f, 0.25f);
+    msh_draw_triangle( &draw_ctx, 0.35f, 0.7f, size );
+    msh_draw_fill_color( &draw_ctx, 0.91f, 0.02f, 0.25f);
+    msh_draw_triangle( &draw_ctx, 0.35f, 0.35f, size );
+    msh_draw_fill_color( &draw_ctx, 0.01f, 0.02f, 0.25f);
+    msh_draw_triangle( &draw_ctx, 0.35f, 0.0f, size );
+    msh_draw_fill_color( &draw_ctx, 0.91f, 0.02f, 0.25f);
+    msh_draw_triangle( &draw_ctx, 0.35f, -0.35f, size );
+    msh_draw_fill_color( &draw_ctx, 0.01f, 0.02f, 0.25f);
+    msh_draw_triangle( &draw_ctx, 0.35f, -0.7f, size );
+
+    msh_draw_fill_color( &draw_ctx, 0.01f, 0.02f, 0.25f);
+    msh_draw_triangle( &draw_ctx, 0.7f, 0.7f, size );
+    msh_draw_fill_color( &draw_ctx, 0.91f, 0.02f, 0.25f);
+    msh_draw_triangle( &draw_ctx, 0.7f, 0.35f, size );
+    msh_draw_fill_color( &draw_ctx, 0.01f, 0.02f, 0.25f);
+    msh_draw_triangle( &draw_ctx, 0.7f, 0.0f, size );
+    msh_draw_fill_color( &draw_ctx, 0.91f, 0.02f, 0.25f);
+    msh_draw_triangle( &draw_ctx, 0.7f, -0.35f, size );
+    msh_draw_fill_color( &draw_ctx, 0.01f, 0.02f, 0.25f);
+    msh_draw_triangle( &draw_ctx, 0.7f, -0.7f, size );
+
+    msh_draw_fill_color( &draw_ctx, 0.01f, 0.02f, 0.25f);
+    msh_draw_triangle( &draw_ctx, -0.35f, 0.7f, size );
+    msh_draw_fill_color( &draw_ctx, 0.91f, 0.02f, 0.25f);
+    msh_draw_triangle( &draw_ctx, -0.35f, 0.35f, size );
+    msh_draw_fill_color( &draw_ctx, 0.01f, 0.02f, 0.25f);
+    msh_draw_triangle( &draw_ctx, -0.35f, 0.0f, size );
+    msh_draw_fill_color( &draw_ctx, 0.91f, 0.02f, 0.25f);
+    msh_draw_triangle( &draw_ctx, -0.35f, -0.35f, size );
+    msh_draw_fill_color( &draw_ctx, 0.01f, 0.02f, 0.25f);
+    msh_draw_triangle( &draw_ctx, -0.35f, -0.7f, size );
+
+    msh_draw_fill_color( &draw_ctx, 0.01f, 0.02f, 0.25f);
+    msh_draw_triangle( &draw_ctx, -0.7f, 0.7f, size );
+    msh_draw_fill_color( &draw_ctx, 0.91f, 0.02f, 0.25f);
+    msh_draw_triangle( &draw_ctx, -0.7f, 0.35f, size );
+    msh_draw_fill_color( &draw_ctx, 0.01f, 0.02f, 0.25f);
+    msh_draw_triangle( &draw_ctx, -0.7f, 0.0f, size );
+    msh_draw_fill_color( &draw_ctx, 0.91f, 0.02f, 0.25f);
+    msh_draw_triangle( &draw_ctx, -0.7f, -0.35f, size );
+    msh_draw_fill_color( &draw_ctx, 0.01f, 0.02f, 0.25f);
+    msh_draw_triangle( &draw_ctx, -0.7f, -0.7f, size );
+
+
+    msh_draw_render( &draw_ctx );
+
+    glEndQuery(GL_TIME_ELAPSED);
+    while (!done) {
+      glGetQueryObjectiv(query, 
+                        GL_QUERY_RESULT_AVAILABLE, 
+                        &done);
+            }
+    glGetQueryObjectui64v(query, GL_QUERY_RESULT, &elapsed_time);
     
     glfwSwapBuffers(window);
     glfwPollEvents();
+    printf("Time Elapsed: %fs, %fms\n", ttTime(), elapsed_time/1000000.0f );
    
   }
   glfwDestroyWindow(window);
