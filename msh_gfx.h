@@ -1438,7 +1438,7 @@ msh__gpu_geo_get_offset( const mshgfx_geometry_t * geo,
   return offset * geo->n_indices;
 }
 
-
+//TODO(maciej):Simplify the flags checking.
 int32_t 
 mshgfx_geometry_update( const mshgfx_geometry_t * geo,
                         const mshgfx_geometry_data_t * host_data, 

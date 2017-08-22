@@ -10,13 +10,6 @@
   ==============================================================================
   DEPENDENCIES
 
-  This library depends on following standard headers:
-  
-  By default this library does not import these headers. Please see 
-  docs/no_headers.md for explanation. Importing heades is enabled by:
-
-  #define MSH_GFX_INCLUDE_HEADES
-
   ==============================================================================
   AUTHORS
 
@@ -44,8 +37,7 @@
   [ ] OpenGL backend
   [ ] Software Rasterizer backend
   [ ] Rethink the name
-  [ ] How to deal with materials
-  [ ] Separate buffer for ogl? How to avoid that?
+  [x] How to deal with materials - materials need to be hashed somehow. For now linear search
   ==============================================================================
   REFERENCES:
   [1] NanoGUI
@@ -54,16 +46,8 @@
 #ifndef MSH_DRAW_H
 #define MSH_DRAW_H
 
-// #ifdef __APPLE__
-  // #include <OpenGL/gl3.h>
-// #else
-  #include "glad/glad.h"
-// #endif
-
-#define GLFW_INCLUDE_NONE
-#include "GLFW/glfw3.h"
-
 #define MSH_DRAW_INIT_CMD_BUF_SIZE 1024
+#define MSH_DRAW_OGL_BUF_SIZE 8192
 #define MSH_DRAW_STRINGIFY(x) #x
 #define MSH_DRAW_OPENGL
 
@@ -95,7 +79,8 @@ typedef struct msh_draw_color
 
 typedef struct msh_draw_paint
 {
-  msh_draw_color_t fill_color;
+  msh_draw_color_t fill_color_a;
+  msh_draw_color_t fill_color_b;
 } msh_draw_paint_t;
 
 typedef struct msh_draw_cmd
@@ -108,6 +93,9 @@ typedef struct msh_draw_cmd
 
 typedef struct msh_draw_ctx
 {
+  int viewport_width;
+  int viewport_height;
+
   int cmd_buf_size;
   int cmd_buf_capacity;
   msh_draw_cmd_t* cmd_buf; //TODO(maciej): Switch to unsigned char
@@ -128,9 +116,9 @@ typedef struct msh_draw_ctx
 
 
 int msh_draw_init_ctx( msh_draw_ctx_t* ctx );
-int msh_draw_new_frame( msh_draw_ctx_t* ctx );
+int msh_draw_new_frame( msh_draw_ctx_t* ctx, int viewport_width, int viewport_height );
 int msh_draw_render( msh_draw_ctx_t* ctx );
-void msh_draw_circle( msh_draw_ctx_t* ctx, float x, float y, float radius );
+void msh_draw_circle( msh_draw_ctx_t* ctx, float x, float y, float r );
 void msh_draw_line( msh_draw_ctx_t* ctx, float x1, float y1, float x2, float y2 );
 void msh_draw_triangle( msh_draw_ctx_t* ctx, float x, float y, float s );
 
@@ -213,18 +201,45 @@ msh_draw_init_ctx( msh_draw_ctx_t* ctx )
   const char* vert_shdr_src = (const char*) "#version 330 core\n" MSH_DRAW_STRINGIFY
   (
     layout(location = 0) in vec3 position;
+    layout(location = 1) in vec2 tcoord;
+    uniform vec2 viewport_res;
+
+    out vec2 v_tcoord;
+    out vec2 v_pos;
     void main()
     {
-      gl_Position = vec4( position, 1 );
+      v_tcoord = vec2(tcoord.x, tcoord.y);
+      v_pos = position.xy;
+      gl_Position = vec4( 2.0*position.x/viewport_res.x - 1.0, 
+                          1.0 - 2.0*position.y/viewport_res.y, -position.z, 1);
     }
   );
   const char* frag_shdr_src = (const char*) "#version 330 core\n" MSH_DRAW_STRINGIFY
   (
     out vec4 frag_color;
-    uniform vec3 input_color;
+    uniform vec4 color_a;
+    uniform vec4 color_b;
+    
+    in vec2 v_tcoord;
+    in vec2 v_pos;
+
+    float roundrect( vec2 p, vec2 e, float r)
+    {
+        vec2 d = abs(p) - e + vec2(r,r);
+        return min(max(d.x, d.y), 0.0) + length(max(d, 0.0)) - r;
+    }
+    
     void main()
     {
-      frag_color = vec4(input_color, 1.0); 
+    //   vec3 output_color = v_tcoord.y * color_a + (1.0-v_tcoord.y) * color_b;
+    //   frag_color = vec4(output_color, 1.0); 
+    // }
+    float large = 1;
+      vec2 t = v_tcoord * 2.0 - vec2(1.0, 1.0);;
+      float feather = 0.1;
+      float f = clamp(roundrect(t, vec2( 0.9, 0.9 ), 0.0 ) / feather, 0.0, 1.0);
+      vec4 color = mix(color_a, color_b, f);
+      frag_color = color;
     }
   ); 
 
@@ -278,20 +293,27 @@ msh_draw_init_ctx( msh_draw_ctx_t* ctx )
 
   glBindVertexArray( ogl->vao );
   glBindBuffer(GL_ARRAY_BUFFER, ogl->vbo);
-  glBufferData(GL_ARRAY_BUFFER, 1024 * sizeof(float), NULL, GL_STREAM_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, MSH_DRAW_OGL_BUF_SIZE * sizeof(float), NULL, GL_STREAM_DRAW);
 
   GLuint pos_attrib = glGetAttribLocation( ogl->prog_id, "position" );
+  GLuint tcoord_attrib = glGetAttribLocation( ogl->prog_id, "tcoord" );
+  glEnableVertexAttribArray(pos_attrib);
+  glVertexAttribPointer(pos_attrib, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0 );
+  glEnableVertexAttribArray(tcoord_attrib);
+  glVertexAttribPointer(tcoord_attrib, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)) );
 
-  glEnableVertexAttribArray( pos_attrib );
-  glVertexAttribPointer(pos_attrib, 3, GL_FLOAT, GL_FALSE, 0, (void*)0 );
   glBindVertexArray( 0 );
   glDisableVertexAttribArray( pos_attrib );
 #endif
   return 1;
 }
 
-int msh_draw_new_frame( msh_draw_ctx_t* ctx )
+int msh_draw_new_frame( msh_draw_ctx_t* ctx, int viewport_width, int viewport_height )
 {
+  // Update viewport size
+  ctx->viewport_width = viewport_width;
+  ctx->viewport_height = viewport_height;
+
   // Reset indices
   ctx->cmd_idx = 0;
   ctx->cmd_buf_size = 0;
@@ -302,11 +324,11 @@ int msh_draw_new_frame( msh_draw_ctx_t* ctx )
   ctx->z_idx = 0.0f;
 
   // Add default material
-  ctx->paint_buf[ctx->paint_idx] = (msh_draw_paint_t){.fill_color = (msh_draw_color_t){.r=1.0f, .g=0.0f, .b=0.0f}};
+  ctx->paint_buf[ctx->paint_idx] = (msh_draw_paint_t){.fill_color_a = (msh_draw_color_t){.r=1.0f, .g=0.0f, .b=0.0f},
+                                                      .fill_color_b = (msh_draw_color_t){.r=0.0f, .g=0.1f, .b=0.0f}};
 
   return 1;
 }
-
 
 int 
 msh_draw__cmd_compare( const void* a, const void* b)
@@ -320,88 +342,180 @@ msh_draw__cmd_compare( const void* a, const void* b)
 int msh_draw_render( msh_draw_ctx_t* ctx )
 {
   // Sort draw calls
-  // NOTE(maciej): This suggests a standardized size for each
   qsort( ctx->cmd_buf, ctx->cmd_buf_size, sizeof(msh_draw_cmd_t), msh_draw__cmd_compare );
   
-  // TODO(maciej): This should be adaptive as well.
-  // TODO(maciej): This should be replaced and constructer per material idx.
+  // TODO(maciej): Custom meshes will probably be quite big. Maybe we need to allocate more for them.
+  // Big meshes should probably not be uploaded every frame though...
   int ogl_idx = 0;
-  float ogl_buf[4096];
-  // if( !ogl_buf )
-  // {
-  //  ogl_buf = malloc( 4096 * sizeof(float) ); 
-  // }
+  float ogl_buf[MSH_DRAW_OGL_BUF_SIZE];
 
-  // NOTE(maciej): REthink this
-  int i = 0;
+  // Gather commands and draw
   int n_draw_calls = 0;
-
+  int i = 0;
   while( i < ctx->cmd_buf_size )
   {
     ogl_idx = 0;
     msh_draw_cmd_t* cur_cmd = &ctx->cmd_buf[i];
-
     int cur_paint_idx = cur_cmd->paint_idx;
 
     while( cur_paint_idx == cur_cmd->paint_idx )
     {
       cur_paint_idx = cur_cmd->paint_idx;
+
       if( cur_cmd->type == MSHD_TRIANGLE )
       {
+        if( ogl_idx + 9 > MSH_DRAW_OGL_BUF_SIZE ) break;
         float x_pos = cur_cmd->geometry[0];
         float y_pos = cur_cmd->geometry[1];
         float size  = cur_cmd->geometry[2];
 
         // TODO(maciej): can we not populate this?
-        ogl_buf[ogl_idx+0] = x_pos - size;
-        ogl_buf[ogl_idx+1] = y_pos - size;
+        ogl_buf[ogl_idx+0] = x_pos;
+        ogl_buf[ogl_idx+1] = y_pos + size;
         ogl_buf[ogl_idx+2] = cur_cmd->z_idx;
+        ogl_buf[ogl_idx+3] = 0.5;
+        ogl_buf[ogl_idx+4] = 0.0;
 
-        ogl_buf[ogl_idx+3] = x_pos + size;
-        ogl_buf[ogl_idx+4] = y_pos - size;
-        ogl_buf[ogl_idx+5] = cur_cmd->z_idx;
+        ogl_buf[ogl_idx+5] = x_pos + 0.866025404f * size;
+        ogl_buf[ogl_idx+6] = y_pos - 0.5f * size;
+        ogl_buf[ogl_idx+7] = cur_cmd->z_idx;
+        ogl_buf[ogl_idx+8] = 1.0;
+        ogl_buf[ogl_idx+9] = 0.0;
 
-        ogl_buf[ogl_idx+6] = x_pos;
-        ogl_buf[ogl_idx+7] = y_pos + 0.8*size;
-        ogl_buf[ogl_idx+8] = cur_cmd->z_idx;
+        ogl_buf[ogl_idx+10] = x_pos - 0.86602540378f * size;
+        ogl_buf[ogl_idx+11] = y_pos - 0.5f * size;
+        ogl_buf[ogl_idx+12] = cur_cmd->z_idx;
+        ogl_buf[ogl_idx+13] = 0.0;
+        ogl_buf[ogl_idx+14] = 0.0;
 
-        ogl_idx += 9;
+        ogl_idx += 15;
+      }
+      if( cur_cmd->type == MSHD_RECTANGLE )
+      {
+        if( ogl_idx + 18 > MSH_DRAW_OGL_BUF_SIZE ) break;
+        float x1 = cur_cmd->geometry[0];
+        float y1 = cur_cmd->geometry[1];
+        float x2 = cur_cmd->geometry[2];
+        float y2 = cur_cmd->geometry[3];
+        float d1 = fabsf(x2 - x1);
+        float d2 = fabsf(y2 - y1);
+        float aspect_ratio = d2 / d1;
+        printf("TEST: %f\n", aspect_ratio );
+
+        ogl_buf[ogl_idx+0] = x1;
+        ogl_buf[ogl_idx+1] = y1;
+        ogl_buf[ogl_idx+2] = cur_cmd->z_idx;
+        ogl_buf[ogl_idx+3] = 0.0f;
+        ogl_buf[ogl_idx+4] = 0.0f;
+
+        ogl_buf[ogl_idx+5] = x1;
+        ogl_buf[ogl_idx+6] = y2;
+        ogl_buf[ogl_idx+7] = cur_cmd->z_idx;
+        ogl_buf[ogl_idx+8] = 0.0f;
+        ogl_buf[ogl_idx+9] = 1.0f * aspect_ratio;
+
+        ogl_buf[ogl_idx+10] = x2;
+        ogl_buf[ogl_idx+11] = y2;
+        ogl_buf[ogl_idx+12] = cur_cmd->z_idx;
+        ogl_buf[ogl_idx+13] = 1.0f;
+        ogl_buf[ogl_idx+14] = 1.0f * aspect_ratio;
+
+        ogl_buf[ogl_idx+15] = x2;
+        ogl_buf[ogl_idx+16] = y2;
+        ogl_buf[ogl_idx+17] = cur_cmd->z_idx;
+        ogl_buf[ogl_idx+18] = 1.0f;
+        ogl_buf[ogl_idx+19] = 1.0f * aspect_ratio;
+
+        ogl_buf[ogl_idx+20] = x2;
+        ogl_buf[ogl_idx+21] = x1;
+        ogl_buf[ogl_idx+22] = cur_cmd->z_idx;
+        ogl_buf[ogl_idx+23] = 1.0f;
+        ogl_buf[ogl_idx+24] = 0.0f;
+
+        ogl_buf[ogl_idx+25] = x1;
+        ogl_buf[ogl_idx+26] = y1;
+        ogl_buf[ogl_idx+27] = cur_cmd->z_idx;
+        ogl_buf[ogl_idx+28] = 0.0;
+        ogl_buf[ogl_idx+29] = 0.0;
+
+        ogl_idx += 30;
+      }
+      else if (cur_cmd->type == MSHD_CIRCLE)
+      {
+        float x_pos = cur_cmd->geometry[0];
+        float y_pos = cur_cmd->geometry[1];
+        float rad   = cur_cmd->geometry[2];
+        
+        // TODO(maciej): Decide resolution as a function of radius
+        int res = (int)(0.5f * rad + 8.0f);
+        float delta = 2.0f*(float)msh_PI / res;
+        // if( ogl_idx + res > MSH_DRAW_OGL_BUF_SIZE ) break;
+        
+        // NOTE(maciej): This would be better drawn with GL_TRIANGLE_FAN...
+        // Maybe add it to the list of things we want to sort on. Or just use element buffer
+        int offset = 0;
+        for( int step = 0; step < res; ++step )
+        {
+          float theta = step * delta;
+          float omega = (step + 1) * delta;
+          float sint = sinf(theta);
+          float cost = cosf(theta);
+          float sino = sinf(omega);
+          float coso = cosf(omega);
+
+          ogl_buf[ogl_idx+(offset++)] = x_pos;
+          ogl_buf[ogl_idx+(offset++)] = y_pos;
+          ogl_buf[ogl_idx+(offset++)] = cur_cmd->z_idx;
+          ogl_buf[ogl_idx+(offset++)] = 0.5;
+          ogl_buf[ogl_idx+(offset++)] = 0.5;
+  
+          ogl_buf[ogl_idx+(offset++)] = x_pos + sint * rad;
+          ogl_buf[ogl_idx+(offset++)] = y_pos + cost * rad;
+          ogl_buf[ogl_idx+(offset++)] = cur_cmd->z_idx;
+          ogl_buf[ogl_idx+(offset++)] = 0.5f * (sint + 1.0f);
+          ogl_buf[ogl_idx+(offset++)] = 0.5f * (cost + 1.0f);
+  
+          ogl_buf[ogl_idx+(offset++)] = x_pos + sino * rad;
+          ogl_buf[ogl_idx+(offset++)] = y_pos + coso * rad;
+          ogl_buf[ogl_idx+(offset++)] = cur_cmd->z_idx;
+          ogl_buf[ogl_idx+(offset++)] = 0.5f * (sino + 1.0f);
+          ogl_buf[ogl_idx+(offset++)] = 0.5f * (coso + 1.0f);
+        }
+        printf("%d | %d | %d | %d\n", res, res * 5 * 3, offset, ogl_idx );
+        ogl_idx += offset;
       }
 
       // printf("%d | %d - Uploading triangle %f %f %f using material %d\n", i, ctx->cmd_buf_size, x_pos, y_pos, size, cur_paint_idx );
       cur_cmd = &ctx->cmd_buf[++i];
-      if( i >= ctx->cmd_buf_size || ogl_idx >= 4000 ) break;
+      if( i >= ctx->cmd_buf_size ) break;
     }
 
 #ifdef MSH_DRAW_OPENGL
       msh_draw_opengl_backend_t* ogl = &ctx->backend;
       msh_draw_paint_t* paint = &ctx->paint_buf[cur_paint_idx];
-      msh_draw_color_t c = paint->fill_color;
+      msh_draw_color_t c_a = paint->fill_color_a;
+      msh_draw_color_t c_b = paint->fill_color_b;
       glUseProgram(ogl->prog_id);
-      GLuint location = glGetUniformLocation( ogl->prog_id, "input_color" );
-      glUniform3f( location, c.r, c.g, c.b );
-  
+      GLuint location = glGetUniformLocation( ogl->prog_id, "color_a" );
+      glUniform4f( location, c_a.r, c_a.g, c_a.b, 1.0f );
+      location = glGetUniformLocation( ogl->prog_id, "color_b" );
+      glUniform4f( location, c_b.r, c_b.g, c_b.b, 0.0f );
+      location = glGetUniformLocation( ogl->prog_id, "viewport_res" );
+
+      glUniform2f( location, (float)ctx->viewport_width, (float)ctx->viewport_height );
+
       glBindVertexArray(ogl->vao);
   
+      // NOTE(maciej): We will probably be drawing in chunks, so no need for this resize
       glBindBuffer(GL_ARRAY_BUFFER, ogl->vbo);
-      static long long prev_size = -1;
-      long long cur_size = ogl_idx * sizeof(float);
-      if( prev_size != cur_size )
-      {
-        glBufferData(GL_ARRAY_BUFFER, cur_size, ogl_buf, GL_STREAM_DRAW);
-      }
-      else 
-      {
-        glBufferSubData(GL_ARRAY_BUFFER, 0, cur_size, ogl_buf );
-      }
-      prev_size = cur_size;
-      glDrawArrays(GL_TRIANGLES, 0, ogl_idx / 3);
+      glBufferSubData(GL_ARRAY_BUFFER, 0, ogl_idx*sizeof(float), ogl_buf );
+      
+      glDrawArrays(GL_TRIANGLES, 0, ogl_idx / 5);
       glBindVertexArray(0);
 #endif
     n_draw_calls++;
-    // printf("------------\n");
   }
-  printf("NDrawCalls: %d\n", n_draw_calls );
+  printf("NDrawCalls: %d | %d\n", n_draw_calls, ctx->cmd_buf_size );
   
   return 1;
 }
@@ -414,9 +528,12 @@ msh_draw__find_paint( msh_draw_ctx_t* ctx, const msh_draw_paint_t* paint )
   for( int i = 0 ; i < ctx->paint_buf_size; i++ )
   {
     msh_draw_paint_t cur_paint = ctx->paint_buf[i];
-    if( cur_paint.fill_color.r == paint->fill_color.r && 
-        cur_paint.fill_color.g == paint->fill_color.g &&
-        cur_paint.fill_color.b == paint->fill_color.b )
+    if( cur_paint.fill_color_a.r == paint->fill_color_a.r && 
+        cur_paint.fill_color_a.g == paint->fill_color_a.g &&
+        cur_paint.fill_color_a.b == paint->fill_color_a.b &&
+        cur_paint.fill_color_b.r == paint->fill_color_b.r && 
+        cur_paint.fill_color_b.g == paint->fill_color_b.g &&
+        cur_paint.fill_color_b.b == paint->fill_color_b.b )
     {
       out_idx = i;
     }
@@ -424,12 +541,16 @@ msh_draw__find_paint( msh_draw_ctx_t* ctx, const msh_draw_paint_t* paint )
   return out_idx;
 }
 
+//TODO(maciej):Separate buffer resize
 void
-msh_draw_fill_color( msh_draw_ctx_t* ctx, float r, float g, float b )
+msh_draw_gradient( msh_draw_ctx_t* ctx, float r1, float g1, float b1,
+                                        float r2, float g2, float b2 )
 {
   // construct candidate paint
-  msh_draw_color_t c = {r, g, b};
-  msh_draw_paint_t p = (msh_draw_paint_t){.fill_color = c};
+  msh_draw_color_t c_a = {r1, g1, b1};
+  msh_draw_color_t c_b = {r2, g2, b2};
+  msh_draw_paint_t p = (msh_draw_paint_t){.fill_color_a = c_a,
+                                          .fill_color_b = c_b};
   
   // attempt to find it
   int paint_idx = msh_draw__find_paint( ctx, &p );
@@ -454,16 +575,52 @@ msh_draw_fill_color( msh_draw_ctx_t* ctx, float r, float g, float b )
 }
 
 void
-msh_draw_triangle( msh_draw_ctx_t* ctx, float x, float y, float s )
+msh_draw_fill_color( msh_draw_ctx_t* ctx, float r, float g, float b )
 {
-  if ( ctx->cmd_buf_size + 1 > ctx->cmd_buf_capacity  )
+  // construct candidate paint
+  msh_draw_color_t c = {r, g, b};
+  msh_draw_paint_t p = (msh_draw_paint_t){.fill_color_a = c,
+                                          .fill_color_b = c};
+  
+  // attempt to find it
+  int paint_idx = msh_draw__find_paint( ctx, &p );
+  if( paint_idx != -1 )
+  {
+    ctx->paint_idx = paint_idx;
+  }
+  else
+  {
+    //NOTE(maciej): For now we just push. Some hashing would be nice here
+    if( ctx->paint_buf_size + 1 > ctx->paint_buf_capacity )
+    {
+      ctx->paint_buf_capacity = (int)(ctx->paint_buf_capacity * 1.5f);
+      ctx->paint_buf = (msh_draw_paint_t*)realloc( ctx->paint_buf, ctx->paint_buf_capacity * sizeof(msh_draw_paint_t) );
+    }
+
+    ctx->paint_idx = ctx->paint_buf_size; 
+    ctx->paint_buf[ ctx->paint_idx ] = p;
+    ctx->paint_buf_size = ctx->paint_buf_size + 1;
+  }
+  // printf("BUF SIZE: %d | BUF CAPACITY %d\n", ctx->paint_buf_size, ctx->paint_buf_capacity );
+}
+
+// TODO(maciej): This defienitly should return an error code
+void
+msh_draw__resize_cmd_buf( msh_draw_ctx_t* ctx, int n_cmds )
+{
+  if ( ctx->cmd_buf_size + n_cmds > ctx->cmd_buf_capacity )
   {
     ctx->cmd_buf_capacity = (int)(ctx->cmd_buf_capacity * 1.5f);
-    // TODO(maciej): Handle errors
     ctx->cmd_buf = (msh_draw_cmd_t*)realloc( ctx->cmd_buf, ctx->cmd_buf_capacity * sizeof(msh_draw_cmd_t) );
   }
+}
 
-  ctx->cmd_idx = ctx->cmd_buf_size;
+void
+msh_draw_triangle( msh_draw_ctx_t* ctx, float x, float y, float s )
+{
+  msh_draw__resize_cmd_buf( ctx, 1 );
+  
+  // Populate command 
   msh_draw_cmd_t cmd;
   cmd.type = MSHD_TRIANGLE;
   cmd.paint_idx = ctx->paint_idx;
@@ -471,9 +628,55 @@ msh_draw_triangle( msh_draw_ctx_t* ctx, float x, float y, float s )
   cmd.geometry[1] = y;
   cmd.geometry[2] = s;
   cmd.z_idx = ctx->z_idx;
-  ctx->z_idx -= 0.01;
+  
+  // Modify the context
+  ctx->z_idx += 0.001f;
+  ctx->cmd_idx = ctx->cmd_buf_size;  
   ctx->cmd_buf[ctx->cmd_idx] = cmd;
   ctx->cmd_buf_size += 1;
-  // printf("Adding trinagle with material %d | %d\n", ctx->cmd_buf[ctx->cmd_idx].paint_idx, ctx->cmd_buf_size );
 }
+
+void 
+msh_draw_circle( msh_draw_ctx_t* ctx, float x, float y, float r )
+{
+  msh_draw__resize_cmd_buf( ctx, 1 );
+  
+  // Populate command 
+  msh_draw_cmd_t cmd;
+  cmd.type = MSHD_CIRCLE;
+  cmd.paint_idx = ctx->paint_idx;
+  cmd.geometry[0] = x;
+  cmd.geometry[1] = y;
+  cmd.geometry[2] = r;
+  cmd.z_idx = ctx->z_idx;
+  
+  // Modify the context
+  ctx->z_idx += 0.001f;
+  ctx->cmd_idx = ctx->cmd_buf_size;  
+  ctx->cmd_buf[ctx->cmd_idx] = cmd;
+  ctx->cmd_buf_size += 1;
+}
+
+void 
+msh_draw_rectangle( msh_draw_ctx_t* ctx, float x1, float y1, float x2, float y2 )
+{
+  msh_draw__resize_cmd_buf( ctx, 1 );
+  
+  // Populate command 
+  msh_draw_cmd_t cmd;
+  cmd.type = MSHD_RECTANGLE;
+  cmd.paint_idx = ctx->paint_idx;
+  cmd.geometry[0] = x1;
+  cmd.geometry[1] = y1;
+  cmd.geometry[2] = x2;
+  cmd.geometry[3] = y2;
+  cmd.z_idx = ctx->z_idx;
+  
+  // Modify the context
+  ctx->z_idx += 0.001f;
+  ctx->cmd_idx = ctx->cmd_buf_size;  
+  ctx->cmd_buf[ctx->cmd_idx] = cmd;
+  ctx->cmd_buf_size += 1;
+}
+
 #endif /*MSH_DRAW_IMPLEMENTATION */
