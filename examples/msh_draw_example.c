@@ -28,11 +28,11 @@ int main( int argc, char** argv )
   } 
 
   glfwWindowHint( GLFW_CONTEXT_VERSION_MAJOR, 4 );
-  glfwWindowHint( GLFW_CONTEXT_VERSION_MINOR, 5 );
+  glfwWindowHint( GLFW_CONTEXT_VERSION_MINOR, 1 );
   glfwWindowHint( GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE );
   glfwWindowHint( GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE );
-  glfwWindowHint(GLFW_SAMPLES, 8);
-  glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, 1);
+  // glfwWindowHint(GLFW_SAMPLES, 8);
+  // glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, 1);
   window = glfwCreateWindow( 512, 512, "Simple example", NULL, NULL );
 
   if( !window )
@@ -84,10 +84,14 @@ int main( int argc, char** argv )
     // t += 0.01f;
     float size = 256.0f;
     // msh_draw_gradient( &draw_ctx, 0.91f, 0.02f, 0.25f, 0.21f, 0.84f, 0.32f);
-    msh_draw_fill_color( &draw_ctx, 0.01f, 0.02f, 0.25f);
+    msh_draw_gradient( &draw_ctx, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f);
     msh_draw_rectangle( &draw_ctx, 100.0f, 100.0f, 250.0f, 400.0f );
+
     msh_draw_gradient( &draw_ctx, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f);
-    msh_draw_rectangle( &draw_ctx, 100.0f, 100.0f, 250.0f, 400.0f );
+    msh_draw_rectangle( &draw_ctx, 220.0f, 100.0f, 400.0f, 400.0f );
+
+    msh_draw_gradient( &draw_ctx, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f);
+    msh_draw_rectangle( &draw_ctx, 450.0f, 100.0f, 514.0f, 164.0f );
     // msh_draw_gradient( &draw_ctx, 0.91f, 0.02f, 0.25f, 0.21f, 0.84f, 0.32f);
     // msh_draw_circle( &draw_ctx, 384.0f, 256.00f, size + 32 * sinf(t) );
     

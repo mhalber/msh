@@ -228,18 +228,46 @@ msh_draw_init_ctx( msh_draw_ctx_t* ctx )
         vec2 d = abs(p) - e + vec2(r,r);
         return min(max(d.x, d.y), 0.0) + length(max(d, 0.0)) - r;
     }
-    
+    // #extension GL_OES_standard_derivatives : enable
+    float edgeFactor(){
+        vec2 d = fwidth(v_tcoord);
+        vec2 a3 = smoothstep(vec2(0.0), d * 50.5, v_tcoord);
+        return min(a3.x, a3.y);
+    }
+
     void main()
     {
     //   vec3 output_color = v_tcoord.y * color_a + (1.0-v_tcoord.y) * color_b;
     //   frag_color = vec4(output_color, 1.0); 
     // }
-    float large = 1;
-      vec2 t = v_tcoord * 2.0 - vec2(1.0, 1.0);;
-      float feather = 0.1;
-      float f = clamp(roundrect(t, vec2( 0.9, 0.9 ), 0.0 ) / feather, 0.0, 1.0);
+
+      // This creates bbox as required
+      vec2 ar = fwidth(v_tcoord);
+      // ar = vec2(1.0, 1.0);
+      // ar /= max(ar.x, ar.y);
+      vec2 t = v_tcoord * 2.0 - vec2(1.0, 1.0);
+      t /= ar;
+
+      vec2 offset = vec2(20, 20);
+      vec2 extend = (vec2(1.0, 1.0) / ar) - offset;
+      float feather = 20.0;
+      float radius = 44.0; // needs pixel ratio.
+      float f = clamp(roundrect(t, extend, radius ) / feather, 0.0, 1.0);
       vec4 color = mix(color_a, color_b, f);
       frag_color = color;
+
+
+    // Probably can do strokes with this!!
+    // vec2 t = v_tcoord;
+    // vec2 ar = fwidth(v_tcoord);    
+    // if( any(   lessThan(t, vec2(10) * ar)) ||
+    //     any(greaterThan(t, vec2(1.0) - vec2(10) * ar )) ) {
+    //   frag_color = vec4(0.0, 0.0, 0.0, 1.0);
+    // }
+    // else {
+    //   frag_color = vec4(0.5, 0.5, 0.5, 1.0);
+    // }
+
     }
   ); 
 
@@ -397,10 +425,6 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
         float y1 = cur_cmd->geometry[1];
         float x2 = cur_cmd->geometry[2];
         float y2 = cur_cmd->geometry[3];
-        float d1 = fabsf(x2 - x1);
-        float d2 = fabsf(y2 - y1);
-        float aspect_ratio = d2 / d1;
-        printf("TEST: %f\n", aspect_ratio );
 
         ogl_buf[ogl_idx+0] = x1;
         ogl_buf[ogl_idx+1] = y1;
@@ -412,22 +436,23 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
         ogl_buf[ogl_idx+6] = y2;
         ogl_buf[ogl_idx+7] = cur_cmd->z_idx;
         ogl_buf[ogl_idx+8] = 0.0f;
-        ogl_buf[ogl_idx+9] = 1.0f * aspect_ratio;
+        ogl_buf[ogl_idx+9] = 1.0f;
 
         ogl_buf[ogl_idx+10] = x2;
         ogl_buf[ogl_idx+11] = y2;
         ogl_buf[ogl_idx+12] = cur_cmd->z_idx;
         ogl_buf[ogl_idx+13] = 1.0f;
-        ogl_buf[ogl_idx+14] = 1.0f * aspect_ratio;
+        ogl_buf[ogl_idx+14] = 1.0f;
+
 
         ogl_buf[ogl_idx+15] = x2;
         ogl_buf[ogl_idx+16] = y2;
         ogl_buf[ogl_idx+17] = cur_cmd->z_idx;
         ogl_buf[ogl_idx+18] = 1.0f;
-        ogl_buf[ogl_idx+19] = 1.0f * aspect_ratio;
+        ogl_buf[ogl_idx+19] = 1.0f;
 
         ogl_buf[ogl_idx+20] = x2;
-        ogl_buf[ogl_idx+21] = x1;
+        ogl_buf[ogl_idx+21] = y1;
         ogl_buf[ogl_idx+22] = cur_cmd->z_idx;
         ogl_buf[ogl_idx+23] = 1.0f;
         ogl_buf[ogl_idx+24] = 0.0f;

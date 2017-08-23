@@ -38,7 +38,7 @@ ifeq ($(OS_NAME), CYGWIN_NT-10.0)
 CC = /bin/x86_64-w64-mingw32-gcc.exe
 endif
 WARNINGS = -Wall -Wextra 
-CFLAGS = -O0 -ggdb -std=gnu11 -I/usr/x86_64-w64-mingw32/sys-root/mingw/include -I../ -I$(EXTERN_DIR)  
+CFLAGS = -O0 -ggdb -std=gnu11 -I/usr/local/include -I../ -I$(EXTERN_DIR)  
 
 # Libraries and Frameworks
 ifeq ($(OS_NAME), Darwin)
