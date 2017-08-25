@@ -272,7 +272,8 @@ typedef struct msh_array_header
 #define msh__array_grow(a) do                                                  \
 {                                                                              \
   int64_t new_capacity = MSH_ARRAY_GROW_FORMULA( msh_array_capacity(a) );      \
-  (a) = msh__array_reserve( (void*)a, new_capacity, sizeof(*(a)) ); \
+  void** msh__array = (void**)&(a);                                            \
+  *msh__array = msh__array_reserve( (void*)a, new_capacity, sizeof(*(a)) );    \
 } while( 0 )
 
 #define msh_array_reserve( a, n ) do \
@@ -280,9 +281,10 @@ typedef struct msh_array_header
   (a) = msh__array_reserve( (void*)a, n, sizeof(*(a)) ); \
 } while( 0 )
 
-#define msh_array_resize( a, n ) do \
-{ \
-  (a) = msh__array_reserve( (void*)a, n, sizeof(*(a)) ); \
+#define msh_array_resize( a, n ) do                                            \
+{                                                                              \
+  void** msh__array = (void**)&(a);                                            \
+  *msh_array = msh__array_reserve( (void*)a, n, sizeof(*(a)) );                \
   msh__array_header(a)->count = n; \
 } while( 0 )
 
@@ -307,11 +309,8 @@ typedef struct msh_array_header
   msh__array_header(a)->count = 0; \
 } while (0)
 
-MSHDEF void *msh__array_reserve( void *array, 
-                                int64_t capacity, int64_t item_size );
-
-MSHDEF void *
-msh__array_reserve( void *array, int64_t capacity, int64_t item_size )
+MSHDEF void*
+msh__array_reserve( void* array, int64_t capacity, int64_t item_size )
 {
   MSH_ASSERT( item_size > 0 );
 
