@@ -33,11 +33,10 @@
   ==============================================================================
   TODO
   [ ] API Design
-     [ ] Have a set of commands that you append to
   [ ] OpenGL backend
   [ ] Software Rasterizer backend
   [ ] Rethink the name
-  [x] How to deal with materials - materials need to be hashed somehow. For now linear search
+  [x] How to deal with materials - materials need to be hashed somehow. For now linear search.
   ==============================================================================
   REFERENCES:
   [1] NanoGUI
@@ -53,10 +52,14 @@
 
 typedef enum
 {
-  MSHD_TRIANGLE,
-  MSHD_CIRCLE,
-  MSHD_RECTANGLE
-} msh_cmd_type;
+  MSHD_TRIANGLE,  MSHD_CIRCLE, MSHD_RECTANGLE
+} msh_draw_cmd_type;
+
+typedef enum
+{
+  MSHD_FLAT = 0, MSHD_LINEAR_GRADIENT, MSHD_RADIAL_GRADIENT, MSHD_BOX_GRADIENT,
+  MSHD_POLAR_GRADIENT, MSHD_IMAGE
+} msh_draw_paint_type;
 
 #ifdef MSH_DRAW_OPENGL
 typedef struct msh_draw_ogl_backend
@@ -79,13 +82,16 @@ typedef struct msh_draw_color
 
 typedef struct msh_draw_paint
 {
+  msh_draw_paint_type type;
   msh_draw_color_t fill_color_a;
   msh_draw_color_t fill_color_b;
+  float offset_x, offset_y;
+  float feather, radius;
 } msh_draw_paint_t;
 
 typedef struct msh_draw_cmd
 {
-  msh_cmd_type type;
+  msh_draw_cmd_type type;
   int paint_idx;
   float geometry[10];
   float z_idx;
@@ -98,7 +104,7 @@ typedef struct msh_draw_ctx
 
   int cmd_buf_size;
   int cmd_buf_capacity;
-  msh_draw_cmd_t* cmd_buf; //TODO(maciej): Switch to unsigned char
+  msh_draw_cmd_t* cmd_buf;
   int cmd_idx;
 
   // TODO(maciej): Switch to a hash-table?
@@ -118,13 +124,65 @@ typedef struct msh_draw_ctx
 int msh_draw_init_ctx( msh_draw_ctx_t* ctx );
 int msh_draw_new_frame( msh_draw_ctx_t* ctx, int viewport_width, int viewport_height );
 int msh_draw_render( msh_draw_ctx_t* ctx );
+
+void msh_draw_set_paint( msh_draw_ctx_t* ctx, const int paint_idx );
+const int msh_draw_flat_fill( msh_draw_ctx_t* ctx, float r, float g, float b, float a );
+const int msh_draw_box_gradient( /*TODO(maciej):Find correct params*/ );
+const int msh_draw_radial_gradient( msh_draw_ctx_t* ctx, 
+                                   float r1, float g1, float, float b1, float a1,
+                                   float r2, float g2, float, float b2, float a2,
+                                   float size, float feather );
+
+// TODO(maciej): More primitives
 void msh_draw_circle( msh_draw_ctx_t* ctx, float x, float y, float r );
-void msh_draw_line( msh_draw_ctx_t* ctx, float x1, float y1, float x2, float y2 );
 void msh_draw_triangle( msh_draw_ctx_t* ctx, float x, float y, float s );
+void msh_draw_line( msh_draw_ctx_t* ctx, float x1, float y1, float x2, float y2 );
 
 #endif /*MSH_DRAW_H*/
 
+
+////////////////////////////////////////////////////////////////////////////////
+
+
 #ifdef MSH_DRAW_IMPLEMENTATION
+
+////////////////////////////////////////////////////////////////////////////////
+// INTERNAL UTILITY
+////////////////////////////////////////////////////////////////////////////////
+
+
+int 
+msh_draw__cmd_compare( const void* a, const void* b)
+{
+  const msh_draw_cmd_t* cmd_a = (const msh_draw_cmd_t*)a;
+  const msh_draw_cmd_t* cmd_b = (const msh_draw_cmd_t*)b;
+  // NOTE(maciej): For now we sort based on paint
+  return ( cmd_a->paint_idx - cmd_b->paint_idx );
+}
+
+// TODO(maciej): Resize function defienitly should return an error code
+void
+msh_draw__resize_paint_buf( msh_draw_ctx_t* ctx, int n_paints )
+{
+  if ( ctx->paint_buf_size + n_paints > ctx->paint_buf_capacity )
+  {
+    ctx->paint_buf_capacity = (int)(ctx->paint_buf_capacity * 1.5f);
+    ctx->paint_buf = (msh_draw_paint_t*)realloc( ctx->paint_buf, 
+                           ctx->paint_buf_capacity * sizeof(msh_draw_paint_t) );
+  }
+}
+
+void
+msh_draw__resize_cmd_buf( msh_draw_ctx_t* ctx, int n_cmds )
+{
+  
+  if ( ctx->cmd_buf_size + n_cmds > ctx->cmd_buf_capacity )
+  {
+    ctx->cmd_buf_capacity = (int)(ctx->cmd_buf_capacity * 1.5f);
+    ctx->cmd_buf = (msh_draw_cmd_t*)realloc( ctx->cmd_buf, 
+                               ctx->cmd_buf_capacity * sizeof(msh_draw_cmd_t) );
+  }
+}
 
 #ifdef MSH_DRAW_OPENGL
 int 
@@ -182,6 +240,13 @@ msh__check_linking_status( GLuint prog_id )
 }
 #endif
 
+////////////////////////////////////////////////////////////////////////////////
+// Initialization
+// NOTE: Sets up context. Depending on the backend, all backend variables will
+//       be initially setup here
+////////////////////////////////////////////////////////////////////////////////
+
+
 int 
 msh_draw_init_ctx( msh_draw_ctx_t* ctx )
 {
@@ -214,12 +279,15 @@ msh_draw_init_ctx( msh_draw_ctx_t* ctx )
                           1.0 - 2.0*position.y/viewport_res.y, -position.z, 1);
     }
   );
+
   const char* frag_shdr_src = (const char*) "#version 330 core\n" MSH_DRAW_STRINGIFY
   (
     out vec4 frag_color;
     uniform vec4 color_a;
     uniform vec4 color_b;
-    
+    uniform vec4 gradient_params;
+    uniform int paint_type;
+
     in vec2 v_tcoord;
     in vec2 v_pos;
 
@@ -228,46 +296,67 @@ msh_draw_init_ctx( msh_draw_ctx_t* ctx )
         vec2 d = abs(p) - e + vec2(r,r);
         return min(max(d.x, d.y), 0.0) + length(max(d, 0.0)) - r;
     }
-    // #extension GL_OES_standard_derivatives : enable
-    float edgeFactor(){
-        vec2 d = fwidth(v_tcoord);
-        vec2 a3 = smoothstep(vec2(0.0), d * 50.5, v_tcoord);
-        return min(a3.x, a3.y);
+
+    vec3 calculate_scaling( in vec2 t_coord )
+    {
+      // scaling.xy will scale coordinate system to conform to aspect ratio
+      // scaling.z will convert user provided pixel values to approperiately scaled values in paint space
+      vec2 ar      = fwidth(t_coord);
+      vec3 scaling = vec3( (ar/min(ar.x, ar.y)).yx, max(ar.x, ar.y) );
+      return scaling;  
+    }
+
+    vec2 calculate_paint_space( in vec2 t_coord, in vec2 scaling, in int type )
+    {
+      if      ( type == 1 /*LINEAR*/ ) { return t_coord; }
+      else if ( type == 2 /*RADIAL*/ ) { return ((t_coord * 2.0 - vec2(1.0, 1.0)) * scaling); }
+      else if ( type == 3 /*BOX*/)     { return ((t_coord * 2.0 - vec2(1.0, 1.0)) * scaling); } 
+      else if ( type == 4 /*POLAR*/)   { return ((t_coord * 2.0 - vec2(1.0, 1.0)) * scaling); } 
+      else { return t_coord; }
+    }
+
+    vec4 linear_gradient( in vec4 c_a, in vec4 c_b, in vec2 t )
+    {
+      return mix( c_a, c_b, t.y );
+    }
+
+    vec4 radial_gradient( in vec4 c_a, in vec4 c_b, in vec4 params, in vec2 t, in float normalizer )
+    {
+      float radius  = params.w  * normalizer;
+      float feather = params.z  * normalizer;
+      vec2 extend   = params.xy * normalizer;
+      float f = clamp(roundrect(t, extend, radius ) / feather, 0.0, 1.0);
+      return mix(c_a, c_b, f);
+    }
+
+    vec4 box_gradient( in vec4 c_a, in vec4 c_b, in vec4 params, in vec2 t, in vec3 scaling_params )
+    {
+      vec2 scaling     = scaling_params.xy;
+      float normalizer = scaling_params.z;
+      float radius  = params.w  * normalizer;
+      float feather = params.z  * normalizer;
+      vec2 extend = vec2(1.0, 1.0) * scaling - gradient_params.xy * normalizer;
+      float f = clamp(roundrect(t, extend, radius ) / feather, 0.0, 1.0);
+      return mix(c_a, c_b, f);
+    }
+
+    vec4 polar_gradient( in vec4 c_a, in vec4 c_b, in vec2 t)
+    {
+      // TODO(maciej): Test different mixing factors
+      float f = ((atan( t.x, t.y) * 0.15915494309189533576888376337251 /*OneOverTau*/) ) +0.5;
+      return mix(c_a, c_b, f);
     }
 
     void main()
     {
-    //   vec3 output_color = v_tcoord.y * color_a + (1.0-v_tcoord.y) * color_b;
-    //   frag_color = vec4(output_color, 1.0); 
-    // }
-
-      // This creates bbox as required
-      vec2 ar = fwidth(v_tcoord);
-      // ar = vec2(1.0, 1.0);
-      // ar /= max(ar.x, ar.y);
-      vec2 t = v_tcoord * 2.0 - vec2(1.0, 1.0);
-      t /= ar;
-
-      vec2 offset = vec2(20, 20);
-      vec2 extend = (vec2(1.0, 1.0) / ar) - offset;
-      float feather = 20.0;
-      float radius = 44.0; // needs pixel ratio.
-      float f = clamp(roundrect(t, extend, radius ) / feather, 0.0, 1.0);
-      vec4 color = mix(color_a, color_b, f);
-      frag_color = color;
-
-
-    // Probably can do strokes with this!!
-    // vec2 t = v_tcoord;
-    // vec2 ar = fwidth(v_tcoord);    
-    // if( any(   lessThan(t, vec2(10) * ar)) ||
-    //     any(greaterThan(t, vec2(1.0) - vec2(10) * ar )) ) {
-    //   frag_color = vec4(0.0, 0.0, 0.0, 1.0);
-    // }
-    // else {
-    //   frag_color = vec4(0.5, 0.5, 0.5, 1.0);
-    // }
-
+      vec3 s = calculate_scaling( v_tcoord );
+      vec2 t = calculate_paint_space( v_tcoord, s.xy, paint_type ); 
+      frag_color = vec4(t.xy, 0.0, 1.0);
+      if      ( paint_type == 1 ) { frag_color=linear_gradient(color_a, color_b, t);}
+      else if ( paint_type == 2 ) { frag_color=radial_gradient(color_a, color_b, gradient_params, t, s.z);}
+      else if ( paint_type == 3 ) { frag_color=box_gradient(color_a, color_b, gradient_params, t, s);}
+      else if ( paint_type == 4 ) { frag_color=polar_gradient(color_a, color_b, t);}
+      else                        { frag_color=color_a; }
     }
   ); 
 
@@ -352,20 +441,18 @@ int msh_draw_new_frame( msh_draw_ctx_t* ctx, int viewport_width, int viewport_he
   ctx->z_idx = 0.0f;
 
   // Add default material
-  ctx->paint_buf[ctx->paint_idx] = (msh_draw_paint_t){.fill_color_a = (msh_draw_color_t){.r=1.0f, .g=0.0f, .b=0.0f},
-                                                      .fill_color_b = (msh_draw_color_t){.r=0.0f, .g=0.1f, .b=0.0f}};
+  msh_draw_flat_fill(ctx, 0.5f, 0.5f, 0.5f, 1.0f);
 
   return 1;
 }
 
-int 
-msh_draw__cmd_compare( const void* a, const void* b)
-{
-  const msh_draw_cmd_t* cmd_a = (const msh_draw_cmd_t*)a;
-  const msh_draw_cmd_t* cmd_b = (const msh_draw_cmd_t*)b;
-  // NOTE(maciej): For now we sort based on paint
-  return ( cmd_a->paint_idx - cmd_b->paint_idx );
-}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// MAIN DRAW CALL
+// NOTE: The calls below translate what user has submitted to the context at
+//       the end of each frame and do the actual drawing
+////////////////////////////////////////////////////////////////////////////////
 
 int msh_draw_render( msh_draw_ctx_t* ctx )
 {
@@ -425,6 +512,7 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
         float y1 = cur_cmd->geometry[1];
         float x2 = cur_cmd->geometry[2];
         float y2 = cur_cmd->geometry[3];
+        float aspect_ratio = 1.0f;//fabs(y1-y2) / fabs(x2-x1);
 
         ogl_buf[ogl_idx+0] = x1;
         ogl_buf[ogl_idx+1] = y1;
@@ -436,20 +524,20 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
         ogl_buf[ogl_idx+6] = y2;
         ogl_buf[ogl_idx+7] = cur_cmd->z_idx;
         ogl_buf[ogl_idx+8] = 0.0f;
-        ogl_buf[ogl_idx+9] = 1.0f;
+        ogl_buf[ogl_idx+9] = aspect_ratio;
 
         ogl_buf[ogl_idx+10] = x2;
         ogl_buf[ogl_idx+11] = y2;
         ogl_buf[ogl_idx+12] = cur_cmd->z_idx;
         ogl_buf[ogl_idx+13] = 1.0f;
-        ogl_buf[ogl_idx+14] = 1.0f;
+        ogl_buf[ogl_idx+14] = aspect_ratio;
 
 
         ogl_buf[ogl_idx+15] = x2;
         ogl_buf[ogl_idx+16] = y2;
         ogl_buf[ogl_idx+17] = cur_cmd->z_idx;
         ogl_buf[ogl_idx+18] = 1.0f;
-        ogl_buf[ogl_idx+19] = 1.0f;
+        ogl_buf[ogl_idx+19] = aspect_ratio;
 
         ogl_buf[ogl_idx+20] = x2;
         ogl_buf[ogl_idx+21] = y1;
@@ -521,14 +609,18 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
       msh_draw_color_t c_a = paint->fill_color_a;
       msh_draw_color_t c_b = paint->fill_color_b;
       glUseProgram(ogl->prog_id);
+      //TODO(maciej): Check different ways for setting up an uniform
       GLuint location = glGetUniformLocation( ogl->prog_id, "color_a" );
       glUniform4f( location, c_a.r, c_a.g, c_a.b, 1.0f );
       location = glGetUniformLocation( ogl->prog_id, "color_b" );
-      glUniform4f( location, c_b.r, c_b.g, c_b.b, 0.0f );
+      glUniform4f( location, c_b.r, c_b.g, c_b.b, 1.0f );
+      location = glGetUniformLocation(ogl->prog_id, "gradient_params" );
+      glUniform4f( location, paint->offset_x, paint->offset_y, paint->feather, paint->radius );
+      location = glGetUniformLocation( ogl->prog_id, "paint_type" );
+      glUniform1i( location, (int)paint->type );
       location = glGetUniformLocation( ogl->prog_id, "viewport_res" );
-
       glUniform2f( location, (float)ctx->viewport_width, (float)ctx->viewport_height );
-
+    
       glBindVertexArray(ogl->vao);
   
       // NOTE(maciej): We will probably be drawing in chunks, so no need for this resize
@@ -545,15 +637,21 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
   return 1;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Paint management
+////////////////////////////////////////////////////////////////////////////////
+
 int
 msh_draw__find_paint( msh_draw_ctx_t* ctx, const msh_draw_paint_t* paint )
 {
   // NOTE(maciej): Linear search for now
+  // TODO(maciej): Prodcue hash from bit representation of a paint?
   int out_idx = -1;
   for( int i = 0 ; i < ctx->paint_buf_size; i++ )
   {
     msh_draw_paint_t cur_paint = ctx->paint_buf[i];
-    if( cur_paint.fill_color_a.r == paint->fill_color_a.r && 
+    if( cur_paint.type           == paint->type &&
+        cur_paint.fill_color_a.r == paint->fill_color_a.r && 
         cur_paint.fill_color_a.g == paint->fill_color_a.g &&
         cur_paint.fill_color_a.b == paint->fill_color_a.b &&
         cur_paint.fill_color_b.r == paint->fill_color_b.r && 
@@ -567,18 +665,36 @@ msh_draw__find_paint( msh_draw_ctx_t* ctx, const msh_draw_paint_t* paint )
 }
 
 //TODO(maciej):Separate buffer resize
-void
-msh_draw_gradient( msh_draw_ctx_t* ctx, float r1, float g1, float b1,
-                                        float r2, float g2, float b2 )
-{
-  // construct candidate paint
-  msh_draw_color_t c_a = {r1, g1, b1};
-  msh_draw_color_t c_b = {r2, g2, b2};
-  msh_draw_paint_t p = (msh_draw_paint_t){.fill_color_a = c_a,
-                                          .fill_color_b = c_b};
+// void
+// msh_draw_gradient( msh_draw_ctx_t* ctx, float r1, float g1, float b1,
+//                                         float r2, float g2, float b2 )
+// {
+//   // construct candidate paint
+//   msh_draw_color_t c_a = {.r=r1, .g=g1, .b=b1, .a=a1};
+//   msh_draw_color_t c_b = {.r=r1, .g=g1, .b=b1, .a=a1};
+//   msh_draw_paint_t p = (msh_draw_paint_t){.fill_color_a = c_a,
+//                                           .fill_color_b = c_b};
   
-  // attempt to find it
-  int paint_idx = msh_draw__find_paint( ctx, &p );
+//   // attempt to find it
+//   int paint_idx = msh_draw__find_paint( ctx, &p );
+//   if( paint_idx != -1 )
+//   {
+//     ctx->paint_idx = paint_idx;
+//   }
+//   else
+//   {
+//     //NOTE(maciej): For now we just push. Some hashing would be nice here
+//     msh_draw__resize_paint_buf( ctx, 1 );
+
+//     ctx->paint_idx = ctx->paint_buf_size; 
+//     ctx->paint_buf[ ctx->paint_idx ] = p;
+//     ctx->paint_buf_size = ctx->paint_buf_size + 1;
+//   }
+// }
+
+const int msh_draw__add_paint( msh_draw_ctx_t* ctx, msh_draw_paint_t* p )
+{
+  int paint_idx = msh_draw__find_paint( ctx, p );
   if( paint_idx != -1 )
   {
     ctx->paint_idx = paint_idx;
@@ -586,59 +702,94 @@ msh_draw_gradient( msh_draw_ctx_t* ctx, float r1, float g1, float b1,
   else
   {
     //NOTE(maciej): For now we just push. Some hashing would be nice here
-    if( ctx->paint_buf_size + 1 > ctx->paint_buf_capacity )
-    {
-      ctx->paint_buf_capacity = (int)(ctx->paint_buf_capacity * 1.5f);
-      ctx->paint_buf = (msh_draw_paint_t*)realloc( ctx->paint_buf, ctx->paint_buf_capacity * sizeof(msh_draw_paint_t) );
-    }
+    msh_draw__resize_paint_buf( ctx, 1 );
 
     ctx->paint_idx = ctx->paint_buf_size; 
-    ctx->paint_buf[ ctx->paint_idx ] = p;
+    ctx->paint_buf[ ctx->paint_idx ] = *p;
     ctx->paint_buf_size = ctx->paint_buf_size + 1;
   }
-  // printf("BUF SIZE: %d | BUF CAPACITY %d\n", ctx->paint_buf_size, ctx->paint_buf_capacity );
+  return ctx->paint_idx;
 }
 
-void
-msh_draw_fill_color( msh_draw_ctx_t* ctx, float r, float g, float b )
+const int
+msh_draw_flat_fill( msh_draw_ctx_t* ctx, float r, float g, float b, float a )
 {
-  // construct candidate paint
-  msh_draw_color_t c = {r, g, b};
-  msh_draw_paint_t p = (msh_draw_paint_t){.fill_color_a = c,
-                                          .fill_color_b = c};
-  
-  // attempt to find it
-  int paint_idx = msh_draw__find_paint( ctx, &p );
-  if( paint_idx != -1 )
-  {
-    ctx->paint_idx = paint_idx;
-  }
-  else
-  {
-    //NOTE(maciej): For now we just push. Some hashing would be nice here
-    if( ctx->paint_buf_size + 1 > ctx->paint_buf_capacity )
-    {
-      ctx->paint_buf_capacity = (int)(ctx->paint_buf_capacity * 1.5f);
-      ctx->paint_buf = (msh_draw_paint_t*)realloc( ctx->paint_buf, ctx->paint_buf_capacity * sizeof(msh_draw_paint_t) );
-    }
+  msh_draw_color_t c = {.r=r, .g=g, .b=b, .a=a};
+  msh_draw_paint_t p = (msh_draw_paint_t){.type=MSHD_FLAT,
+                                          .fill_color_a = c, .fill_color_b = c,
+                                          .offset_x = 0.0f, .offset_y = 0.0f,
+                                          .feather = 1.0f,  .radius = 0.0f };
 
-    ctx->paint_idx = ctx->paint_buf_size; 
-    ctx->paint_buf[ ctx->paint_idx ] = p;
-    ctx->paint_buf_size = ctx->paint_buf_size + 1;
-  }
-  // printf("BUF SIZE: %d | BUF CAPACITY %d\n", ctx->paint_buf_size, ctx->paint_buf_capacity );
+  return msh_draw__add_paint( ctx, &p );
 }
 
-// TODO(maciej): This defienitly should return an error code
-void
-msh_draw__resize_cmd_buf( msh_draw_ctx_t* ctx, int n_cmds )
+const int
+msh_draw_linear_gradient_fill( msh_draw_ctx_t* ctx, float r1, float g1, float b1, float a1,
+                                                    float r2, float g2, float b2, float a2 )
 {
-  if ( ctx->cmd_buf_size + n_cmds > ctx->cmd_buf_capacity )
-  {
-    ctx->cmd_buf_capacity = (int)(ctx->cmd_buf_capacity * 1.5f);
-    ctx->cmd_buf = (msh_draw_cmd_t*)realloc( ctx->cmd_buf, ctx->cmd_buf_capacity * sizeof(msh_draw_cmd_t) );
-  }
+  msh_draw_color_t c1 = {.r=r1, .g=g1, .b=b1, .a=a1};
+  msh_draw_color_t c2 = {.r=r2, .g=g2, .b=b2, .a=a2};
+  msh_draw_paint_t p = (msh_draw_paint_t){.type=MSHD_LINEAR_GRADIENT,
+                                          .fill_color_a = c1, .fill_color_b = c2,
+                                          .offset_x = 0.0, .offset_y = 0.0 };
+
+  return msh_draw__add_paint( ctx, &p );
 }
+
+const int
+msh_draw_radial_gradient_fill( msh_draw_ctx_t* ctx, float r1, float g1, float b1, float a1,
+                                                 float r2, float g2, float b2, float a2, 
+                                                 float feather, float radius )
+{
+  msh_draw_color_t c1 = {.r=r1, .g=g1, .b=b1, .a=a1};
+  msh_draw_color_t c2 = {.r=r2, .g=g2, .b=b2, .a=a2};
+  msh_draw_paint_t p = (msh_draw_paint_t){.type=MSHD_RADIAL_GRADIENT,
+                                          .fill_color_a = c1, .fill_color_b = c2,
+                                          .offset_x = radius, .offset_y = radius,
+                                          .feather = feather,  .radius = radius };
+
+  return msh_draw__add_paint( ctx, &p );
+}
+
+
+const int
+msh_draw_box_gradient_fill( msh_draw_ctx_t* ctx, float r1, float g1, float b1, float a1,
+                                                 float r2, float g2, float b2, float a2, 
+                                                 float offset, float feather, float radius )
+{
+  msh_draw_color_t c1 = {.r=r1, .g=g1, .b=b1, .a=a1};
+  msh_draw_color_t c2 = {.r=r2, .g=g2, .b=b2, .a=a2};
+  msh_draw_paint_t p = (msh_draw_paint_t){.type=MSHD_BOX_GRADIENT,
+                                          .fill_color_a = c1, .fill_color_b = c2,
+                                          .offset_x = offset, .offset_y = offset,
+                                          .feather = feather,  .radius = radius };
+
+  return msh_draw__add_paint( ctx, &p );
+}
+
+const int
+msh_draw_polar_gradient_fill( msh_draw_ctx_t* ctx, float r1, float g1, float b1, float a1,
+                                                    float r2, float g2, float b2, float a2 )
+{
+  msh_draw_color_t c1 = {.r=r1, .g=g1, .b=b1, .a=a1};
+  msh_draw_color_t c2 = {.r=r2, .g=g2, .b=b2, .a=a2};
+  msh_draw_paint_t p = (msh_draw_paint_t){.type=MSHD_POLAR_GRADIENT,
+                                          .fill_color_a = c1, .fill_color_b = c2,
+                                          .offset_x = 0.0, .offset_y = 0.0 };
+
+  return msh_draw__add_paint( ctx, &p );
+}
+
+void 
+msh_draw_set_paint( msh_draw_ctx_t* ctx, const int paint_idx )
+{
+  ctx->paint_idx = paint_idx;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// DRAW PRIMITIVES
+////////////////////////////////////////////////////////////////////////////////
 
 void
 msh_draw_triangle( msh_draw_ctx_t* ctx, float x, float y, float s )
