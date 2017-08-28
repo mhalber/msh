@@ -1,20 +1,18 @@
+#define MSH_DRAW_IMPLEMENTATION
+#define TT_IMPLEMENTATION
+#define STB_IMAGE_IMPLEMENTATION
+#define STBI_ONLY_JPEG
 #include "msh.h"
-
-// #ifdef __APPLE__
-  // #include <OpenGL/gl3.h>
-// #else
 #include "glad/glad.h"
-// #endif
+#include "msh_draw.h"
+#include "tt/tiny_time.h"
+#include "stb/stb_image.h"
 
 #define GLFW_INCLUDE_NONE
 #include "GLFW/glfw3.h"
 
-#define MSH_DRAW_IMPLEMENTATION
-#include "msh_draw.h"
-
 #include "stdio.h"
-#define TT_IMPLEMENTATION
-#include "tt/tiny_time.h"
+
 int main( int argc, char** argv )
 {
   GLFWwindow* window;
@@ -51,6 +49,11 @@ int main( int argc, char** argv )
   {
     msh_eprintf("Could not initialize draw context!\n");
   }
+
+  // Load images
+  int img_width, img_height, img_n_channels;
+  unsigned char* img = stbi_load( "data/kitten.jpg", &img_width, &img_height, &img_n_channels, 3);
+  
 
   // Draw loop
   float y1 = 0.0f;

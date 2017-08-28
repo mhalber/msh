@@ -87,6 +87,7 @@ typedef struct msh_draw_paint
   msh_draw_color_t fill_color_b;
   float offset_x, offset_y;
   float feather, radius;
+  int image_idx;
 } msh_draw_paint_t;
 
 typedef struct msh_draw_cmd
@@ -651,6 +652,7 @@ msh_draw__find_paint( msh_draw_ctx_t* ctx, const msh_draw_paint_t* paint )
   {
     msh_draw_paint_t cur_paint = ctx->paint_buf[i];
     if( cur_paint.type           == paint->type &&
+        cur_paint.image_idx      == paint->image_idx &&
         cur_paint.fill_color_a.r == paint->fill_color_a.r && 
         cur_paint.fill_color_a.g == paint->fill_color_a.g &&
         cur_paint.fill_color_a.b == paint->fill_color_a.b &&
@@ -776,6 +778,25 @@ msh_draw_polar_gradient_fill( msh_draw_ctx_t* ctx, float r1, float g1, float b1,
   msh_draw_paint_t p = (msh_draw_paint_t){.type=MSHD_POLAR_GRADIENT,
                                           .fill_color_a = c1, .fill_color_b = c2,
                                           .offset_x = 0.0, .offset_y = 0.0 };
+
+  return msh_draw__add_paint( ctx, &p );
+}
+
+
+// TODO(maciej): Create image in opengl, push it onto the image stack( just like commands and paints)
+const int
+msh_draw_create_image( msh_draw_ctx_t* ctx, unsigned char* data, int w, int h, int n )
+{
+  return 0;
+}
+
+// NOTE(maciej): Paint just selects an image.
+// NOTE(maciej): This again points out that we need to come up with paint building api.
+const int
+msh_draw_image_fill( msh_draw_ctx_t* ctx, int image_idx )
+{
+  msh_draw_paint_t p = (msh_draw_paint_t){.type=MSHD_IMAGE,
+                                          .image_idx=image_idx };
 
   return msh_draw__add_paint( ctx, &p );
 }
