@@ -53,8 +53,16 @@ int main( int argc, char** argv )
   // Load images
   int img_width, img_height, img_n_channels;
   unsigned char* img = stbi_load( "data/kitten.jpg", &img_width, &img_height, &img_n_channels, 3);
-  
 
+  // TODO(maciej)Simple checkerboard for testing flags
+  // unsigned char checkerboard[27] = {0,0,0, 255,255,255, 0,0,0, 
+                          // 255,255,255, 0,0,0, 255,255,255, 
+                          // 0,0,0, 255,255,255, 0,0,0};
+  // img_width
+  // printf("TESTA : %d %d %d\n", img_width, img_height, img_n_channels);
+  const int img_idx = msh_draw_register_image( &draw_ctx, img, img_width, img_height, img_n_channels );
+  // printf("%d\n", img_idx );
+  
   // Draw loop
   float y1 = 0.0f;
   float y2 = 0.0f;
@@ -100,6 +108,7 @@ int main( int argc, char** argv )
     const int box = msh_draw_box_gradient_fill( &draw_ctx, 0.1f, 0.21f, 0.83f, 1.0f,
                                            0.21f, 0.83f, 0.1f, 1.0f,
                                            32.0f, 16.0f, 16.0f );
+    const int img = msh_draw_image_fill( &draw_ctx, img_idx );
 
     msh_draw_set_paint( &draw_ctx, lin );
     msh_draw_rectangle( &draw_ctx, 64.0f, 64.0f, 128.0f, 256.0f);
@@ -110,6 +119,9 @@ int main( int argc, char** argv )
     msh_draw_set_paint( &draw_ctx, pol );
     msh_draw_rectangle( &draw_ctx, 256.0f, 64.0f, 320.0f, 256.0f);
     msh_draw_circle( &draw_ctx, 256.0f, 256.0f, 128.0f );
+    msh_draw_set_paint( &draw_ctx, img );
+    msh_draw_rectangle( &draw_ctx, 512.0f, 128.0f, 512+128.0f, 256 );
+
     // Draw stuff
     // TODO(maciej): Investigate why number of draw calls inceases. Probably due to buffer limit.
     // for( int i = 0; i < 512; ++i )

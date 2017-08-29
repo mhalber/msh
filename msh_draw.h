@@ -288,6 +288,7 @@ msh_draw_init_ctx( msh_draw_ctx_t* ctx )
     uniform vec4 color_b;
     uniform vec4 gradient_params;
     uniform int paint_type;
+    uniform sampler2D tex;
 
     in vec2 v_tcoord;
     in vec2 v_pos;
@@ -313,6 +314,7 @@ msh_draw_init_ctx( msh_draw_ctx_t* ctx )
       else if ( type == 2 /*RADIAL*/ ) { return ((t_coord * 2.0 - vec2(1.0, 1.0)) * scaling); }
       else if ( type == 3 /*BOX*/)     { return ((t_coord * 2.0 - vec2(1.0, 1.0)) * scaling); } 
       else if ( type == 4 /*POLAR*/)   { return ((t_coord * 2.0 - vec2(1.0, 1.0)) * scaling); } 
+      else if ( type == 5 /*IMAGE*/)   { return t_coord; }
       else { return t_coord; }
     }
 
@@ -357,6 +359,7 @@ msh_draw_init_ctx( msh_draw_ctx_t* ctx )
       else if ( paint_type == 2 ) { frag_color=radial_gradient(color_a, color_b, gradient_params, t, s.z);}
       else if ( paint_type == 3 ) { frag_color=box_gradient(color_a, color_b, gradient_params, t, s);}
       else if ( paint_type == 4 ) { frag_color=polar_gradient(color_a, color_b, t);}
+      else if ( paint_type == 5 ) { frag_color=texture(tex, t);}
       else                        { frag_color=color_a; }
     }
   ); 
@@ -513,7 +516,6 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
         float y1 = cur_cmd->geometry[1];
         float x2 = cur_cmd->geometry[2];
         float y2 = cur_cmd->geometry[3];
-        float aspect_ratio = 1.0f;//fabs(y1-y2) / fabs(x2-x1);
 
         ogl_buf[ogl_idx+0] = x1;
         ogl_buf[ogl_idx+1] = y1;
@@ -525,31 +527,31 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
         ogl_buf[ogl_idx+6] = y2;
         ogl_buf[ogl_idx+7] = cur_cmd->z_idx;
         ogl_buf[ogl_idx+8] = 0.0f;
-        ogl_buf[ogl_idx+9] = aspect_ratio;
+        ogl_buf[ogl_idx+9] = 1.0f;
 
         ogl_buf[ogl_idx+10] = x2;
         ogl_buf[ogl_idx+11] = y2;
         ogl_buf[ogl_idx+12] = cur_cmd->z_idx;
         ogl_buf[ogl_idx+13] = 1.0f;
-        ogl_buf[ogl_idx+14] = aspect_ratio;
+        ogl_buf[ogl_idx+14] = 1.0f;
 
 
-        ogl_buf[ogl_idx+15] = x2;
-        ogl_buf[ogl_idx+16] = y2;
+        ogl_buf[ogl_idx+15] = x1;
+        ogl_buf[ogl_idx+16] = y1;
         ogl_buf[ogl_idx+17] = cur_cmd->z_idx;
-        ogl_buf[ogl_idx+18] = 1.0f;
-        ogl_buf[ogl_idx+19] = aspect_ratio;
+        ogl_buf[ogl_idx+18] = 0.0f;
+        ogl_buf[ogl_idx+19] = 0.0f;
 
         ogl_buf[ogl_idx+20] = x2;
-        ogl_buf[ogl_idx+21] = y1;
+        ogl_buf[ogl_idx+21] = y2;
         ogl_buf[ogl_idx+22] = cur_cmd->z_idx;
         ogl_buf[ogl_idx+23] = 1.0f;
-        ogl_buf[ogl_idx+24] = 0.0f;
+        ogl_buf[ogl_idx+24] = 1.0f;
 
-        ogl_buf[ogl_idx+25] = x1;
+        ogl_buf[ogl_idx+25] = x2;
         ogl_buf[ogl_idx+26] = y1;
         ogl_buf[ogl_idx+27] = cur_cmd->z_idx;
-        ogl_buf[ogl_idx+28] = 0.0;
+        ogl_buf[ogl_idx+28] = 1.0;
         ogl_buf[ogl_idx+29] = 0.0;
 
         ogl_idx += 30;
@@ -595,7 +597,7 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
           ogl_buf[ogl_idx+(offset++)] = 0.5f * (sino + 1.0f);
           ogl_buf[ogl_idx+(offset++)] = 0.5f * (coso + 1.0f);
         }
-        printf("%d | %d | %d | %d\n", res, res * 5 * 3, offset, ogl_idx );
+        // printf("%d | %d | %d | %d\n", res, res * 5 * 3, offset, ogl_idx );
         ogl_idx += offset;
       }
 
@@ -609,7 +611,15 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
       msh_draw_paint_t* paint = &ctx->paint_buf[cur_paint_idx];
       msh_draw_color_t c_a = paint->fill_color_a;
       msh_draw_color_t c_b = paint->fill_color_b;
+      
       glUseProgram(ogl->prog_id);
+      if( paint->image_idx ) 
+      {
+        glActiveTexture(GL_TEXTURE0 + 1);
+        glBindTexture( GL_TEXTURE_2D, paint->image_idx);
+        printf("TEST\n");
+      }
+      
       //TODO(maciej): Check different ways for setting up an uniform
       GLuint location = glGetUniformLocation( ogl->prog_id, "color_a" );
       glUniform4f( location, c_a.r, c_a.g, c_a.b, 1.0f );
@@ -619,16 +629,26 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
       glUniform4f( location, paint->offset_x, paint->offset_y, paint->feather, paint->radius );
       location = glGetUniformLocation( ogl->prog_id, "paint_type" );
       glUniform1i( location, (int)paint->type );
+      location = glGetUniformLocation( ogl->prog_id, "tex" );
+      glUniform1i( location, (int)paint->image_idx );
       location = glGetUniformLocation( ogl->prog_id, "viewport_res" );
       glUniform2f( location, (float)ctx->viewport_width, (float)ctx->viewport_height );
     
       glBindVertexArray(ogl->vao);
   
+      
       // NOTE(maciej): We will probably be drawing in chunks, so no need for this resize
       glBindBuffer(GL_ARRAY_BUFFER, ogl->vbo);
       glBufferSubData(GL_ARRAY_BUFFER, 0, ogl_idx*sizeof(float), ogl_buf );
       
       glDrawArrays(GL_TRIANGLES, 0, ogl_idx / 5);
+      
+      if( paint->image_idx ) 
+      {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture( GL_TEXTURE_2D, 0);
+      }
+
       glBindVertexArray(0);
 #endif
     n_draw_calls++;
@@ -784,10 +804,25 @@ msh_draw_polar_gradient_fill( msh_draw_ctx_t* ctx, float r1, float g1, float b1,
 
 
 // TODO(maciej): Create image in opengl, push it onto the image stack( just like commands and paints)
+// TODO(maciej): Should return index, but push the struct onto an array.
 const int
-msh_draw_create_image( msh_draw_ctx_t* ctx, unsigned char* data, int w, int h, int n )
+msh_draw_register_image( msh_draw_ctx_t* ctx, unsigned char* data, int w, int h, int n )
 {
-  return 0;
+  int tex_id;
+  glGenTextures(1, &tex_id);
+  glActiveTexture(GL_TEXTURE0 + 1);//TODO(maciej): What does nanovg do with texture unit activation?
+  glBindTexture(GL_TEXTURE_2D, tex_id);
+  // TODO(maciej): Use flags to resolve this
+  glPixelStorei(GL_UNPACK_ALIGNMENT,1);
+  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
+  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
+  // glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
+  // glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
+  // TODO(maciej): Switch based on the number of components
+  glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, data );
+  glBindTexture( GL_TEXTURE_2D, 0 );
+
+  return tex_id;
 }
 
 // NOTE(maciej): Paint just selects an image.
