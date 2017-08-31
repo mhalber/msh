@@ -120,7 +120,10 @@ int main( int argc, char** argv )
     msh_draw_rectangle( &draw_ctx, 256.0f, 64.0f, 320.0f, 256.0f);
     msh_draw_circle( &draw_ctx, 256.0f, 256.0f, 128.0f );
     msh_draw_set_paint( &draw_ctx, img );
-    msh_draw_rectangle( &draw_ctx, 512.0f, 128.0f, 512+128.0f, 256 );
+    msh_draw_rectangle( &draw_ctx, 512.0f, 128.0f, 512.0f+128.0f, 256 );
+    msh_draw_rectangle( &draw_ctx, 512+128.0f, 128.0f, 512.0f+256.0f, 256 );
+    msh_draw_rectangle( &draw_ctx, 512+256.0f, 128.0f, 512+128.0f+256.0f, 256 );
+    // msh_draw_rectangle( &draw_ctx, 512.0f, 128.0f, 512+128.0f, 256 );
 
     // Draw stuff
     // TODO(maciej): Investigate why number of draw calls inceases. Probably due to buffer limit.

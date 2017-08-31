@@ -98,6 +98,14 @@ typedef struct msh_draw_cmd
   float z_idx;
 } msh_draw_cmd_t;
 
+typedef struct msh_draw_image
+{
+  int id;
+  int width;
+  int height;
+  int n_channels;
+} msh_draw_image_t;
+
 typedef struct msh_draw_ctx
 {
   int viewport_width;
@@ -113,6 +121,11 @@ typedef struct msh_draw_ctx
   int paint_buf_capacity;
   msh_draw_paint_t* paint_buf;
   int paint_idx;
+
+  int image_buf_size;
+  int image_buf_capacity;
+  msh_draw_image_t* image_buf;
+  int image_idx;
 
   float z_idx;
 
@@ -170,6 +183,17 @@ msh_draw__resize_paint_buf( msh_draw_ctx_t* ctx, int n_paints )
     ctx->paint_buf_capacity = (int)(ctx->paint_buf_capacity * 1.5f);
     ctx->paint_buf = (msh_draw_paint_t*)realloc( ctx->paint_buf, 
                            ctx->paint_buf_capacity * sizeof(msh_draw_paint_t) );
+  }
+}
+
+void
+msh_draw__resize_image_buf( msh_draw_ctx_t* ctx, int n_images )
+{
+  if ( ctx->image_buf_size + n_images > ctx->image_buf_capacity )
+  {
+    ctx->image_buf_capacity = (int)(ctx->image_buf_capacity * 1.5f);
+    ctx->image_buf = (msh_draw_image_t*)realloc( ctx->image_buf, 
+                           ctx->image_buf_capacity * sizeof(msh_draw_image_t) );
   }
 }
 
@@ -258,6 +282,11 @@ msh_draw_init_ctx( msh_draw_ctx_t* ctx )
   // Setup paint buffer
   ctx->paint_buf_capacity = MSH_DRAW_INIT_CMD_BUF_SIZE;
   ctx->paint_buf = (msh_draw_paint_t*)malloc( ctx->paint_buf_capacity * sizeof(msh_draw_paint_t) );
+
+  // Setup image buffer
+  ctx->image_buf_capacity = MSH_DRAW_INIT_CMD_BUF_SIZE;
+  ctx->image_buf = (msh_draw_image_t*)malloc( ctx->image_buf_capacity * sizeof(msh_draw_image_t) );
+
 
   // Setup z indexing
   ctx->z_idx = 0.0f;
@@ -440,6 +469,8 @@ int msh_draw_new_frame( msh_draw_ctx_t* ctx, int viewport_width, int viewport_he
   ctx->cmd_buf_size = 0;
   ctx->paint_idx = 0;
   ctx->paint_buf_size = 1;
+  ctx->image_idx = 0;
+  ctx->image_buf_size = 1;
 
   // Reset z indexing
   ctx->z_idx = 0.0f;
@@ -686,34 +717,6 @@ msh_draw__find_paint( msh_draw_ctx_t* ctx, const msh_draw_paint_t* paint )
   return out_idx;
 }
 
-//TODO(maciej):Separate buffer resize
-// void
-// msh_draw_gradient( msh_draw_ctx_t* ctx, float r1, float g1, float b1,
-//                                         float r2, float g2, float b2 )
-// {
-//   // construct candidate paint
-//   msh_draw_color_t c_a = {.r=r1, .g=g1, .b=b1, .a=a1};
-//   msh_draw_color_t c_b = {.r=r1, .g=g1, .b=b1, .a=a1};
-//   msh_draw_paint_t p = (msh_draw_paint_t){.fill_color_a = c_a,
-//                                           .fill_color_b = c_b};
-  
-//   // attempt to find it
-//   int paint_idx = msh_draw__find_paint( ctx, &p );
-//   if( paint_idx != -1 )
-//   {
-//     ctx->paint_idx = paint_idx;
-//   }
-//   else
-//   {
-//     //NOTE(maciej): For now we just push. Some hashing would be nice here
-//     msh_draw__resize_paint_buf( ctx, 1 );
-
-//     ctx->paint_idx = ctx->paint_buf_size; 
-//     ctx->paint_buf[ ctx->paint_idx ] = p;
-//     ctx->paint_buf_size = ctx->paint_buf_size + 1;
-//   }
-// }
-
 const int msh_draw__add_paint( msh_draw_ctx_t* ctx, msh_draw_paint_t* p )
 {
   int paint_idx = msh_draw__find_paint( ctx, p );
@@ -808,10 +811,19 @@ msh_draw_polar_gradient_fill( msh_draw_ctx_t* ctx, float r1, float g1, float b1,
 const int
 msh_draw_register_image( msh_draw_ctx_t* ctx, unsigned char* data, int w, int h, int n )
 {
-  int tex_id;
-  glGenTextures(1, &tex_id);
+  // NOTE(maciej): Can id of an image/paint can be used as their identifying property AND index to an array?
+  msh_draw_image_t tex;
+  tex.width = w;
+  tex.height = h;
+  tex.n_channels = n;
+  msh_draw__resize_image_buf( ctx, 1 );
+  ctx->image_idx = ctx->image_buf_size; 
+  ctx->image_buf[ ctx->image_idx ] = tex;
+  ctx->image_buf_size = ctx->image_buf_size + 1;
+
+  glGenTextures(1, &tex.id);
   glActiveTexture(GL_TEXTURE0 + 1);//TODO(maciej): What does nanovg do with texture unit activation?
-  glBindTexture(GL_TEXTURE_2D, tex_id);
+  glBindTexture(GL_TEXTURE_2D, tex.id);
   // TODO(maciej): Use flags to resolve this
   glPixelStorei(GL_UNPACK_ALIGNMENT,1);
   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
@@ -822,7 +834,7 @@ msh_draw_register_image( msh_draw_ctx_t* ctx, unsigned char* data, int w, int h,
   glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, data );
   glBindTexture( GL_TEXTURE_2D, 0 );
 
-  return tex_id;
+  return tex.id;
 }
 
 // NOTE(maciej): Paint just selects an image.
