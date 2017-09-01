@@ -1,22 +1,39 @@
 #define MSH_DRAW_IMPLEMENTATION
 #define TT_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
+#define STB_TRUETYPE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STBI_ONLY_JPEG
 #include "msh.h"
 #include "glad/glad.h"
 #include "msh_draw.h"
 #include "tt/tiny_time.h"
 #include "stb/stb_image.h"
+#include "stb/stb_truetype.h"
+#include "stb/stb_image_write.h" //TODO(maciej): This is temp
 
 #define GLFW_INCLUDE_NONE
 #include "GLFW/glfw3.h"
 
+
 #include "stdio.h"
+unsigned char ttf_buffer[1<<20];
+unsigned char temp_bitmap[512*512];
+stbtt_bakedchar cdata[196]; 
 
 int main( int argc, char** argv )
 {
   GLFWwindow* window;
   msh_draw_ctx_t draw_ctx;
+ 
+  // NOTE(maciej): This is simply a test of stb texture baking.
+  // NOTE(maciej): Try to achieve it with different packing. Also how to request different texture
+  //               sizes?
+  fread( ttf_buffer, 1, 1<<20, fopen("data/raleway.ttf", "rb") );
+  stbtt_BakeFontBitmap(ttf_buffer,0, 12.0, temp_bitmap, 512,512, 0,126, cdata); 
+  stbi_write_png("data/raleway_test.png", 512, 512, 1, temp_bitmap, 0);
+  printf("Done\n");
+  return 1;
 
   // Initialize GLFW and create window
   if( !glfwInit() )
@@ -49,6 +66,7 @@ int main( int argc, char** argv )
   {
     msh_eprintf("Could not initialize draw context!\n");
   }
+  
 
   // Load images
   int img_width, img_height, img_n_channels;
