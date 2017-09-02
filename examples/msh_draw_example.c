@@ -1,6 +1,7 @@
 #define MSH_DRAW_IMPLEMENTATION
 #define TT_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
+#define STB_RECT_PACK_IMPLEMENTATION
 #define STB_TRUETYPE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STBI_ONLY_JPEG
@@ -9,6 +10,7 @@
 #include "msh_draw.h"
 #include "tt/tiny_time.h"
 #include "stb/stb_image.h"
+#include "stb/stb_rect_pack.h"
 #include "stb/stb_truetype.h"
 #include "stb/stb_image_write.h" //TODO(maciej): This is temp
 
@@ -29,9 +31,22 @@ int main( int argc, char** argv )
   // NOTE(maciej): This is simply a test of stb texture baking.
   // NOTE(maciej): Try to achieve it with different packing. Also how to request different texture
   //               sizes?
+  stbtt_fontinfo font;
+  unsigned char *bitmap;
+  int w, h, i, j;
   fread( ttf_buffer, 1, 1<<20, fopen("data/raleway.ttf", "rb") );
-  stbtt_BakeFontBitmap(ttf_buffer,0, 12.0, temp_bitmap, 512,512, 0,126, cdata); 
+  stbtt_InitFont(&font, ttf_buffer, stbtt_GetFontOffsetForIndex(ttf_buffer, 0));
+  int a_idx = stbtt_FindGlyphIndex( &font, 'a');
+  printf("Font glyph count: %d\n", font.numGlyphs);
+  printf("Index of 'a': %d\n", a_idx );
+  printf("Index of ' ': %d\n", stbtt_FindGlyphIndex(&font, ' '));
+  printf("Index of ' ': %d\n", stbtt_FindGlyphIndex(&font, '!'));
+  stbtt_pack_context spc;
+  stbtt_PackBegin( &spc, temp_bitmap, 512, 512, 0, 1, 0);
+  
+  stbtt_PackEnd(&spc);
   stbi_write_png("data/raleway_test.png", 512, 512, 1, temp_bitmap, 0);
+  
   printf("Done\n");
   return 1;
 
