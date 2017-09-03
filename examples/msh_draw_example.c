@@ -35,15 +35,34 @@ int main( int argc, char** argv )
   unsigned char *bitmap;
   int w, h, i, j;
   fread( ttf_buffer, 1, 1<<20, fopen("data/raleway.ttf", "rb") );
-  stbtt_InitFont(&font, ttf_buffer, stbtt_GetFontOffsetForIndex(ttf_buffer, 0));
-  int a_idx = stbtt_FindGlyphIndex( &font, 'a');
-  printf("Font glyph count: %d\n", font.numGlyphs);
-  printf("Index of 'a': %d\n", a_idx );
-  printf("Index of ' ': %d\n", stbtt_FindGlyphIndex(&font, ' '));
-  printf("Index of ' ': %d\n", stbtt_FindGlyphIndex(&font, '!'));
+  // stbtt_InitFont(&font, ttf_buffer, stbtt_GetFontOffsetForIndex(ttf_buffer, 0));
+  // int a_idx = stbtt_FindGlyphIndex( &font, 'a');
+  // printf("Font glyph count: %d\n", font.numGlyphs);
+  // printf("Index of 'a': %d\n", a_idx );
+  // printf("Index of ' ': %d\n", stbtt_FindGlyphIndex(&font, ' '));
+  // printf("Index of '?': %d\n", stbtt_FindGlyphIndex(&font, '?'));
+  // printf("Index of 'n': %d\n", stbtt_FindGlyphIndex(&font, 'n'));
+  // printf("Index of '$': %d\n", stbtt_FindGlyphIndex(&font, '$'));
+  // printf("Index of '!': %d\n", stbtt_FindGlyphIndex(&font, '!'));
   stbtt_pack_context spc;
-  stbtt_PackBegin( &spc, temp_bitmap, 512, 512, 0, 1, 0);
-  
+  stbtt_packedchar spchr[672];
+  stbtt_PackBegin( &spc, temp_bitmap, 512, 512, 0, 1, NULL);
+  printf("TEST1 %d %d\n", 'A', 'z' - 'A');
+  stbtt_PackSetOversampling(&spc, 2, 2);
+  // Note(Maciej): Apparently better to use sparse codepoints. Also for different font sizes we need different
+  // stbtt_packedchars
+  int res = stbtt_PackFontRange(&spc, ttf_buffer, 0, 16, 0, 672, spchr);
+  printf("TEST2 : %d\n", res);
+  // res = stbtt_PackFontRange(&spc, ttf_buffer, 0, 14, ' ', '~'-' ', spchr);
+  // printf("TEST3 : %d\n", res);
+  // res = stbtt_PackFontRange(&spc, ttf_buffer, 0, 12, ' ', '~'-' ', spchr);
+  // printf("TEST4 : %d\n", res);
+  // res = stbtt_PackFontRange(&spc, ttf_buffer, 0, 18, ' ', '~'-' ', spchr);
+  // printf("TEST4 : %d\n", res);
+  // res = stbtt_PackFontRange(&spc, ttf_buffer, 0, 32, ' ', '~'-' ', spchr);
+  // printf("TEST4 : %d\n", res);
+
+
   stbtt_PackEnd(&spc);
   stbi_write_png("data/raleway_test.png", 512, 512, 1, temp_bitmap, 0);
   
