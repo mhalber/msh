@@ -52,7 +52,7 @@
 
 typedef enum
 {
-  MSHD_TRIANGLE,  MSHD_CIRCLE, MSHD_RECTANGLE
+  MSHD_TRIANGLE, MSHD_CIRCLE, MSHD_RECTANGLE, MSHD_TEXT
 } msh_draw_cmd_type;
 
 typedef enum
@@ -94,8 +94,9 @@ typedef struct msh_draw_cmd
 {
   msh_draw_cmd_type type;
   int paint_idx;
-  float geometry[10];
+  float geometry[10]; //TODO(maciej): Make this into buffer, as ints
   float z_idx;
+  const char* str;//TODO(maciej): Put that in the buffer if cmd type is text; 
 } msh_draw_cmd_t;
 
 typedef struct msh_draw_image
@@ -277,14 +278,17 @@ msh_draw_init_ctx( msh_draw_ctx_t* ctx )
 {
   // Setup command buffer
   ctx->cmd_buf_capacity = MSH_DRAW_INIT_CMD_BUF_SIZE;
+  ctx->cmd_buf_size = 0;
   ctx->cmd_buf = (msh_draw_cmd_t*)malloc( ctx->cmd_buf_capacity * sizeof(msh_draw_cmd_t) );
 
   // Setup paint buffer
   ctx->paint_buf_capacity = MSH_DRAW_INIT_CMD_BUF_SIZE;
+  ctx->paint_buf_size = 0;
   ctx->paint_buf = (msh_draw_paint_t*)malloc( ctx->paint_buf_capacity * sizeof(msh_draw_paint_t) );
 
   // Setup image buffer
   ctx->image_buf_capacity = MSH_DRAW_INIT_CMD_BUF_SIZE;
+  ctx->image_buf_size = 0;
   ctx->image_buf = (msh_draw_image_t*)malloc( ctx->image_buf_capacity * sizeof(msh_draw_image_t) );
 
 
@@ -470,7 +474,6 @@ int msh_draw_new_frame( msh_draw_ctx_t* ctx, int viewport_width, int viewport_he
   ctx->paint_idx = 0;
   ctx->paint_buf_size = 1;
   ctx->image_idx = 0;
-  ctx->image_buf_size = 1;
 
   // Reset z indexing
   ctx->z_idx = 0.0f;
@@ -587,6 +590,11 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
 
         ogl_idx += 30;
       }
+      else if( cur_cmd->type == MSHD_TEXT )
+      {
+        printf("TEST: %s\n", cur_cmd->str );
+        // TODO(maciej): Actually print the string!!
+      }
       else if (cur_cmd->type == MSHD_CIRCLE)
       {
         float x_pos = cur_cmd->geometry[0];
@@ -648,7 +656,7 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
       {
         glActiveTexture(GL_TEXTURE0 + 1);
         glBindTexture( GL_TEXTURE_2D, paint->image_idx);
-        printf("TEST\n");
+        printf("TEST %d\n", paint->image_idx);
       }
       
       //TODO(maciej): Check different ways for setting up an uniform
@@ -661,7 +669,7 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
       location = glGetUniformLocation( ogl->prog_id, "paint_type" );
       glUniform1i( location, (int)paint->type );
       location = glGetUniformLocation( ogl->prog_id, "tex" );
-      glUniform1i( location, (int)paint->image_idx );
+      glUniform1i( location, (int)1 ); //NOTE(maciej): It's the unit!
       location = glGetUniformLocation( ogl->prog_id, "viewport_res" );
       glUniform2f( location, (float)ctx->viewport_width, (float)ctx->viewport_height );
     
@@ -816,10 +824,13 @@ msh_draw_register_image( msh_draw_ctx_t* ctx, unsigned char* data, int w, int h,
   tex.width = w;
   tex.height = h;
   tex.n_channels = n;
+
   msh_draw__resize_image_buf( ctx, 1 );
   ctx->image_idx = ctx->image_buf_size; 
   ctx->image_buf[ ctx->image_idx ] = tex;
   ctx->image_buf_size = ctx->image_buf_size + 1;
+  printf("%d %d\n", ctx->image_idx, ctx->image_buf_size);
+  fflush(stdout);
 
   glGenTextures(1, &tex.id);
   glActiveTexture(GL_TEXTURE0 + 1);//TODO(maciej): What does nanovg do with texture unit activation?
@@ -828,8 +839,8 @@ msh_draw_register_image( msh_draw_ctx_t* ctx, unsigned char* data, int w, int h,
   glPixelStorei(GL_UNPACK_ALIGNMENT,1);
   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
-  // glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
-  // glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
+  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
+  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
   // TODO(maciej): Switch based on the number of components
   glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, data );
   glBindTexture( GL_TEXTURE_2D, 0 );
@@ -914,6 +925,26 @@ msh_draw_rectangle( msh_draw_ctx_t* ctx, float x1, float y1, float x2, float y2 
   cmd.geometry[1] = y1;
   cmd.geometry[2] = x2;
   cmd.geometry[3] = y2;
+  cmd.z_idx = ctx->z_idx;
+  
+  // Modify the context
+  ctx->z_idx += 0.001f;
+  ctx->cmd_idx = ctx->cmd_buf_size;  
+  ctx->cmd_buf[ctx->cmd_idx] = cmd;
+  ctx->cmd_buf_size += 1;
+}
+
+
+void 
+msh_draw_text( msh_draw_ctx_t* ctx, float x1, float y1, const char* str )
+{
+  msh_draw__resize_cmd_buf( ctx, 1 );
+  
+  // Populate command 
+  msh_draw_cmd_t cmd;
+  cmd.type = MSHD_TEXT;
+  cmd.paint_idx = ctx->paint_idx;
+  cmd.str = str;
   cmd.z_idx = ctx->z_idx;
   
   // Modify the context
