@@ -657,7 +657,7 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
       {
         float x = cur_cmd->geometry[0];
         float y = cur_cmd->geometry[1];
-        float s = 1.0;
+        float s = 2.0;
         for(int i = 0; i < strlen(cur_cmd->str); ++i)
         {
           msh_draw_aligned_quad_t q;
