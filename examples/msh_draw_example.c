@@ -7,74 +7,18 @@
 #define STBI_ONLY_JPEG
 #include "msh.h"
 #include "glad/glad.h"
-#include "msh_draw.h"
 #include "tt/tiny_time.h"
 #include "stb/stb_image.h"
 #include "stb/stb_rect_pack.h"
 #include "stb/stb_truetype.h"
 #include "stb/stb_image_write.h" //TODO(maciej): This is temp
+#include "msh_draw.h"
 
 #define GLFW_INCLUDE_NONE
 #include "GLFW/glfw3.h"
 
 
 #include "stdio.h"
-
-typedef stbtt_packedchar msh_draw_packedchar_t;
-typedef stbtt_aligned_quad msh_draw_aligned_quad_t;
-
-#define FONT_MAX_FILE_SIZE 256000
-#define FONT_RES 128
-#define FONT_MAX_CHARS 128 //NOTE(maciej): Support for extended ascii only | This needs to be done once per font size.
-
-//TODO(maciej): allow
-void msh_draw__read_font( const char* filename, const float font_size, 
-                          msh_draw_ctx_t* ctx, int* font_tex,
-                          msh_draw_packedchar_t *char_info )
-{
-  unsigned char ttf_buffer[FONT_MAX_FILE_SIZE];
-  unsigned char temp_bitmap[FONT_RES*FONT_RES];
-  unsigned char bitmap[FONT_RES*FONT_RES*3];
-  FILE* font_file = fopen("data/raleway.ttf", "rb");
-  fread(ttf_buffer, 1, FONT_MAX_FILE_SIZE, font_file);
-  fclose(font_file);
-
-  stbtt_pack_context pack_context;
-  stbtt_PackBegin( &pack_context, temp_bitmap, FONT_RES, FONT_RES, 0, 1, NULL);
-  stbtt_PackSetOversampling(&pack_context, 1, 1);
-  // NOTE(maciej): Apparently better to use sparse codepoints. Also for different font sizes we need different
-  int res = stbtt_PackFontRange(&pack_context, ttf_buffer, 0, font_size, 0, FONT_MAX_CHARS, char_info);
-  stbtt_PackEnd(&pack_context);
-
-  unsigned char* src = temp_bitmap;
-  unsigned char* dst = bitmap;
-  for(int y = 0; y < FONT_RES; ++y)
-  {
-    for(int x = 0; x < FONT_RES; ++x)
-    {
-      unsigned char val = *src++;
-      *dst++ = val;
-      *dst++ = val;
-      *dst++ = val;
-    }
-  }
-  *font_tex = msh_draw_register_image( ctx, bitmap, FONT_RES, FONT_RES, 3);
-
-  // stbtt_aligned_quad q; //NOTE(maciej): We can alias this
-  // float x = 0.0f;
-  // float y = 0.0f;
-  // stbtt_GetPackedQuad( char_info, FONT_RES, FONT_RES, 'a', &x, &y, &q, 0);
-  // printf("     Top left: %f %f | %f %f\n", q.x0, q.y0, q.s0 * FONT_RES, q.t0 * FONT_RES );
-  // printf(" Bottom right: %f %f | %f %f\n", q.x1, q.y1, q.s1 * FONT_RES, q.t1 * FONT_RES );
-  // printf("    Advance:  %f %f\n", x, y );
-  // stbtt_GetPackedQuad( char_info, FONT_RES, FONT_RES, 'b', &x, &y, &q, 0);
-  // printf("     Top left: %f %f | %f %f\n", q.x0, q.y0, q.s0 * FONT_RES, q.t0 * FONT_RES );
-  // printf(" Bottom right: %f %f | %f %f\n", q.x1, q.y1, q.s1 * FONT_RES, q.t1 * FONT_RES );
-  // printf("    Advance:  %f %f\n", x, y );
-
-  stbi_write_png("data/raleway_test.png", FONT_RES, FONT_RES, 1, temp_bitmap, 0);
-  printf("DONE\n");
-}
 
 int main( int argc, char** argv )
 {
@@ -92,7 +36,7 @@ int main( int argc, char** argv )
   glfwWindowHint( GLFW_CONTEXT_VERSION_MINOR, 1 );
   glfwWindowHint( GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE );
   glfwWindowHint( GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE );
-  glfwWindowHint( GLFW_SAMPLES, 8 );
+  glfwWindowHint( GLFW_SAMPLES, 1 );
   // glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, 1);
   window = glfwCreateWindow( 1024, 512, "Simple example", NULL, NULL );
 
@@ -112,12 +56,6 @@ int main( int argc, char** argv )
     msh_eprintf("Could not initialize draw context!\n");
   }
 
-  // load font  
-  msh_draw_packedchar_t char_info[FONT_MAX_CHARS];
-  int font_tex;
-  msh_draw__read_font( "data/8bit_wonder.ttf", 16.0f, &draw_ctx, &font_tex, char_info );
-  printf("TEST: %d\n", font_tex);
-
   // Load images
   printf("Starting loading\n");
   int img_width, img_height, img_n_channels;
@@ -125,24 +63,20 @@ int main( int argc, char** argv )
   unsigned char* kitten = stbi_load( "data/kitten.jpg", &img_width, &img_height, &img_n_channels, 3);
   const int kitten_idx = msh_draw_register_image( &draw_ctx, kitten, img_width, img_height, img_n_channels );
   
-  printf("REGISTERED A: %d %p %d %d\n", kitten_idx, kitten, img_width, img_height );
-  fflush(stdout);
-
   unsigned char* seal = stbi_load( "data/seal.jpg", &img_width, &img_height, &img_n_channels, 3);
   const int seal_idx = msh_draw_register_image( &draw_ctx, seal, img_width, img_height, img_n_channels );
  
-  printf("REGISTERED B: %d %p %d %d\n", seal_idx, seal, img_width, img_height );
-  fflush(stdout);
 
   unsigned char* puppy = stbi_load( "data/puppy.jpg", &img_width, &img_height, &img_n_channels, 3);
   const int puppy_idx = msh_draw_register_image( &draw_ctx, puppy, img_width, img_height, img_n_channels );
  
+  int font_tex = msh_draw_add_font( &draw_ctx, "data/raleway.ttf", 42 );
 
   stbi_image_free(kitten);
   stbi_image_free(seal);
   stbi_image_free(puppy);
-
-  // return 1;
+  
+  printf("TEST: %d\n", font_tex);
 
   // Draw loop
   float y1 = 0.0f;
@@ -154,7 +88,8 @@ int main( int argc, char** argv )
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_MULTISAMPLE);
   glEnable(GL_BLEND);
-  glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  glBlendEquation(GL_FUNC_ADD);
   // glEnable(GL_FRAMEBUFFER_SRGB);
 
   while( !glfwWindowShouldClose(window) )
@@ -189,7 +124,7 @@ int main( int argc, char** argv )
     const int box = msh_draw_box_gradient_fill( &draw_ctx, 0.1f, 0.21f, 0.83f, 1.0f,
                                            0.21f, 0.83f, 0.1f, 1.0f,
                                            32.0f, 16.0f, 16.0f );
-    const int font = msh_draw_image_fill( &draw_ctx, font_tex );
+    const int font_img = msh_draw_image_fill( &draw_ctx, font_tex );
     const int seal_img = msh_draw_image_fill( &draw_ctx, seal_idx );
     const int kitten_img = msh_draw_image_fill( &draw_ctx, kitten_idx );
     const int puppy_img = msh_draw_image_fill( &draw_ctx, puppy_idx );
@@ -209,9 +144,12 @@ int main( int argc, char** argv )
     msh_draw_rectangle( &draw_ctx, 512+128.0f, 128.0f, 512.0f+256.0f, 256 );
     msh_draw_set_paint( &draw_ctx, seal_img );
     msh_draw_rectangle( &draw_ctx, 512.0f+256.0f, 128.0f, 512+128.0f+256.0f, 256 );
-    msh_draw_set_paint( &draw_ctx, font );
+    msh_draw_set_paint( &draw_ctx, font_img );
     msh_draw_rectangle( &draw_ctx, 1024.0f-128.0f, 128.0f, 1024.0f, 256 );
-    msh_draw_text(&draw_ctx, 512.0f, 390.0f, "THIS IS A STRING");
+    int test = rand();
+    char buf[1024];
+    sprintf( buf, "Formatting test: %d\n", test );
+    msh_draw_text(&draw_ctx, 512.0f, 390.0f, buf );
     // Draw stuff
     // TODO(maciej): Investigate why number of draw calls inceases. Probably due to buffer limit.
     // for( int i = 0; i < 512; ++i )

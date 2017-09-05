@@ -40,15 +40,25 @@
   ==============================================================================
   REFERENCES:
   [1] NanoGUI
+  [2] stb_truetype
  */
 
 #ifndef MSH_DRAW_H
 #define MSH_DRAW_H
 
+// Options
 #define MSH_DRAW_INIT_CMD_BUF_SIZE 1024
 #define MSH_DRAW_OGL_BUF_SIZE 8192
 #define MSH_DRAW_STRINGIFY(x) #x
 #define MSH_DRAW_OPENGL
+
+#define MSH_FONT_MAX_FILE_SIZE 256000
+#define MSH_FONT_RES 512
+#define MSH_FONT_MAX_CHARS 128 //NOTE(maciej): Support for extended ascii only | This needs to be done once per font size.
+
+// Aliases for stb_truetype types
+typedef stbtt_packedchar msh_draw_packedchar_t;
+typedef stbtt_aligned_quad msh_draw_aligned_quad_t;
 
 typedef enum
 {
@@ -128,6 +138,8 @@ typedef struct msh_draw_ctx
   msh_draw_image_t* image_buf;
   int image_idx;
 
+  msh_draw_packedchar_t char_info[MSH_FONT_MAX_CHARS];
+
   float z_idx;
 
 #ifdef MSH_DRAW_OPENGL
@@ -141,17 +153,22 @@ int msh_draw_new_frame( msh_draw_ctx_t* ctx, int viewport_width, int viewport_he
 int msh_draw_render( msh_draw_ctx_t* ctx );
 
 void msh_draw_set_paint( msh_draw_ctx_t* ctx, const int paint_idx );
+const int msh_draw_register_image( msh_draw_ctx_t* ctx, unsigned char* data, int w, int h, int n );
 const int msh_draw_flat_fill( msh_draw_ctx_t* ctx, float r, float g, float b, float a );
 const int msh_draw_box_gradient( /*TODO(maciej):Find correct params*/ );
 const int msh_draw_radial_gradient( msh_draw_ctx_t* ctx, 
                                    float r1, float g1, float, float b1, float a1,
                                    float r2, float g2, float, float b2, float a2,
                                    float size, float feather );
+const int msh_draw_image_fill( msh_draw_ctx_t* ctx, int image_idx );
+
 
 // TODO(maciej): More primitives
 void msh_draw_circle( msh_draw_ctx_t* ctx, float x, float y, float r );
 void msh_draw_triangle( msh_draw_ctx_t* ctx, float x, float y, float s );
 void msh_draw_line( msh_draw_ctx_t* ctx, float x1, float y1, float x2, float y2 );
+
+int msh_draw_add_font( msh_draw_ctx_t* ctx, const char* filename, const float size );
 
 #endif /*MSH_DRAW_H*/
 
@@ -265,6 +282,51 @@ msh__check_linking_status( GLuint prog_id )
   return linked;
 }
 #endif
+
+////////////////////////////////////////////////////////////////////////////////
+// Font
+////////////////////////////////////////////////////////////////////////////////
+
+// TODO(maciej): Error checks
+int msh_draw_add_font( msh_draw_ctx_t* ctx, const char* filename, const float font_size )
+{
+  unsigned char ttf_buffer[MSH_FONT_MAX_FILE_SIZE];
+  unsigned char* temp_bitmap = (unsigned char*) malloc(MSH_FONT_RES*MSH_FONT_RES);
+  unsigned char* bitmap = (unsigned char*) malloc(MSH_FONT_RES*MSH_FONT_RES*4);
+  FILE* font_file = fopen(filename, "rb");
+  fread(ttf_buffer, 1, MSH_FONT_MAX_FILE_SIZE, font_file);
+  fclose(font_file);
+
+  stbtt_pack_context pack_context;
+  stbtt_PackBegin( &pack_context, temp_bitmap, MSH_FONT_RES, MSH_FONT_RES, 0, 1, NULL);
+  stbtt_PackSetOversampling(&pack_context, 2, 2);
+
+  // NOTE(maciej): Apparently better to use sparse codepoints instead of range
+  // NOTE(maciej): Also for different font sizes we need different char_info
+  int res = stbtt_PackFontRange(&pack_context, ttf_buffer, 0, font_size, 0, MSH_FONT_MAX_CHARS, ctx->char_info);
+  stbtt_PackEnd(&pack_context);
+
+  unsigned char* src = temp_bitmap;
+  unsigned char* dst = bitmap;
+  for(int y = 0; y < MSH_FONT_RES; ++y)
+  {
+    for(int x = 0; x < MSH_FONT_RES; ++x)
+    {
+      unsigned char val = *src++;
+      *dst++ = 255;
+      *dst++ = 255;
+      *dst++ = 255;
+      *dst++ = val;
+    }
+  }
+
+  // TODO(maciej): Inline this function to use different unit
+  int font_tex = msh_draw_register_image( ctx, bitmap, MSH_FONT_RES, MSH_FONT_RES, 4);
+  free( temp_bitmap );
+  free( bitmap );
+  return font_tex;
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Initialization
@@ -392,7 +454,7 @@ msh_draw_init_ctx( msh_draw_ctx_t* ctx )
       else if ( paint_type == 2 ) { frag_color=radial_gradient(color_a, color_b, gradient_params, t, s.z);}
       else if ( paint_type == 3 ) { frag_color=box_gradient(color_a, color_b, gradient_params, t, s);}
       else if ( paint_type == 4 ) { frag_color=polar_gradient(color_a, color_b, t);}
-      else if ( paint_type == 5 ) { frag_color=texture(tex, t);}
+      else if ( paint_type == 5 ) { frag_color=texture(tex, t) * vec4(0.2, 0.6, 0.5, 1.0);}
       else                        { frag_color=color_a; }
     }
   ); 
@@ -511,6 +573,7 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
     msh_draw_cmd_t* cur_cmd = &ctx->cmd_buf[i];
     int cur_paint_idx = cur_cmd->paint_idx;
 
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     while( cur_paint_idx == cur_cmd->paint_idx )
     {
       cur_paint_idx = cur_cmd->paint_idx;
@@ -592,8 +655,50 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
       }
       else if( cur_cmd->type == MSHD_TEXT )
       {
-        printf("TEST: %s\n", cur_cmd->str );
-        // TODO(maciej): Actually print the string!!
+        float x = cur_cmd->geometry[0];
+        float y = cur_cmd->geometry[1];
+        float s = 1.0;
+        for(int i = 0; i < strlen(cur_cmd->str); ++i)
+        {
+          msh_draw_aligned_quad_t q;
+          stbtt_GetPackedQuad( ctx->char_info, MSH_FONT_RES, MSH_FONT_RES, 
+                              cur_cmd->str[i], &x, &y, &q, 0);
+          ogl_buf[ogl_idx++] = (q.x0 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
+          ogl_buf[ogl_idx++] = (q.y0 - cur_cmd->geometry[1]) * s + cur_cmd->geometry[1];
+          ogl_buf[ogl_idx++] = cur_cmd->z_idx;
+          ogl_buf[ogl_idx++] = q.s0;
+          ogl_buf[ogl_idx++] = q.t0;
+          
+          ogl_buf[ogl_idx++] = (q.x0 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
+          ogl_buf[ogl_idx++] = (q.y1 - cur_cmd->geometry[1]) * s + cur_cmd->geometry[1];
+          ogl_buf[ogl_idx++] = cur_cmd->z_idx;
+          ogl_buf[ogl_idx++] = q.s0;
+          ogl_buf[ogl_idx++] = q.t1;
+
+          ogl_buf[ogl_idx++] = (q.x1 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
+          ogl_buf[ogl_idx++] = (q.y1 - cur_cmd->geometry[1]) * s + cur_cmd->geometry[1];
+          ogl_buf[ogl_idx++] = cur_cmd->z_idx;
+          ogl_buf[ogl_idx++] = q.s1;
+          ogl_buf[ogl_idx++] = q.t1;
+
+          ogl_buf[ogl_idx++] = (q.x0 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
+          ogl_buf[ogl_idx++] = (q.y0 - cur_cmd->geometry[1]) * s + cur_cmd->geometry[1];
+          ogl_buf[ogl_idx++] = cur_cmd->z_idx;
+          ogl_buf[ogl_idx++] = q.s0;
+          ogl_buf[ogl_idx++] = q.t0;
+          
+          ogl_buf[ogl_idx++] = (q.x1 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
+          ogl_buf[ogl_idx++] = (q.y1 - cur_cmd->geometry[1]) * s + cur_cmd->geometry[1];
+          ogl_buf[ogl_idx++] = cur_cmd->z_idx;
+          ogl_buf[ogl_idx++] = q.s1;
+          ogl_buf[ogl_idx++] = q.t1;
+
+          ogl_buf[ogl_idx++] = (q.x1 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
+          ogl_buf[ogl_idx++] = (q.y0 - cur_cmd->geometry[1]) * s + cur_cmd->geometry[1];
+          ogl_buf[ogl_idx++] = cur_cmd->z_idx;
+          ogl_buf[ogl_idx++] = q.s1;
+          ogl_buf[ogl_idx++] = q.t0;
+        }
       }
       else if (cur_cmd->type == MSHD_CIRCLE)
       {
@@ -646,49 +751,48 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
     }
 
 #ifdef MSH_DRAW_OPENGL
-      msh_draw_opengl_backend_t* ogl = &ctx->backend;
-      msh_draw_paint_t* paint = &ctx->paint_buf[cur_paint_idx];
-      msh_draw_color_t c_a = paint->fill_color_a;
-      msh_draw_color_t c_b = paint->fill_color_b;
-      
-      glUseProgram(ogl->prog_id);
-      if( paint->image_idx ) 
-      {
-        glActiveTexture(GL_TEXTURE0 + 1);
-        glBindTexture( GL_TEXTURE_2D, paint->image_idx);
-        printf("TEST %d\n", paint->image_idx);
-      }
-      
-      //TODO(maciej): Check different ways for setting up an uniform
-      GLuint location = glGetUniformLocation( ogl->prog_id, "color_a" );
-      glUniform4f( location, c_a.r, c_a.g, c_a.b, 1.0f );
-      location = glGetUniformLocation( ogl->prog_id, "color_b" );
-      glUniform4f( location, c_b.r, c_b.g, c_b.b, 1.0f );
-      location = glGetUniformLocation(ogl->prog_id, "gradient_params" );
-      glUniform4f( location, paint->offset_x, paint->offset_y, paint->feather, paint->radius );
-      location = glGetUniformLocation( ogl->prog_id, "paint_type" );
-      glUniform1i( location, (int)paint->type );
-      location = glGetUniformLocation( ogl->prog_id, "tex" );
-      glUniform1i( location, (int)1 ); //NOTE(maciej): It's the unit!
-      location = glGetUniformLocation( ogl->prog_id, "viewport_res" );
-      glUniform2f( location, (float)ctx->viewport_width, (float)ctx->viewport_height );
+    msh_draw_opengl_backend_t* ogl = &ctx->backend;
+    msh_draw_paint_t* paint = &ctx->paint_buf[cur_paint_idx];
+    msh_draw_color_t c_a = paint->fill_color_a;
+    msh_draw_color_t c_b = paint->fill_color_b;
     
-      glBindVertexArray(ogl->vao);
+    glUseProgram(ogl->prog_id);
+    if( paint->image_idx ) 
+    {
+      glActiveTexture(GL_TEXTURE0 + 1);
+      glBindTexture( GL_TEXTURE_2D, paint->image_idx);
+    }
+    
+    //TODO(maciej): Check different ways for setting up an uniform
+    GLuint location = glGetUniformLocation( ogl->prog_id, "color_a" );
+    glUniform4f( location, c_a.r, c_a.g, c_a.b, 1.0f );
+    location = glGetUniformLocation( ogl->prog_id, "color_b" );
+    glUniform4f( location, c_b.r, c_b.g, c_b.b, 1.0f );
+    location = glGetUniformLocation(ogl->prog_id, "gradient_params" );
+    glUniform4f( location, paint->offset_x, paint->offset_y, paint->feather, paint->radius );
+    location = glGetUniformLocation( ogl->prog_id, "paint_type" );
+    glUniform1i( location, (int)paint->type );
+    location = glGetUniformLocation( ogl->prog_id, "tex" );
+    glUniform1i( location, (int)1 ); //NOTE(maciej): It's the unit!
+    location = glGetUniformLocation( ogl->prog_id, "viewport_res" );
+    glUniform2f( location, (float)ctx->viewport_width, (float)ctx->viewport_height );
   
-      
-      // NOTE(maciej): We will probably be drawing in chunks, so no need for this resize
-      glBindBuffer(GL_ARRAY_BUFFER, ogl->vbo);
-      glBufferSubData(GL_ARRAY_BUFFER, 0, ogl_idx*sizeof(float), ogl_buf );
-      
-      glDrawArrays(GL_TRIANGLES, 0, ogl_idx / 5);
-      
-      if( paint->image_idx ) 
-      {
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture( GL_TEXTURE_2D, 0);
-      }
+    glBindVertexArray(ogl->vao);
 
-      glBindVertexArray(0);
+    
+    // NOTE(maciej): We will probably be drawing in chunks, so no need for this resize
+    glBindBuffer(GL_ARRAY_BUFFER, ogl->vbo);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, ogl_idx*sizeof(float), ogl_buf );
+    
+    glDrawArrays(GL_TRIANGLES, 0, ogl_idx / 5);
+    
+    if( paint->image_idx ) 
+    {
+      glActiveTexture(GL_TEXTURE0);
+      glBindTexture( GL_TEXTURE_2D, 0);
+    }
+
+    glBindVertexArray(0);
 #endif
     n_draw_calls++;
   }
@@ -829,11 +933,9 @@ msh_draw_register_image( msh_draw_ctx_t* ctx, unsigned char* data, int w, int h,
   ctx->image_idx = ctx->image_buf_size; 
   ctx->image_buf[ ctx->image_idx ] = tex;
   ctx->image_buf_size = ctx->image_buf_size + 1;
-  printf("%d %d\n", ctx->image_idx, ctx->image_buf_size);
-  fflush(stdout);
 
   glGenTextures(1, &tex.id);
-  glActiveTexture(GL_TEXTURE0 + 1);//TODO(maciej): What does nanovg do with texture unit activation?
+  glActiveTexture(GL_TEXTURE0 + 1);//NOTE(maciej): What does nanovg do with texture unit activation?
   glBindTexture(GL_TEXTURE_2D, tex.id);
   // TODO(maciej): Use flags to resolve this
   glPixelStorei(GL_UNPACK_ALIGNMENT,1);
@@ -841,8 +943,34 @@ msh_draw_register_image( msh_draw_ctx_t* ctx, unsigned char* data, int w, int h,
   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
-  // TODO(maciej): Switch based on the number of components
-  glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, data );
+  
+
+  GLuint internal_format = 0;
+  GLuint format = 0;
+  switch( n )
+  {
+    case 1:
+      format = GL_RED;
+      internal_format = GL_R8;
+      break;
+    case 2:
+      format = GL_RG;
+      internal_format = GL_RG;
+      break;
+    case 3:
+      format = GL_RGB;
+      internal_format = GL_RGB8;
+      break;
+    case 4:
+      format = GL_RGBA;
+      internal_format = GL_RGBA8;
+      break;
+    default:
+      internal_format = GL_RGBA;
+      format = GL_RGB;
+  }
+  glTexImage2D( GL_TEXTURE_2D, 0, internal_format, 
+                w, h, 0, format, GL_UNSIGNED_BYTE, data );
   glBindTexture( GL_TEXTURE_2D, 0 );
 
   return tex.id;
@@ -944,6 +1072,8 @@ msh_draw_text( msh_draw_ctx_t* ctx, float x1, float y1, const char* str )
   msh_draw_cmd_t cmd;
   cmd.type = MSHD_TEXT;
   cmd.paint_idx = ctx->paint_idx;
+  cmd.geometry[0] = x1;
+  cmd.geometry[1] = y1;
   cmd.str = str;
   cmd.z_idx = ctx->z_idx;
   
