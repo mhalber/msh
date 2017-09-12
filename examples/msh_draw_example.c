@@ -90,7 +90,7 @@ int main( int argc, char** argv )
   glEnable(GL_MULTISAMPLE);
   glEnable(GL_BLEND);
   // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  // glBlendEquation(GL_FUNC_ADD);
+  glBlendEquation(GL_FUNC_ADD);
   // glEnable(GL_FRAMEBUFFER_SRGB);
 
   while( !glfwWindowShouldClose(window) )
@@ -119,26 +119,26 @@ int main( int argc, char** argv )
     const int pol = msh_draw_polar_gradient_fill( &draw_ctx, 0.1f, 0.21f, 0.83f, 1.0f,
                                                               0.21f, 0.83f, 0.1f, 1.0f );
     const int rad = msh_draw_radial_gradient_fill( &draw_ctx, 0.1f, 0.21f, 0.83f, 1.0f,
-                                              0.21f, 0.83f, 0.1f, 1.0f,   
-                                              256.0f, 0.0f );
+                                                              0.21f, 0.83f, 0.1f, 1.0f,   
+                                                              256.0f, 1.0f );
     // TODO(maciej): Box parameters seem counter intuitive. Need to investigate
     const int box = msh_draw_box_gradient_fill( &draw_ctx, 0.1f, 0.21f, 0.83f, 1.0f,
-                                           0.21f, 0.83f, 0.1f, 0.0f,
+                                           0.21f, 0.83f, 0.1f, 1.0f,
                                            32.0f, 16.0f, 16.0f );
     const int seal_img = msh_draw_image_fill( &draw_ctx, seal_idx );
     const int kitten_img = msh_draw_image_fill( &draw_ctx, kitten_idx );
     const int puppy_img = msh_draw_image_fill( &draw_ctx, puppy_idx );
 
     const int shadow = msh_draw_box_gradient_fill( &draw_ctx, 0.2f, 0.2f, 0.2f, 1.0f,
-                                                              0.8f, 0.8f, 0.8f, 0.0f,
-                                                              16.0f, 8.0f, 2.0f );
+                                                              0.2f, 0.2f, 0.2f, 0.0f,
+                                                              16.0f, 16.0f, 2.0f );
 
     msh_draw_set_paint( &draw_ctx, lin );
     msh_draw_rectangle( &draw_ctx, 64.0f, 64.0f, 128.0f, 256.0f);
     msh_draw_set_paint( &draw_ctx, rad );
     msh_draw_rectangle( &draw_ctx, 128.0f, 64.0f, 192.0f, 256.0f);
     msh_draw_set_paint( &draw_ctx, box );
-    msh_draw_rectangle( &draw_ctx, 192.0f, 64.0f, 256.0f, 256.0f);
+    msh_draw_rectangle( &draw_ctx, 192.0f, 4.0f, 256.0f, 256.0f);
     msh_draw_set_paint( &draw_ctx, pol );
     msh_draw_rectangle( &draw_ctx, 256.0f, 64.0f, 320.0f, 256.0f);
     msh_draw_circle( &draw_ctx, 256.0f, 256.0f, 128.0f );
@@ -149,11 +149,10 @@ int main( int argc, char** argv )
     msh_draw_set_paint( &draw_ctx, seal_img );
     msh_draw_rectangle( &draw_ctx, 512.0f+256.0f, 128.0f, 512+128.0f+256.0f, 256 );
     
-    msh_draw_set_paint( &draw_ctx, shadow )
     msh_draw_set_paint( &draw_ctx, shadow );
-    msh_draw_rectangle( &draw_ctx, 128.0f-8.0f, 128.0f-8.0f, 256.0f + 8.0f, 256.0f + 8.0f );
+    msh_draw_rectangle( &draw_ctx, 256.0f-8.0f, 256.0f-8.0f, 384.0f + 8.0f, 384.0f + 8.0f );
     msh_draw_set_paint( &draw_ctx, seal_img );
-    msh_draw_rectangle( &draw_ctx, 128.0f, 128.0f, 256.0f, 256.0f );
+    msh_draw_rectangle( &draw_ctx, 256.0f, 256.0f, 384.0f, 384.0f );
     //TODO(maciej): Add string buffer
     int test = rand();
     char buf[1024];

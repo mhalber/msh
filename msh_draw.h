@@ -741,9 +741,9 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
     
     //TODO(maciej): Check different ways for setting up an uniform
     GLuint location = glGetUniformLocation( ogl->prog_id, "color_a" );
-    glUniform4f( location, c_a.r, c_a.g, c_a.b, 1.0f );
+    glUniform4f( location, c_a.r, c_a.g, c_a.b, c_a.a );
     location = glGetUniformLocation( ogl->prog_id, "color_b" );
-    glUniform4f( location, c_b.r, c_b.g, c_b.b, 1.0f );
+    glUniform4f( location, c_b.r, c_b.g, c_b.b, c_b.a );
     location = glGetUniformLocation(ogl->prog_id, "gradient_params" );
     glUniform4f( location, paint->offset_x, paint->offset_y, paint->feather, paint->radius );
     location = glGetUniformLocation( ogl->prog_id, "paint_type" );
