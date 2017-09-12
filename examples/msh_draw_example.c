@@ -70,13 +70,14 @@ int main( int argc, char** argv )
   unsigned char* puppy = stbi_load( "data/puppy.jpg", &img_width, &img_height, &img_n_channels, 3);
   const int puppy_idx = msh_draw_register_image( &draw_ctx, puppy, img_width, img_height, img_n_channels );
  
-  int font_tex = msh_draw_add_font( &draw_ctx, "data/raleway.ttf", 42 );
+  //TODO(maciej): Add font buffer
+  int font_paint = msh_draw_add_font( &draw_ctx, "data/raleway.ttf", 62 );
+
 
   stbi_image_free(kitten);
   stbi_image_free(seal);
   stbi_image_free(puppy);
   
-  printf("TEST: %d\n", font_tex);
 
   // Draw loop
   float y1 = 0.0f;
@@ -88,8 +89,8 @@ int main( int argc, char** argv )
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_MULTISAMPLE);
   glEnable(GL_BLEND);
-  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  glBlendEquation(GL_FUNC_ADD);
+  // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  // glBlendEquation(GL_FUNC_ADD);
   // glEnable(GL_FRAMEBUFFER_SRGB);
 
   while( !glfwWindowShouldClose(window) )
@@ -122,12 +123,15 @@ int main( int argc, char** argv )
                                               256.0f, 0.0f );
     // TODO(maciej): Box parameters seem counter intuitive. Need to investigate
     const int box = msh_draw_box_gradient_fill( &draw_ctx, 0.1f, 0.21f, 0.83f, 1.0f,
-                                           0.21f, 0.83f, 0.1f, 1.0f,
+                                           0.21f, 0.83f, 0.1f, 0.0f,
                                            32.0f, 16.0f, 16.0f );
-    const int font_img = msh_draw_image_fill( &draw_ctx, font_tex );
     const int seal_img = msh_draw_image_fill( &draw_ctx, seal_idx );
     const int kitten_img = msh_draw_image_fill( &draw_ctx, kitten_idx );
     const int puppy_img = msh_draw_image_fill( &draw_ctx, puppy_idx );
+
+    const int shadow = msh_draw_box_gradient_fill( &draw_ctx, 0.2f, 0.2f, 0.2f, 1.0f,
+                                                              0.8f, 0.8f, 0.8f, 0.0f,
+                                                              16.0f, 8.0f, 2.0f );
 
     msh_draw_set_paint( &draw_ctx, lin );
     msh_draw_rectangle( &draw_ctx, 64.0f, 64.0f, 128.0f, 256.0f);
@@ -144,12 +148,17 @@ int main( int argc, char** argv )
     msh_draw_rectangle( &draw_ctx, 512+128.0f, 128.0f, 512.0f+256.0f, 256 );
     msh_draw_set_paint( &draw_ctx, seal_img );
     msh_draw_rectangle( &draw_ctx, 512.0f+256.0f, 128.0f, 512+128.0f+256.0f, 256 );
-    msh_draw_set_paint( &draw_ctx, font_img );
-    msh_draw_rectangle( &draw_ctx, 1024.0f-128.0f, 128.0f, 1024.0f, 256 );
+    
+    msh_draw_set_paint( &draw_ctx, shadow )
+    msh_draw_set_paint( &draw_ctx, shadow );
+    msh_draw_rectangle( &draw_ctx, 128.0f-8.0f, 128.0f-8.0f, 256.0f + 8.0f, 256.0f + 8.0f );
+    msh_draw_set_paint( &draw_ctx, seal_img );
+    msh_draw_rectangle( &draw_ctx, 128.0f, 128.0f, 256.0f, 256.0f );
+    //TODO(maciej): Add string buffer
     int test = rand();
     char buf[1024];
     sprintf( buf, "Formatting test: %d\n", test );
-    msh_draw_text(&draw_ctx, 512.0f, 390.0f, buf );
+    msh_draw_text(&draw_ctx, 512.0f, 390.0f, buf, font_paint );
     // Draw stuff
     // TODO(maciej): Investigate why number of draw calls inceases. Probably due to buffer limit.
     // for( int i = 0; i < 512; ++i )

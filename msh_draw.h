@@ -68,7 +68,7 @@ typedef enum
 typedef enum
 {
   MSHD_FLAT = 0, MSHD_LINEAR_GRADIENT, MSHD_RADIAL_GRADIENT, MSHD_BOX_GRADIENT,
-  MSHD_POLAR_GRADIENT, MSHD_IMAGE
+  MSHD_POLAR_GRADIENT, MSHD_IMAGE, MSHD_FONT
 } msh_draw_paint_type;
 
 #ifdef MSH_DRAW_OPENGL
@@ -284,51 +284,6 @@ msh__check_linking_status( GLuint prog_id )
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
-// Font
-////////////////////////////////////////////////////////////////////////////////
-
-// TODO(maciej): Error checks
-int msh_draw_add_font( msh_draw_ctx_t* ctx, const char* filename, const float font_size )
-{
-  unsigned char ttf_buffer[MSH_FONT_MAX_FILE_SIZE];
-  unsigned char* temp_bitmap = (unsigned char*) malloc(MSH_FONT_RES*MSH_FONT_RES);
-  unsigned char* bitmap = (unsigned char*) malloc(MSH_FONT_RES*MSH_FONT_RES*4);
-  FILE* font_file = fopen(filename, "rb");
-  fread(ttf_buffer, 1, MSH_FONT_MAX_FILE_SIZE, font_file);
-  fclose(font_file);
-
-  stbtt_pack_context pack_context;
-  stbtt_PackBegin( &pack_context, temp_bitmap, MSH_FONT_RES, MSH_FONT_RES, 0, 1, NULL);
-  stbtt_PackSetOversampling(&pack_context, 2, 2);
-
-  // NOTE(maciej): Apparently better to use sparse codepoints instead of range
-  // NOTE(maciej): Also for different font sizes we need different char_info
-  int res = stbtt_PackFontRange(&pack_context, ttf_buffer, 0, font_size, 0, MSH_FONT_MAX_CHARS, ctx->char_info);
-  stbtt_PackEnd(&pack_context);
-
-  unsigned char* src = temp_bitmap;
-  unsigned char* dst = bitmap;
-  for(int y = 0; y < MSH_FONT_RES; ++y)
-  {
-    for(int x = 0; x < MSH_FONT_RES; ++x)
-    {
-      unsigned char val = *src++;
-      *dst++ = 255;
-      *dst++ = 255;
-      *dst++ = 255;
-      *dst++ = val;
-    }
-  }
-
-  // TODO(maciej): Inline this function to use different unit
-  int font_tex = msh_draw_register_image( ctx, bitmap, MSH_FONT_RES, MSH_FONT_RES, 4);
-  free( temp_bitmap );
-  free( bitmap );
-  return font_tex;
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
 // Initialization
 // NOTE: Sets up context. Depending on the backend, all backend variables will
 //       be initially setup here
@@ -366,11 +321,14 @@ msh_draw_init_ctx( msh_draw_ctx_t* ctx )
     uniform vec2 viewport_res;
 
     out vec2 v_tcoord;
+    out vec2 v_auto_param;
     out vec2 v_pos;
     void main()
     {
       v_tcoord = vec2(tcoord.x, tcoord.y);
       v_pos = position.xy;
+      // TODO(maciej): Once moved to elements draw, revisit autoparametrization
+      v_auto_param = vec2( gl_VertexID % 3, gl_VertexID % 2 );
       gl_Position = vec4( 2.0*position.x/viewport_res.x - 1.0, 
                           1.0 - 2.0*position.y/viewport_res.y, -position.z, 1);
     }
@@ -384,8 +342,10 @@ msh_draw_init_ctx( msh_draw_ctx_t* ctx )
     uniform vec4 gradient_params;
     uniform int paint_type;
     uniform sampler2D tex;
+    uniform sampler2D font;
 
     in vec2 v_tcoord;
+    in vec2 v_auto_param;
     in vec2 v_pos;
 
     float roundrect( vec2 p, vec2 e, float r)
@@ -410,6 +370,7 @@ msh_draw_init_ctx( msh_draw_ctx_t* ctx )
       else if ( type == 3 /*BOX*/)     { return ((t_coord * 2.0 - vec2(1.0, 1.0)) * scaling); } 
       else if ( type == 4 /*POLAR*/)   { return ((t_coord * 2.0 - vec2(1.0, 1.0)) * scaling); } 
       else if ( type == 5 /*IMAGE*/)   { return t_coord; }
+      else if ( type == 6 /*FONT*/)    { return t_coord; }
       else { return t_coord; }
     }
 
@@ -438,11 +399,19 @@ msh_draw_init_ctx( msh_draw_ctx_t* ctx )
       return mix(c_a, c_b, f);
     }
 
-    vec4 polar_gradient( in vec4 c_a, in vec4 c_b, in vec2 t)
+    vec4 polar_gradient(in vec4 c_a, in vec4 c_b, in vec2 t)
     {
       // TODO(maciej): Test different mixing factors
       float f = ((atan( t.x, t.y) * 0.15915494309189533576888376337251 /*OneOverTau*/) ) +0.5;
       return mix(c_a, c_b, f);
+    }
+
+    // TODO(maciej): TSDF?
+    vec4 font_fill(in vec4 c_a, in vec4 c_b, in vec2 t)
+    {
+
+      vec4 c = mix(c_a, c_b, t.y);
+      return vec4(vec3(c), texture(font, t));
     }
 
     void main()
@@ -454,7 +423,8 @@ msh_draw_init_ctx( msh_draw_ctx_t* ctx )
       else if ( paint_type == 2 ) { frag_color=radial_gradient(color_a, color_b, gradient_params, t, s.z);}
       else if ( paint_type == 3 ) { frag_color=box_gradient(color_a, color_b, gradient_params, t, s);}
       else if ( paint_type == 4 ) { frag_color=polar_gradient(color_a, color_b, t);}
-      else if ( paint_type == 5 ) { frag_color=texture(tex, t) * vec4(0.2, 0.6, 0.5, 1.0);}
+      else if ( paint_type == 5 ) { frag_color=texture(tex, t); }
+      else if ( paint_type == 6 ) { frag_color=font_fill(color_a, color_b, t); }
       else                        { frag_color=color_a; }
     }
   ); 
@@ -657,7 +627,7 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
       {
         float x = cur_cmd->geometry[0];
         float y = cur_cmd->geometry[1];
-        float s = 2.0;
+        float s = 1.0;
         for(int i = 0; i < strlen(cur_cmd->str); ++i)
         {
           msh_draw_aligned_quad_t q;
@@ -757,10 +727,16 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
     msh_draw_color_t c_b = paint->fill_color_b;
     
     glUseProgram(ogl->prog_id);
-    if( paint->image_idx ) 
+    if( paint->type == MSHD_IMAGE ) 
     {
       glActiveTexture(GL_TEXTURE0 + 1);
       glBindTexture( GL_TEXTURE_2D, paint->image_idx);
+    }
+    if( paint->type == MSHD_FONT )
+    {
+      glActiveTexture(GL_TEXTURE0 + 2);
+      glBindTexture( GL_TEXTURE_2D, paint->image_idx);
+      // printf("PAINT: %d\n", cur_paint_idx );
     }
     
     //TODO(maciej): Check different ways for setting up an uniform
@@ -774,6 +750,8 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
     glUniform1i( location, (int)paint->type );
     location = glGetUniformLocation( ogl->prog_id, "tex" );
     glUniform1i( location, (int)1 ); //NOTE(maciej): It's the unit!
+    location = glGetUniformLocation( ogl->prog_id, "font" );
+    glUniform1i( location, (int)2 ); //NOTE(maciej): It's the unit!
     location = glGetUniformLocation( ogl->prog_id, "viewport_res" );
     glUniform2f( location, (float)ctx->viewport_width, (float)ctx->viewport_height );
   
@@ -935,7 +913,7 @@ msh_draw_register_image( msh_draw_ctx_t* ctx, unsigned char* data, int w, int h,
   ctx->image_buf_size = ctx->image_buf_size + 1;
 
   glGenTextures(1, &tex.id);
-  glActiveTexture(GL_TEXTURE0 + 1);//NOTE(maciej): What does nanovg do with texture unit activation?
+  glActiveTexture(GL_TEXTURE0 + 2);//NOTE(maciej): What does nanovg do with texture unit activation?
   glBindTexture(GL_TEXTURE_2D, tex.id);
   // TODO(maciej): Use flags to resolve this
   glPixelStorei(GL_UNPACK_ALIGNMENT,1);
@@ -993,6 +971,65 @@ msh_draw_set_paint( msh_draw_ctx_t* ctx, const int paint_idx )
   ctx->paint_idx = paint_idx;
 }
 
+
+////////////////////////////////////////////////////////////////////////////////
+// Font
+////////////////////////////////////////////////////////////////////////////////
+
+// TODO(maciej): Error checks
+int msh_draw_add_font( msh_draw_ctx_t* ctx, const char* filename, const float font_size )
+{
+  unsigned char ttf_buffer[MSH_FONT_MAX_FILE_SIZE];
+  unsigned char* bitmap = (unsigned char*) malloc(MSH_FONT_RES*MSH_FONT_RES);
+  FILE* font_file = fopen(filename, "rb");
+  fread(ttf_buffer, 1, MSH_FONT_MAX_FILE_SIZE, font_file);
+  fclose(font_file);
+
+  stbtt_pack_context pack_context;
+  stbtt_PackBegin( &pack_context, bitmap, MSH_FONT_RES, MSH_FONT_RES, 0, 1, NULL);
+  stbtt_PackSetOversampling(&pack_context, 1, 1);
+
+  // NOTE(maciej): Apparently better to use sparse codepoints instead of range
+  // NOTE(maciej): Also for different font sizes we need different char_info
+  int res = stbtt_PackFontRange(&pack_context, ttf_buffer, 0, font_size, 0, MSH_FONT_MAX_CHARS, ctx->char_info);
+  stbtt_PackEnd(&pack_context);
+
+  msh_draw_image_t font_tex;
+  font_tex.width      = MSH_FONT_RES;
+  font_tex.height     = MSH_FONT_RES;
+  font_tex.n_channels = 1;
+
+  // TODO(maciej): Add separate buffer for fonts?
+  msh_draw__resize_image_buf( ctx, 1 );
+  ctx->image_idx = ctx->image_buf_size; 
+  ctx->image_buf[ ctx->image_idx ] = font_tex;
+  ctx->image_buf_size = ctx->image_buf_size + 1;
+
+  glGenTextures(1, &font_tex.id);
+  glActiveTexture(GL_TEXTURE0 + 2);
+  glBindTexture(GL_TEXTURE_2D, font_tex.id);
+
+  glPixelStorei(GL_UNPACK_ALIGNMENT,1);
+  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
+  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
+
+  glTexImage2D( GL_TEXTURE_2D, 0, GL_R8, MSH_FONT_RES, MSH_FONT_RES, 0, 
+                GL_RED, GL_UNSIGNED_BYTE, bitmap );
+  glBindTexture( GL_TEXTURE_2D, 0 );
+
+  msh_draw_color_t c_a = {.r=0.0f, .g=0.0f, .b=0.0f, .a=0.0f};
+  msh_draw_color_t c_b = {.r=0.0f, .g=0.0f, .b=0.0f, .a=0.0f};
+  msh_draw_paint_t p = (msh_draw_paint_t){.type=MSHD_FONT,
+                                          .fill_color_a = c_a, .fill_color_b = c_b,
+                                          .image_idx = font_tex.id };
+
+  int font_paint_idx = msh_draw__add_paint( ctx, &p );
+
+  free( bitmap );
+  return font_paint_idx;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // DRAW PRIMITIVES
@@ -1064,14 +1101,14 @@ msh_draw_rectangle( msh_draw_ctx_t* ctx, float x1, float y1, float x2, float y2 
 
 
 void 
-msh_draw_text( msh_draw_ctx_t* ctx, float x1, float y1, const char* str )
+msh_draw_text( msh_draw_ctx_t* ctx, float x1, float y1, const char* str, int paint_idx )
 {
   msh_draw__resize_cmd_buf( ctx, 1 );
   
   // Populate command 
   msh_draw_cmd_t cmd;
   cmd.type = MSHD_TEXT;
-  cmd.paint_idx = ctx->paint_idx;
+  cmd.paint_idx = paint_idx;
   cmd.geometry[0] = x1;
   cmd.geometry[1] = y1;
   cmd.str = str;
