@@ -135,29 +135,29 @@ int main( int argc, char** argv )
 
     msh_draw_set_paint( &draw_ctx, lin );
     msh_draw_rectangle( &draw_ctx, 64.0f, 64.0f, 128.0f, 256.0f);
-    msh_draw_set_paint( &draw_ctx, rad );
-    msh_draw_rectangle( &draw_ctx, 128.0f, 64.0f, 192.0f, 256.0f);
-    msh_draw_set_paint( &draw_ctx, box );
-    msh_draw_rectangle( &draw_ctx, 192.0f, 4.0f, 256.0f, 256.0f);
-    msh_draw_set_paint( &draw_ctx, pol );
-    msh_draw_rectangle( &draw_ctx, 256.0f, 64.0f, 320.0f, 256.0f);
-    msh_draw_circle( &draw_ctx, 256.0f, 256.0f, 128.0f );
-    msh_draw_set_paint( &draw_ctx, kitten_img );
-    msh_draw_rectangle( &draw_ctx, 512.0f, 128.0f, 512.0f+128.0f, 256 );
-    msh_draw_set_paint( &draw_ctx, puppy_img );
-    msh_draw_rectangle( &draw_ctx, 512+128.0f, 128.0f, 512.0f+256.0f, 256 );
-    msh_draw_set_paint( &draw_ctx, seal_img );
-    msh_draw_rectangle( &draw_ctx, 512.0f+256.0f, 128.0f, 512+128.0f+256.0f, 256 );
+    // msh_draw_set_paint( &draw_ctx, rad );
+    // msh_draw_rectangle( &draw_ctx, 128.0f, 64.0f, 192.0f, 256.0f);
+    // msh_draw_set_paint( &draw_ctx, box );
+    // msh_draw_rectangle( &draw_ctx, 192.0f, 4.0f, 256.0f, 256.0f);
+    // msh_draw_set_paint( &draw_ctx, pol );
+    // msh_draw_rectangle( &draw_ctx, 256.0f, 64.0f, 320.0f, 256.0f);
+    // msh_draw_circle( &draw_ctx, 256.0f, 256.0f, 128.0f );
+    // msh_draw_set_paint( &draw_ctx, kitten_img );
+    // msh_draw_rectangle( &draw_ctx, 512.0f, 128.0f, 512.0f+128.0f, 256 );
+    // msh_draw_set_paint( &draw_ctx, puppy_img );
+    // msh_draw_rectangle( &draw_ctx, 512+128.0f, 128.0f, 512.0f+256.0f, 256 );
+    // msh_draw_set_paint( &draw_ctx, seal_img );
+    // msh_draw_rectangle( &draw_ctx, 512.0f+256.0f, 128.0f, 512+128.0f+256.0f, 256 );
     
-    msh_draw_set_paint( &draw_ctx, shadow );
-    msh_draw_rectangle( &draw_ctx, 256.0f-8.0f, 256.0f-8.0f, 384.0f + 8.0f, 384.0f + 8.0f );
-    msh_draw_set_paint( &draw_ctx, seal_img );
-    msh_draw_rectangle( &draw_ctx, 256.0f, 256.0f, 384.0f, 384.0f );
+    // msh_draw_set_paint( &draw_ctx, shadow );
+    // msh_draw_rectangle( &draw_ctx, 256.0f-8.0f, 256.0f-8.0f, 384.0f + 8.0f, 384.0f + 8.0f );
+    // msh_draw_set_paint( &draw_ctx, seal_img );
+    // msh_draw_rectangle( &draw_ctx, 256.0f, 256.0f, 384.0f, 384.0f );
     //TODO(maciej): Add string buffer
-    int test = rand();
-    char buf[1024];
-    sprintf( buf, "Formatting test: %d\n", test );
-    msh_draw_text(&draw_ctx, 512.0f, 390.0f, buf, font_paint );
+    // int test = rand();
+    // char buf[1024];
+    // sprintf( buf, "Formatting test: %d\n", test );
+    // msh_draw_text(&draw_ctx, 512.0f, 390.0f, buf, font_paint );
     // Draw stuff
     // TODO(maciej): Investigate why number of draw calls inceases. Probably due to buffer limit.
     // for( int i = 0; i < 512; ++i )

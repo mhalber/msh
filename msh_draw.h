@@ -79,6 +79,7 @@ typedef struct msh_draw_ogl_backend
   GLuint prog_id;
   GLuint vao;
   GLuint vbo;
+  GLuint ebo;
 } msh_draw_opengl_backend_t;
 #endif
 
@@ -473,13 +474,16 @@ msh_draw_init_ctx( msh_draw_ctx_t* ctx )
   glDeleteShader( ogl->vert_shdr_id );
   glDeleteShader( ogl->frag_shdr_id );
 
-  // create vao and vbo
+  // create vao and vbo/ebo
   glGenVertexArrays( 1, &(ogl->vao) );
   glGenBuffers(1, &ogl->vbo);
+  glGenBuffers(1, &ogl->ebo);
 
-  glBindVertexArray( ogl->vao );
+  glBindVertexArray(ogl->vao);
   glBindBuffer(GL_ARRAY_BUFFER, ogl->vbo);
   glBufferData(GL_ARRAY_BUFFER, MSH_DRAW_OGL_BUF_SIZE * sizeof(float), NULL, GL_STREAM_DRAW);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ogl->ebo);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, MSH_DRAW_OGL_BUF_SIZE * sizeof(int), NULL, GL_STREAM_DRAW);
 
   GLuint pos_attrib = glGetAttribLocation( ogl->prog_id, "position" );
   GLuint tcoord_attrib = glGetAttribLocation( ogl->prog_id, "tcoord" );
@@ -489,7 +493,10 @@ msh_draw_init_ctx( msh_draw_ctx_t* ctx )
   glVertexAttribPointer(tcoord_attrib, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)) );
 
   glBindVertexArray( 0 );
-  glDisableVertexAttribArray( pos_attrib );
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+  // glDisableVertexAttribArray( pos_attrib );
+  // glDisable(GL_CULL_FACE);
 #endif
   return 1;
 }
@@ -531,15 +538,16 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
   
   // TODO(maciej): Custom meshes will probably be quite big. Maybe we need to allocate more for them.
   // Big meshes should probably not be uploaded every frame though...
-  int ogl_idx = 0;
-  float ogl_buf[MSH_DRAW_OGL_BUF_SIZE];
+  int data_idx = 0, elem_idx = 0;
+  float data_buf[MSH_DRAW_OGL_BUF_SIZE];
+  unsigned int elem_buf[MSH_DRAW_OGL_BUF_SIZE];
 
   // Gather commands and draw
   int n_draw_calls = 0;
   int i = 0;
   while( i < ctx->cmd_buf_size )
   {
-    ogl_idx = 0;
+    data_idx = 0;
     msh_draw_cmd_t* cur_cmd = &ctx->cmd_buf[i];
     int cur_paint_idx = cur_cmd->paint_idx;
 
@@ -550,78 +558,71 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
 
       if( cur_cmd->type == MSHD_TRIANGLE )
       {
-        if( ogl_idx + 9 > MSH_DRAW_OGL_BUF_SIZE ) break;
+        if( data_idx + 9 > MSH_DRAW_OGL_BUF_SIZE ) break;
         float x_pos = cur_cmd->geometry[0];
         float y_pos = cur_cmd->geometry[1];
         float size  = cur_cmd->geometry[2];
 
         // TODO(maciej): can we not populate this?
-        ogl_buf[ogl_idx+0] = x_pos;
-        ogl_buf[ogl_idx+1] = y_pos + size;
-        ogl_buf[ogl_idx+2] = cur_cmd->z_idx;
-        ogl_buf[ogl_idx+3] = 0.5;
-        ogl_buf[ogl_idx+4] = 0.0;
+        data_buf[data_idx+0] = x_pos;
+        data_buf[data_idx+1] = y_pos + size;
+        data_buf[data_idx+2] = cur_cmd->z_idx;
+        data_buf[data_idx+3] = 0.5;
+        data_buf[data_idx+4] = 0.0;
 
-        ogl_buf[ogl_idx+5] = x_pos + 0.866025404f * size;
-        ogl_buf[ogl_idx+6] = y_pos - 0.5f * size;
-        ogl_buf[ogl_idx+7] = cur_cmd->z_idx;
-        ogl_buf[ogl_idx+8] = 1.0;
-        ogl_buf[ogl_idx+9] = 0.0;
+        data_buf[data_idx+5] = x_pos + 0.866025404f * size;
+        data_buf[data_idx+6] = y_pos - 0.5f * size;
+        data_buf[data_idx+7] = cur_cmd->z_idx;
+        data_buf[data_idx+8] = 1.0;
+        data_buf[data_idx+9] = 0.0;
 
-        ogl_buf[ogl_idx+10] = x_pos - 0.86602540378f * size;
-        ogl_buf[ogl_idx+11] = y_pos - 0.5f * size;
-        ogl_buf[ogl_idx+12] = cur_cmd->z_idx;
-        ogl_buf[ogl_idx+13] = 0.0;
-        ogl_buf[ogl_idx+14] = 0.0;
+        data_buf[data_idx+10] = x_pos - 0.86602540378f * size;
+        data_buf[data_idx+11] = y_pos - 0.5f * size;
+        data_buf[data_idx+12] = cur_cmd->z_idx;
+        data_buf[data_idx+13] = 0.0;
+        data_buf[data_idx+14] = 0.0;
 
-        ogl_idx += 15;
+        data_idx += 15;
       }
       if( cur_cmd->type == MSHD_RECTANGLE )
       {
-        if( ogl_idx + 18 > MSH_DRAW_OGL_BUF_SIZE ) break;
+        // if( data_idx + 18 > MSH_DRAW_OGL_BUF_SIZE ) break;
         float x1 = cur_cmd->geometry[0];
         float y1 = cur_cmd->geometry[1];
         float x2 = cur_cmd->geometry[2];
         float y2 = cur_cmd->geometry[3];
 
-        ogl_buf[ogl_idx+0] = x1;
-        ogl_buf[ogl_idx+1] = y1;
-        ogl_buf[ogl_idx+2] = cur_cmd->z_idx;
-        ogl_buf[ogl_idx+3] = 0.0f;
-        ogl_buf[ogl_idx+4] = 0.0f;
+        data_buf[data_idx++] = x1;
+        data_buf[data_idx++] = y1;
+        data_buf[data_idx++] = cur_cmd->z_idx;
+        data_buf[data_idx++] = 0.0f;
+        data_buf[data_idx++] = 0.0f;
 
-        ogl_buf[ogl_idx+5] = x1;
-        ogl_buf[ogl_idx+6] = y2;
-        ogl_buf[ogl_idx+7] = cur_cmd->z_idx;
-        ogl_buf[ogl_idx+8] = 0.0f;
-        ogl_buf[ogl_idx+9] = 1.0f;
+        data_buf[data_idx++] = x1;
+        data_buf[data_idx++] = y2;
+        data_buf[data_idx++] = cur_cmd->z_idx;
+        data_buf[data_idx++] = 0.0f;
+        data_buf[data_idx++] = 1.0f;
 
-        ogl_buf[ogl_idx+10] = x2;
-        ogl_buf[ogl_idx+11] = y2;
-        ogl_buf[ogl_idx+12] = cur_cmd->z_idx;
-        ogl_buf[ogl_idx+13] = 1.0f;
-        ogl_buf[ogl_idx+14] = 1.0f;
+        data_buf[data_idx++] = x2;
+        data_buf[data_idx++] = y1;
+        data_buf[data_idx++] = cur_cmd->z_idx;
+        data_buf[data_idx++] = 1.0f;
+        data_buf[data_idx++] = 0.0f;
 
+        data_buf[data_idx++] = x2;
+        data_buf[data_idx++] = y2;
+        data_buf[data_idx++] = cur_cmd->z_idx;
+        data_buf[data_idx++] = 1.0f;
+        data_buf[data_idx++] = 1.0f;
 
-        ogl_buf[ogl_idx+15] = x1;
-        ogl_buf[ogl_idx+16] = y1;
-        ogl_buf[ogl_idx+17] = cur_cmd->z_idx;
-        ogl_buf[ogl_idx+18] = 0.0f;
-        ogl_buf[ogl_idx+19] = 0.0f;
+        elem_buf[elem_idx++] = 0;
+        elem_buf[elem_idx++] = 3;
+        elem_buf[elem_idx++] = 1;
 
-        ogl_buf[ogl_idx+20] = x2;
-        ogl_buf[ogl_idx+21] = y2;
-        ogl_buf[ogl_idx+22] = cur_cmd->z_idx;
-        ogl_buf[ogl_idx+23] = 1.0f;
-        ogl_buf[ogl_idx+24] = 1.0f;
-
-        ogl_buf[ogl_idx+25] = x2;
-        ogl_buf[ogl_idx+26] = y1;
-        ogl_buf[ogl_idx+27] = cur_cmd->z_idx;
-        ogl_buf[ogl_idx+28] = 1.0;
-        ogl_buf[ogl_idx+29] = 0.0;
-
-        ogl_idx += 30;
+        elem_buf[elem_idx++] = 0;
+        elem_buf[elem_idx++] = 3;
+        elem_buf[elem_idx++] = 2;
       }
       else if( cur_cmd->type == MSHD_TEXT )
       {
@@ -633,41 +634,41 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
           msh_draw_aligned_quad_t q;
           stbtt_GetPackedQuad( ctx->char_info, MSH_FONT_RES, MSH_FONT_RES, 
                               cur_cmd->str[i], &x, &y, &q, 0);
-          ogl_buf[ogl_idx++] = (q.x0 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
-          ogl_buf[ogl_idx++] = (q.y0 - cur_cmd->geometry[1]) * s + cur_cmd->geometry[1];
-          ogl_buf[ogl_idx++] = cur_cmd->z_idx;
-          ogl_buf[ogl_idx++] = q.s0;
-          ogl_buf[ogl_idx++] = q.t0;
+          data_buf[data_idx++] = (q.x0 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
+          data_buf[data_idx++] = (q.y0 - cur_cmd->geometry[1]) * s + cur_cmd->geometry[1];
+          data_buf[data_idx++] = cur_cmd->z_idx;
+          data_buf[data_idx++] = q.s0;
+          data_buf[data_idx++] = q.t0;
           
-          ogl_buf[ogl_idx++] = (q.x0 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
-          ogl_buf[ogl_idx++] = (q.y1 - cur_cmd->geometry[1]) * s + cur_cmd->geometry[1];
-          ogl_buf[ogl_idx++] = cur_cmd->z_idx;
-          ogl_buf[ogl_idx++] = q.s0;
-          ogl_buf[ogl_idx++] = q.t1;
+          data_buf[data_idx++] = (q.x0 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
+          data_buf[data_idx++] = (q.y1 - cur_cmd->geometry[1]) * s + cur_cmd->geometry[1];
+          data_buf[data_idx++] = cur_cmd->z_idx;
+          data_buf[data_idx++] = q.s0;
+          data_buf[data_idx++] = q.t1;
 
-          ogl_buf[ogl_idx++] = (q.x1 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
-          ogl_buf[ogl_idx++] = (q.y1 - cur_cmd->geometry[1]) * s + cur_cmd->geometry[1];
-          ogl_buf[ogl_idx++] = cur_cmd->z_idx;
-          ogl_buf[ogl_idx++] = q.s1;
-          ogl_buf[ogl_idx++] = q.t1;
+          data_buf[data_idx++] = (q.x1 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
+          data_buf[data_idx++] = (q.y1 - cur_cmd->geometry[1]) * s + cur_cmd->geometry[1];
+          data_buf[data_idx++] = cur_cmd->z_idx;
+          data_buf[data_idx++] = q.s1;
+          data_buf[data_idx++] = q.t1;
 
-          ogl_buf[ogl_idx++] = (q.x0 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
-          ogl_buf[ogl_idx++] = (q.y0 - cur_cmd->geometry[1]) * s + cur_cmd->geometry[1];
-          ogl_buf[ogl_idx++] = cur_cmd->z_idx;
-          ogl_buf[ogl_idx++] = q.s0;
-          ogl_buf[ogl_idx++] = q.t0;
+          data_buf[data_idx++] = (q.x0 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
+          data_buf[data_idx++] = (q.y0 - cur_cmd->geometry[1]) * s + cur_cmd->geometry[1];
+          data_buf[data_idx++] = cur_cmd->z_idx;
+          data_buf[data_idx++] = q.s0;
+          data_buf[data_idx++] = q.t0;
           
-          ogl_buf[ogl_idx++] = (q.x1 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
-          ogl_buf[ogl_idx++] = (q.y1 - cur_cmd->geometry[1]) * s + cur_cmd->geometry[1];
-          ogl_buf[ogl_idx++] = cur_cmd->z_idx;
-          ogl_buf[ogl_idx++] = q.s1;
-          ogl_buf[ogl_idx++] = q.t1;
+          data_buf[data_idx++] = (q.x1 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
+          data_buf[data_idx++] = (q.y1 - cur_cmd->geometry[1]) * s + cur_cmd->geometry[1];
+          data_buf[data_idx++] = cur_cmd->z_idx;
+          data_buf[data_idx++] = q.s1;
+          data_buf[data_idx++] = q.t1;
 
-          ogl_buf[ogl_idx++] = (q.x1 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
-          ogl_buf[ogl_idx++] = (q.y0 - cur_cmd->geometry[1]) * s + cur_cmd->geometry[1];
-          ogl_buf[ogl_idx++] = cur_cmd->z_idx;
-          ogl_buf[ogl_idx++] = q.s1;
-          ogl_buf[ogl_idx++] = q.t0;
+          data_buf[data_idx++] = (q.x1 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
+          data_buf[data_idx++] = (q.y0 - cur_cmd->geometry[1]) * s + cur_cmd->geometry[1];
+          data_buf[data_idx++] = cur_cmd->z_idx;
+          data_buf[data_idx++] = q.s1;
+          data_buf[data_idx++] = q.t0;
         }
       }
       else if (cur_cmd->type == MSHD_CIRCLE)
@@ -679,7 +680,7 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
         // TODO(maciej): Decide resolution as a function of radius
         int res = (int)(0.5f * rad + 8.0f);
         float delta = 2.0f*(float)msh_PI / res;
-        // if( ogl_idx + res > MSH_DRAW_OGL_BUF_SIZE ) break;
+        // if( data_idx + res > MSH_DRAW_OGL_BUF_SIZE ) break;
         
         // NOTE(maciej): This would be better drawn with GL_TRIANGLE_FAN...
         // Maybe add it to the list of things we want to sort on. Or just use element buffer
@@ -693,26 +694,26 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
           float sino = sinf(omega);
           float coso = cosf(omega);
 
-          ogl_buf[ogl_idx+(offset++)] = x_pos;
-          ogl_buf[ogl_idx+(offset++)] = y_pos;
-          ogl_buf[ogl_idx+(offset++)] = cur_cmd->z_idx;
-          ogl_buf[ogl_idx+(offset++)] = 0.5;
-          ogl_buf[ogl_idx+(offset++)] = 0.5;
+          data_buf[data_idx+(offset++)] = x_pos;
+          data_buf[data_idx+(offset++)] = y_pos;
+          data_buf[data_idx+(offset++)] = cur_cmd->z_idx;
+          data_buf[data_idx+(offset++)] = 0.5;
+          data_buf[data_idx+(offset++)] = 0.5;
   
-          ogl_buf[ogl_idx+(offset++)] = x_pos + sint * rad;
-          ogl_buf[ogl_idx+(offset++)] = y_pos + cost * rad;
-          ogl_buf[ogl_idx+(offset++)] = cur_cmd->z_idx;
-          ogl_buf[ogl_idx+(offset++)] = 0.5f * (sint + 1.0f);
-          ogl_buf[ogl_idx+(offset++)] = 0.5f * (cost + 1.0f);
+          data_buf[data_idx+(offset++)] = x_pos + sint * rad;
+          data_buf[data_idx+(offset++)] = y_pos + cost * rad;
+          data_buf[data_idx+(offset++)] = cur_cmd->z_idx;
+          data_buf[data_idx+(offset++)] = 0.5f * (sint + 1.0f);
+          data_buf[data_idx+(offset++)] = 0.5f * (cost + 1.0f);
   
-          ogl_buf[ogl_idx+(offset++)] = x_pos + sino * rad;
-          ogl_buf[ogl_idx+(offset++)] = y_pos + coso * rad;
-          ogl_buf[ogl_idx+(offset++)] = cur_cmd->z_idx;
-          ogl_buf[ogl_idx+(offset++)] = 0.5f * (sino + 1.0f);
-          ogl_buf[ogl_idx+(offset++)] = 0.5f * (coso + 1.0f);
+          data_buf[data_idx+(offset++)] = x_pos + sino * rad;
+          data_buf[data_idx+(offset++)] = y_pos + coso * rad;
+          data_buf[data_idx+(offset++)] = cur_cmd->z_idx;
+          data_buf[data_idx+(offset++)] = 0.5f * (sino + 1.0f);
+          data_buf[data_idx+(offset++)] = 0.5f * (coso + 1.0f);
         }
-        // printf("%d | %d | %d | %d\n", res, res * 5 * 3, offset, ogl_idx );
-        ogl_idx += offset;
+        // printf("%d | %d | %d | %d\n", res, res * 5 * 3, offset, data_idx );
+        data_idx += offset;
       }
 
       // printf("%d | %d - Uploading triangle %f %f %f using material %d\n", i, ctx->cmd_buf_size, x_pos, y_pos, size, cur_paint_idx );
@@ -754,16 +755,21 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
     glUniform1i( location, (int)2 ); //NOTE(maciej): It's the unit!
     location = glGetUniformLocation( ogl->prog_id, "viewport_res" );
     glUniform2f( location, (float)ctx->viewport_width, (float)ctx->viewport_height );
-  
-    glBindVertexArray(ogl->vao);
 
-    
     // NOTE(maciej): We will probably be drawing in chunks, so no need for this resize
+    // glBindVertexArray(ogl->vao);
+    // glBindBuffer(GL_ARRAY_BUFFER, ogl->vbo);
+    // glBufferSubData(GL_ARRAY_BUFFER, 0, data_idx*sizeof(float), data_buf );
+    // glDrawArrays(GL_TRIANGLES, 0, data_idx / 5);
+    
+    glBindVertexArray(ogl->vao);
     glBindBuffer(GL_ARRAY_BUFFER, ogl->vbo);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, ogl_idx*sizeof(float), ogl_buf );
+    glBufferSubData(GL_ARRAY_BUFFER, 0, data_idx*sizeof(float), data_buf );
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ogl->ebo);
+    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, elem_idx*sizeof(unsigned), elem_buf );
+    glDrawElements(GL_TRIANGLES, elem_idx, GL_UNSIGNED_INT, 0);
     
-    glDrawArrays(GL_TRIANGLES, 0, ogl_idx / 5);
-    
+
     if( paint->image_idx ) 
     {
       glActiveTexture(GL_TEXTURE0);
