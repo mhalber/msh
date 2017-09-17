@@ -79,11 +79,11 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Useful constants and macros
 ////////////////////////////////////////////////////////////////////////////////
-#ifndef msh_PI
-#define msh_PI          3.1415926535897932384626433832
-#define msh_TWO_PI      6.2831853072
-#define msh_INV_PI      0.3183098862
-#define msh_PI_OVER_TWO 1.5707963268
+#ifndef MSH_PI
+#define MSH_PI          3.1415926535897932384626433832
+#define MSH_TWO_PI      6.2831853072
+#define MSH_INV_PI      0.3183098862
+#define MSH_PI_OVER_TWO 1.5707963268
 #endif
 
 

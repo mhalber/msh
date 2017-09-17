@@ -65,13 +65,35 @@ int main( int argc, char** argv )
   
   unsigned char* seal = stbi_load( "data/seal.jpg", &img_width, &img_height, &img_n_channels, 3);
   const int seal_idx = msh_draw_register_image( &draw_ctx, seal, img_width, img_height, img_n_channels );
- 
 
   unsigned char* puppy = stbi_load( "data/puppy.jpg", &img_width, &img_height, &img_n_channels, 3);
   const int puppy_idx = msh_draw_register_image( &draw_ctx, puppy, img_width, img_height, img_n_channels );
  
+  // Add paints
   //TODO(maciej): Add font buffer
-  int font_paint = msh_draw_add_font( &draw_ctx, "data/raleway.ttf", 62 );
+  // TODO(maciej): Add indexing
+  // TODO(maciej): API for building paints.
+  const int seal_img = msh_draw_image_fill( &draw_ctx, seal_idx );
+  const int kitten_img = msh_draw_image_fill( &draw_ctx, kitten_idx );
+
+  const int puppy_img = msh_draw_image_fill( &draw_ctx, puppy_idx );
+  const int lin = msh_draw_linear_gradient_fill( &draw_ctx, 0.1f, 0.21f, 0.83f, 1.0f,
+      0.21f, 0.83f, 0.1f, 1.0f );
+  const int pol = msh_draw_polar_gradient_fill( &draw_ctx, 0.1f, 0.21f, 0.83f, 1.0f,
+      0.21f, 0.83f, 0.1f, 1.0f );
+  const int rad = msh_draw_radial_gradient_fill( &draw_ctx, 0.1f, 0.21f, 0.83f, 1.0f,
+      0.21f, 0.83f, 0.1f, 1.0f,   
+      256.0f, 1.0f );
+// TODO(maciej): Box parameters seem counter intuitive. Need to investigate
+  const int box = msh_draw_box_gradient_fill( &draw_ctx, 0.1f, 0.21f, 0.83f, 1.0f,
+          0.21f, 0.83f, 0.1f, 1.0f,
+          32.0f, 16.0f, 16.0f );
+
+  const int shadow = msh_draw_box_gradient_fill( &draw_ctx, 0.2f, 0.2f, 0.2f, 1.0f,
+                                                              0.2f, 0.2f, 0.2f, 0.0f,
+                                                              16.0f, 16.0f, 2.0f );
+
+  const int font_paint = msh_draw_add_font( &draw_ctx, "data/raleway.ttf", 62 );
 
 
   stbi_image_free(kitten);
@@ -89,8 +111,8 @@ int main( int argc, char** argv )
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_MULTISAMPLE);
   glEnable(GL_BLEND);
-  // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  glBlendEquation(GL_FUNC_ADD);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  // glBlendEquation(GL_FUNC_ADD);
   // glEnable(GL_FRAMEBUFFER_SRGB);
 
   while( !glfwWindowShouldClose(window) )
@@ -110,38 +132,18 @@ int main( int argc, char** argv )
     elapsed_time = 0;
     ttTime();
     msh_draw_new_frame( &draw_ctx, fb_w, fb_h );
-    
-    // Add paints
-    // TODO(maciej): Add hashing for paints ?
-    // TODO(maciej): API for building paints.
-    const int lin = msh_draw_linear_gradient_fill( &draw_ctx, 0.1f, 0.21f, 0.83f, 1.0f,
-                                                              0.21f, 0.83f, 0.1f, 1.0f );
-    const int pol = msh_draw_polar_gradient_fill( &draw_ctx, 0.1f, 0.21f, 0.83f, 1.0f,
-                                                              0.21f, 0.83f, 0.1f, 1.0f );
-    const int rad = msh_draw_radial_gradient_fill( &draw_ctx, 0.1f, 0.21f, 0.83f, 1.0f,
-                                                              0.21f, 0.83f, 0.1f, 1.0f,   
-                                                              256.0f, 1.0f );
-    // TODO(maciej): Box parameters seem counter intuitive. Need to investigate
-    const int box = msh_draw_box_gradient_fill( &draw_ctx, 0.1f, 0.21f, 0.83f, 1.0f,
-                                           0.21f, 0.83f, 0.1f, 1.0f,
-                                           32.0f, 16.0f, 16.0f );
-    const int seal_img = msh_draw_image_fill( &draw_ctx, seal_idx );
-    const int kitten_img = msh_draw_image_fill( &draw_ctx, kitten_idx );
-    const int puppy_img = msh_draw_image_fill( &draw_ctx, puppy_idx );
-
-    const int shadow = msh_draw_box_gradient_fill( &draw_ctx, 0.2f, 0.2f, 0.2f, 1.0f,
-                                                              0.2f, 0.2f, 0.2f, 0.0f,
-                                                              16.0f, 16.0f, 2.0f );
 
     msh_draw_set_paint( &draw_ctx, lin );
-    msh_draw_rectangle( &draw_ctx, 64.0f, 64.0f, 128.0f, 256.0f);
+    msh_draw_rectangle( &draw_ctx, 64.0f, 64.0f, 128.0f, 226.0f);
     // msh_draw_set_paint( &draw_ctx, rad );
-    // msh_draw_rectangle( &draw_ctx, 128.0f, 64.0f, 192.0f, 256.0f);
+    msh_draw_rectangle( &draw_ctx, 168.0f, 64.0f, 212.0f, 256.0f);
     // msh_draw_set_paint( &draw_ctx, box );
     // msh_draw_rectangle( &draw_ctx, 192.0f, 4.0f, 256.0f, 256.0f);
-    // msh_draw_set_paint( &draw_ctx, pol );
-    // msh_draw_rectangle( &draw_ctx, 256.0f, 64.0f, 320.0f, 256.0f);
-    // msh_draw_circle( &draw_ctx, 256.0f, 256.0f, 128.0f );
+    msh_draw_set_paint( &draw_ctx, pol );
+    msh_draw_arc( &draw_ctx, 512.0, 256.0, 128.0f, 0.8f );
+    msh_draw_circle( &draw_ctx, 256.0f, 256.0f, 128.0f ); 
+    // msh_draw_set_paint( &draw_ctx, rad );
+
     // msh_draw_set_paint( &draw_ctx, kitten_img );
     // msh_draw_rectangle( &draw_ctx, 512.0f, 128.0f, 512.0f+128.0f, 256 );
     // msh_draw_set_paint( &draw_ctx, puppy_img );
@@ -154,10 +156,11 @@ int main( int argc, char** argv )
     // msh_draw_set_paint( &draw_ctx, seal_img );
     // msh_draw_rectangle( &draw_ctx, 256.0f, 256.0f, 384.0f, 384.0f );
     //TODO(maciej): Add string buffer
-    // int test = rand();
-    // char buf[1024];
-    // sprintf( buf, "Formatting test: %d\n", test );
-    // msh_draw_text(&draw_ctx, 512.0f, 390.0f, buf, font_paint );
+    int test = rand();
+    char buf[1024];
+    sprintf( buf, "Formatting test: %d\n", test );
+    msh_draw_text(&draw_ctx, 512.0f, 390.0f, buf, font_paint );
+    msh_draw_text(&draw_ctx, 512.0f, 420.0f, buf, font_paint );
     // Draw stuff
     // TODO(maciej): Investigate why number of draw calls inceases. Probably due to buffer limit.
     // for( int i = 0; i < 512; ++i )

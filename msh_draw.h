@@ -62,7 +62,7 @@ typedef stbtt_aligned_quad msh_draw_aligned_quad_t;
 
 typedef enum
 {
-  MSHD_TRIANGLE, MSHD_CIRCLE, MSHD_RECTANGLE, MSHD_TEXT
+  MSHD_RECTANGLE, MSHD_ARC, MSHD_POLYGON, MSHD_LINE, MSHD_TEXT
 } msh_draw_cmd_type;
 
 typedef enum
@@ -93,6 +93,7 @@ typedef struct msh_draw_color
 
 typedef struct msh_draw_paint
 {
+  int id;
   msh_draw_paint_type type;
   msh_draw_color_t fill_color_a;
   msh_draw_color_t fill_color_b;
@@ -103,8 +104,9 @@ typedef struct msh_draw_paint
 
 typedef struct msh_draw_cmd
 {
+  int id;
   msh_draw_cmd_type type;
-  int paint_idx;
+  int paint_id;
   float geometry[10]; //TODO(maciej): Make this into buffer, as ints
   float z_idx;
   const char* str;//TODO(maciej): Put that in the buffer if cmd type is text; 
@@ -132,7 +134,7 @@ typedef struct msh_draw_ctx
   int paint_buf_size;
   int paint_buf_capacity;
   msh_draw_paint_t* paint_buf;
-  int paint_idx;
+  int paint_id;
 
   int image_buf_size;
   int image_buf_capacity;
@@ -153,7 +155,7 @@ int msh_draw_init_ctx( msh_draw_ctx_t* ctx );
 int msh_draw_new_frame( msh_draw_ctx_t* ctx, int viewport_width, int viewport_height );
 int msh_draw_render( msh_draw_ctx_t* ctx );
 
-void msh_draw_set_paint( msh_draw_ctx_t* ctx, const int paint_idx );
+void msh_draw_set_paint( msh_draw_ctx_t* ctx, const int paint_id );
 const int msh_draw_register_image( msh_draw_ctx_t* ctx, unsigned char* data, int w, int h, int n );
 const int msh_draw_flat_fill( msh_draw_ctx_t* ctx, float r, float g, float b, float a );
 const int msh_draw_box_gradient( /*TODO(maciej):Find correct params*/ );
@@ -190,7 +192,7 @@ msh_draw__cmd_compare( const void* a, const void* b)
   const msh_draw_cmd_t* cmd_a = (const msh_draw_cmd_t*)a;
   const msh_draw_cmd_t* cmd_b = (const msh_draw_cmd_t*)b;
   // NOTE(maciej): For now we sort based on paint
-  return ( cmd_a->paint_idx - cmd_b->paint_idx );
+  return ( cmd_a->paint_id - cmd_b->paint_id );
 }
 
 // TODO(maciej): Resize function defienitly should return an error code
@@ -407,12 +409,11 @@ msh_draw_init_ctx( msh_draw_ctx_t* ctx )
       return mix(c_a, c_b, f);
     }
 
-    // TODO(maciej): TSDF?
+    // TODO(maciej): SDF fonts?
     vec4 font_fill(in vec4 c_a, in vec4 c_b, in vec2 t)
     {
-
-      vec4 c = mix(c_a, c_b, t.y);
-      return vec4(vec3(c), texture(font, t));
+      vec4 c = mix( c_a, c_b, t.y);
+      return vec4(vec3(c), texture(font, t).r);
     }
 
     void main()
@@ -510,7 +511,7 @@ int msh_draw_new_frame( msh_draw_ctx_t* ctx, int viewport_width, int viewport_he
   // Reset indices
   ctx->cmd_idx = 0;
   ctx->cmd_buf_size = 0;
-  ctx->paint_idx = 0;
+  ctx->paint_id = 0;
   ctx->paint_buf_size = 1;
   ctx->image_idx = 0;
 
@@ -548,42 +549,17 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
   while( i < ctx->cmd_buf_size )
   {
     data_idx = 0;
+    elem_idx = 0;
+    int base_idx = 0;
     msh_draw_cmd_t* cur_cmd = &ctx->cmd_buf[i];
-    int cur_paint_idx = cur_cmd->paint_idx;
+    int cur_paint_id = cur_cmd->paint_id;
+    
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    while( cur_paint_idx == cur_cmd->paint_idx )
+    while( cur_paint_id == cur_cmd->paint_id )
     {
-      cur_paint_idx = cur_cmd->paint_idx;
-
-      if( cur_cmd->type == MSHD_TRIANGLE )
-      {
-        if( data_idx + 9 > MSH_DRAW_OGL_BUF_SIZE ) break;
-        float x_pos = cur_cmd->geometry[0];
-        float y_pos = cur_cmd->geometry[1];
-        float size  = cur_cmd->geometry[2];
-
-        // TODO(maciej): can we not populate this?
-        data_buf[data_idx+0] = x_pos;
-        data_buf[data_idx+1] = y_pos + size;
-        data_buf[data_idx+2] = cur_cmd->z_idx;
-        data_buf[data_idx+3] = 0.5;
-        data_buf[data_idx+4] = 0.0;
-
-        data_buf[data_idx+5] = x_pos + 0.866025404f * size;
-        data_buf[data_idx+6] = y_pos - 0.5f * size;
-        data_buf[data_idx+7] = cur_cmd->z_idx;
-        data_buf[data_idx+8] = 1.0;
-        data_buf[data_idx+9] = 0.0;
-
-        data_buf[data_idx+10] = x_pos - 0.86602540378f * size;
-        data_buf[data_idx+11] = y_pos - 0.5f * size;
-        data_buf[data_idx+12] = cur_cmd->z_idx;
-        data_buf[data_idx+13] = 0.0;
-        data_buf[data_idx+14] = 0.0;
-
-        data_idx += 15;
-      }
+      cur_paint_id = cur_cmd->paint_id;
+      
       if( cur_cmd->type == MSHD_RECTANGLE )
       {
         // if( data_idx + 18 > MSH_DRAW_OGL_BUF_SIZE ) break;
@@ -616,41 +592,26 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
         data_buf[data_idx++] = 1.0f;
         data_buf[data_idx++] = 1.0f;
 
-        elem_buf[elem_idx++] = 0;
-        elem_buf[elem_idx++] = 3;
-        elem_buf[elem_idx++] = 1;
+        elem_buf[elem_idx++] = base_idx + 0;
+        elem_buf[elem_idx++] = base_idx + 3;
+        elem_buf[elem_idx++] = base_idx + 1;
 
-        elem_buf[elem_idx++] = 0;
-        elem_buf[elem_idx++] = 3;
-        elem_buf[elem_idx++] = 2;
+        elem_buf[elem_idx++] = base_idx + 0;
+        elem_buf[elem_idx++] = base_idx + 3;
+        elem_buf[elem_idx++] = base_idx + 2;
+        base_idx += 4;
       }
       else if( cur_cmd->type == MSHD_TEXT )
       {
         float x = cur_cmd->geometry[0];
         float y = cur_cmd->geometry[1];
         float s = 1.0;
-        for(int i = 0; i < strlen(cur_cmd->str); ++i)
+        size_t len = strlen(cur_cmd->str);
+        for(int i = 0; i < len; ++i)
         {
           msh_draw_aligned_quad_t q;
           stbtt_GetPackedQuad( ctx->char_info, MSH_FONT_RES, MSH_FONT_RES, 
                               cur_cmd->str[i], &x, &y, &q, 0);
-          data_buf[data_idx++] = (q.x0 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
-          data_buf[data_idx++] = (q.y0 - cur_cmd->geometry[1]) * s + cur_cmd->geometry[1];
-          data_buf[data_idx++] = cur_cmd->z_idx;
-          data_buf[data_idx++] = q.s0;
-          data_buf[data_idx++] = q.t0;
-          
-          data_buf[data_idx++] = (q.x0 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
-          data_buf[data_idx++] = (q.y1 - cur_cmd->geometry[1]) * s + cur_cmd->geometry[1];
-          data_buf[data_idx++] = cur_cmd->z_idx;
-          data_buf[data_idx++] = q.s0;
-          data_buf[data_idx++] = q.t1;
-
-          data_buf[data_idx++] = (q.x1 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
-          data_buf[data_idx++] = (q.y1 - cur_cmd->geometry[1]) * s + cur_cmd->geometry[1];
-          data_buf[data_idx++] = cur_cmd->z_idx;
-          data_buf[data_idx++] = q.s1;
-          data_buf[data_idx++] = q.t1;
 
           data_buf[data_idx++] = (q.x0 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
           data_buf[data_idx++] = (q.y0 - cur_cmd->geometry[1]) * s + cur_cmd->geometry[1];
@@ -658,10 +619,10 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
           data_buf[data_idx++] = q.s0;
           data_buf[data_idx++] = q.t0;
           
-          data_buf[data_idx++] = (q.x1 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
+          data_buf[data_idx++] = (q.x0 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
           data_buf[data_idx++] = (q.y1 - cur_cmd->geometry[1]) * s + cur_cmd->geometry[1];
           data_buf[data_idx++] = cur_cmd->z_idx;
-          data_buf[data_idx++] = q.s1;
+          data_buf[data_idx++] = q.s0;
           data_buf[data_idx++] = q.t1;
 
           data_buf[data_idx++] = (q.x1 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
@@ -669,23 +630,42 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
           data_buf[data_idx++] = cur_cmd->z_idx;
           data_buf[data_idx++] = q.s1;
           data_buf[data_idx++] = q.t0;
+
+          data_buf[data_idx++] = (q.x1 - cur_cmd->geometry[0]) * s + cur_cmd->geometry[0];
+          data_buf[data_idx++] = (q.y1 - cur_cmd->geometry[1]) * s + cur_cmd->geometry[1];
+          data_buf[data_idx++] = cur_cmd->z_idx;
+          data_buf[data_idx++] = q.s1;
+          data_buf[data_idx++] = q.t1;
+
+          elem_buf[elem_idx++] = base_idx + i*4 + 0;
+          elem_buf[elem_idx++] = base_idx + i*4 + 3;
+          elem_buf[elem_idx++] = base_idx + i*4 + 1;
+  
+          elem_buf[elem_idx++] = base_idx + i*4 + 0;
+          elem_buf[elem_idx++] = base_idx + i*4 + 3;
+          elem_buf[elem_idx++] = base_idx + i*4 + 2;
         }
+        base_idx += 4 * (int)len;
       }
-      else if (cur_cmd->type == MSHD_CIRCLE)
+      else if (cur_cmd->type == MSHD_ARC)
       {
-        float x_pos = cur_cmd->geometry[0];
-        float y_pos = cur_cmd->geometry[1];
-        float rad   = cur_cmd->geometry[2];
+        float x_pos  = cur_cmd->geometry[0];
+        float y_pos  = cur_cmd->geometry[1];
+        float rad    = cur_cmd->geometry[2];
+        float fraction = cur_cmd->geometry[3];
         
-        // TODO(maciej): Decide resolution as a function of radius
         int res = (int)(0.5f * rad + 8.0f);
-        float delta = 2.0f*(float)msh_PI / res;
-        // if( data_idx + res > MSH_DRAW_OGL_BUF_SIZE ) break;
+        float delta = 2.0f*(float)MSH_PI / res;
         
-        // NOTE(maciej): This would be better drawn with GL_TRIANGLE_FAN...
-        // Maybe add it to the list of things we want to sort on. Or just use element buffer
-        int offset = 0;
-        for( int step = 0; step < res; ++step )
+        data_buf[data_idx++] = x_pos;
+        data_buf[data_idx++] = y_pos;
+        data_buf[data_idx++] = cur_cmd->z_idx;
+        data_buf[data_idx++] = 0.5;
+        data_buf[data_idx++] = 0.5;
+
+        // NOTE(maciej): This is still wasteful.
+        int n_verts = 1;
+        for( int step = 0; step < fraction * res; step++ )
         {
           float theta = step * delta;
           float omega = (step + 1) * delta;
@@ -693,37 +673,34 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
           float cost = cosf(theta);
           float sino = sinf(omega);
           float coso = cosf(omega);
-
-          data_buf[data_idx+(offset++)] = x_pos;
-          data_buf[data_idx+(offset++)] = y_pos;
-          data_buf[data_idx+(offset++)] = cur_cmd->z_idx;
-          data_buf[data_idx+(offset++)] = 0.5;
-          data_buf[data_idx+(offset++)] = 0.5;
   
-          data_buf[data_idx+(offset++)] = x_pos + sint * rad;
-          data_buf[data_idx+(offset++)] = y_pos + cost * rad;
-          data_buf[data_idx+(offset++)] = cur_cmd->z_idx;
-          data_buf[data_idx+(offset++)] = 0.5f * (sint + 1.0f);
-          data_buf[data_idx+(offset++)] = 0.5f * (cost + 1.0f);
+          data_buf[data_idx++] = x_pos + sint * rad;
+          data_buf[data_idx++] = y_pos - cost * rad;
+          data_buf[data_idx++] = cur_cmd->z_idx;
+          data_buf[data_idx++] = 0.5f * (sint + 1.0f);
+          data_buf[data_idx++] = 0.5f * (-cost + 1.0f);
   
-          data_buf[data_idx+(offset++)] = x_pos + sino * rad;
-          data_buf[data_idx+(offset++)] = y_pos + coso * rad;
-          data_buf[data_idx+(offset++)] = cur_cmd->z_idx;
-          data_buf[data_idx+(offset++)] = 0.5f * (sino + 1.0f);
-          data_buf[data_idx+(offset++)] = 0.5f * (coso + 1.0f);
+          data_buf[data_idx++] = x_pos + sino * rad;
+          data_buf[data_idx++] = y_pos - coso * rad;
+          data_buf[data_idx++] = cur_cmd->z_idx;
+          data_buf[data_idx++] = 0.5f * (sino + 1.0f);
+          data_buf[data_idx++] = 0.5f * (-coso + 1.0f);
+          
+          elem_buf[elem_idx++] = base_idx;
+          elem_buf[elem_idx++] = base_idx + 2*(step+1) - 1 ;
+          elem_buf[elem_idx++] = base_idx + 2*(step+1) + 0;
+          n_verts += 2;
         }
-        // printf("%d | %d | %d | %d\n", res, res * 5 * 3, offset, data_idx );
-        data_idx += offset;
+        base_idx += n_verts;
       }
 
-      // printf("%d | %d - Uploading triangle %f %f %f using material %d\n", i, ctx->cmd_buf_size, x_pos, y_pos, size, cur_paint_idx );
       cur_cmd = &ctx->cmd_buf[++i];
       if( i >= ctx->cmd_buf_size ) break;
     }
 
 #ifdef MSH_DRAW_OPENGL
     msh_draw_opengl_backend_t* ogl = &ctx->backend;
-    msh_draw_paint_t* paint = &ctx->paint_buf[cur_paint_idx];
+    msh_draw_paint_t* paint = &ctx->paint_buf[cur_paint_id];
     msh_draw_color_t c_a = paint->fill_color_a;
     msh_draw_color_t c_b = paint->fill_color_b;
     
@@ -737,7 +714,7 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
     {
       glActiveTexture(GL_TEXTURE0 + 2);
       glBindTexture( GL_TEXTURE_2D, paint->image_idx);
-      // printf("PAINT: %d\n", cur_paint_idx );
+      // printf("PAINT: %d\n", cur_paint_id );
     }
     
     //TODO(maciej): Check different ways for setting up an uniform
@@ -794,42 +771,28 @@ msh_draw__find_paint( msh_draw_ctx_t* ctx, const msh_draw_paint_t* paint )
 {
   // NOTE(maciej): Linear search for now
   // TODO(maciej): Prodcue hash from bit representation of a paint?
-  int out_idx = -1;
+  int out_id = -1;
   for( int i = 0 ; i < ctx->paint_buf_size; i++ )
   {
     msh_draw_paint_t cur_paint = ctx->paint_buf[i];
-    if( cur_paint.type           == paint->type &&
-        cur_paint.image_idx      == paint->image_idx &&
-        cur_paint.fill_color_a.r == paint->fill_color_a.r && 
-        cur_paint.fill_color_a.g == paint->fill_color_a.g &&
-        cur_paint.fill_color_a.b == paint->fill_color_a.b &&
-        cur_paint.fill_color_b.r == paint->fill_color_b.r && 
-        cur_paint.fill_color_b.g == paint->fill_color_b.g &&
-        cur_paint.fill_color_b.b == paint->fill_color_b.b )
+    if( cur_paint.id == paint->id)
     {
-      out_idx = i;
+      out_id = i;
     }
   }
-  return out_idx;
+  return out_id;
 }
 
 const int msh_draw__add_paint( msh_draw_ctx_t* ctx, msh_draw_paint_t* p )
 {
-  int paint_idx = msh_draw__find_paint( ctx, p );
-  if( paint_idx != -1 )
-  {
-    ctx->paint_idx = paint_idx;
-  }
-  else
-  {
-    //NOTE(maciej): For now we just push. Some hashing would be nice here
-    msh_draw__resize_paint_buf( ctx, 1 );
-
-    ctx->paint_idx = ctx->paint_buf_size; 
-    ctx->paint_buf[ ctx->paint_idx ] = *p;
-    ctx->paint_buf_size = ctx->paint_buf_size + 1;
-  }
-  return ctx->paint_idx;
+  //NOTE(maciej): For now we just push. Should we add some free list thing?
+  msh_draw__resize_paint_buf( ctx, 1 );
+  p->id         = ctx->paint_buf_size; //NOTE(maciej): Why do we need this?
+  ctx->paint_id = p->id; 
+  ctx->paint_buf[ p->id ] = *p;
+  ctx->paint_buf_size = ctx->paint_buf_size + 1;
+  
+  return ctx->paint_id;
 }
 
 const int
@@ -972,9 +935,9 @@ msh_draw_image_fill( msh_draw_ctx_t* ctx, int image_idx )
 }
 
 void 
-msh_draw_set_paint( msh_draw_ctx_t* ctx, const int paint_idx )
+msh_draw_set_paint( msh_draw_ctx_t* ctx, const int paint_id )
 {
-  ctx->paint_idx = paint_idx;
+  ctx->paint_id = paint_id;
 }
 
 
@@ -1031,28 +994,29 @@ int msh_draw_add_font( msh_draw_ctx_t* ctx, const char* filename, const float fo
                                           .fill_color_a = c_a, .fill_color_b = c_b,
                                           .image_idx = font_tex.id };
 
-  int font_paint_idx = msh_draw__add_paint( ctx, &p );
+  int font_paint_id = msh_draw__add_paint( ctx, &p );
 
   free( bitmap );
-  return font_paint_idx;
+  return font_paint_id;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // DRAW PRIMITIVES
 ////////////////////////////////////////////////////////////////////////////////
 
-void
-msh_draw_triangle( msh_draw_ctx_t* ctx, float x, float y, float s )
+void 
+msh_draw_arc( msh_draw_ctx_t* ctx, float x, float y, float r, float fraction )
 {
   msh_draw__resize_cmd_buf( ctx, 1 );
   
   // Populate command 
   msh_draw_cmd_t cmd;
-  cmd.type = MSHD_TRIANGLE;
-  cmd.paint_idx = ctx->paint_idx;
+  cmd.type = MSHD_ARC;
+  cmd.paint_id = ctx->paint_id;
   cmd.geometry[0] = x;
   cmd.geometry[1] = y;
-  cmd.geometry[2] = s;
+  cmd.geometry[2] = r;
+  cmd.geometry[3] = fraction;
   cmd.z_idx = ctx->z_idx;
   
   // Modify the context
@@ -1069,11 +1033,12 @@ msh_draw_circle( msh_draw_ctx_t* ctx, float x, float y, float r )
   
   // Populate command 
   msh_draw_cmd_t cmd;
-  cmd.type = MSHD_CIRCLE;
-  cmd.paint_idx = ctx->paint_idx;
+  cmd.type = MSHD_ARC;
+  cmd.paint_id = ctx->paint_id;
   cmd.geometry[0] = x;
   cmd.geometry[1] = y;
   cmd.geometry[2] = r;
+  cmd.geometry[3] = 1.0f;
   cmd.z_idx = ctx->z_idx;
   
   // Modify the context
@@ -1091,7 +1056,7 @@ msh_draw_rectangle( msh_draw_ctx_t* ctx, float x1, float y1, float x2, float y2 
   // Populate command 
   msh_draw_cmd_t cmd;
   cmd.type = MSHD_RECTANGLE;
-  cmd.paint_idx = ctx->paint_idx;
+  cmd.paint_id = ctx->paint_id;
   cmd.geometry[0] = x1;
   cmd.geometry[1] = y1;
   cmd.geometry[2] = x2;
@@ -1107,14 +1072,14 @@ msh_draw_rectangle( msh_draw_ctx_t* ctx, float x1, float y1, float x2, float y2 
 
 
 void 
-msh_draw_text( msh_draw_ctx_t* ctx, float x1, float y1, const char* str, int paint_idx )
+msh_draw_text( msh_draw_ctx_t* ctx, float x1, float y1, const char* str, int paint_id )
 {
   msh_draw__resize_cmd_buf( ctx, 1 );
   
   // Populate command 
   msh_draw_cmd_t cmd;
   cmd.type = MSHD_TEXT;
-  cmd.paint_idx = paint_idx;
+  cmd.paint_id = paint_id;
   cmd.geometry[0] = x1;
   cmd.geometry[1] = y1;
   cmd.str = str;
