@@ -62,7 +62,7 @@ typedef stbtt_aligned_quad msh_draw_aligned_quad_t;
 
 typedef enum
 {
-  MSHD_RECTANGLE, MSHD_ARC, MSHD_POLYGON, MSHD_LINE, MSHD_TEXT
+  MSHD_RECTANGLE, MSHD_ARC, MSHD_POLYGON, MSHD_LINE_START, MSHD_LINE_TO, MSHD_LINE_END, MSHD_TEXT
 } msh_draw_cmd_type;
 
 typedef enum
@@ -168,8 +168,9 @@ const int msh_draw_image_fill( msh_draw_ctx_t* ctx, int image_idx );
 
 // TODO(maciej): More primitives
 void msh_draw_circle( msh_draw_ctx_t* ctx, float x, float y, float r );
-void msh_draw_triangle( msh_draw_ctx_t* ctx, float x, float y, float s );
-void msh_draw_line( msh_draw_ctx_t* ctx, float x1, float y1, float x2, float y2 );
+void msh_draw_line_start( msh_draw_ctx_t* ctx, float x1, float y1 );
+void msh_draw_line_to( msh_draw_ctx_t* ctx, float x1, float y1 );
+void msh_draw_line_end( msh_draw_ctx_t* ctx, float x1, float y1 );
 
 int msh_draw_add_font( msh_draw_ctx_t* ctx, const char* filename, const float size );
 
@@ -535,7 +536,7 @@ int msh_draw_new_frame( msh_draw_ctx_t* ctx, int viewport_width, int viewport_he
 int msh_draw_render( msh_draw_ctx_t* ctx )
 {
   // Sort draw calls
-  qsort( ctx->cmd_buf, ctx->cmd_buf_size, sizeof(msh_draw_cmd_t), msh_draw__cmd_compare );
+  // qsort( ctx->cmd_buf, ctx->cmd_buf_size, sizeof(msh_draw_cmd_t), msh_draw__cmd_compare );
   
   // TODO(maciej): Custom meshes will probably be quite big. Maybe we need to allocate more for them.
   // Big meshes should probably not be uploaded every frame though...
@@ -553,7 +554,7 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
     int base_idx = 0;
     msh_draw_cmd_t* cur_cmd = &ctx->cmd_buf[i];
     int cur_paint_id = cur_cmd->paint_id;
-    
+    printf("TEST %d %d\n", i, ctx->cmd_buf_size);
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     while( cur_paint_id == cur_cmd->paint_id )
@@ -562,6 +563,7 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
       
       if( cur_cmd->type == MSHD_RECTANGLE )
       {
+        printf("REctangle\n");
         // if( data_idx + 18 > MSH_DRAW_OGL_BUF_SIZE ) break;
         float x1 = cur_cmd->geometry[0];
         float y1 = cur_cmd->geometry[1];
@@ -603,6 +605,7 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
       }
       else if( cur_cmd->type == MSHD_TEXT )
       {
+        printf("TEXT\n");
         float x = cur_cmd->geometry[0];
         float y = cur_cmd->geometry[1];
         float s = 1.0;
@@ -649,6 +652,7 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
       }
       else if (cur_cmd->type == MSHD_ARC)
       {
+        printf("aRC\n");
         float x_pos  = cur_cmd->geometry[0];
         float y_pos  = cur_cmd->geometry[1];
         float rad    = cur_cmd->geometry[2];
@@ -693,7 +697,24 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
         }
         base_idx += n_verts;
       }
-
+      else if (cur_cmd->type == MSHD_LINE_START)
+      {
+        int idx = 0;
+        msh_draw_cmd_t* line_cmd = cur_cmd;
+        int idx2 = i;
+        // while( line_cmd->type != MSHD_LINE_END )
+        // {
+          printf("Line to %5.1f %5.1f | %d | %d | %d\n", line_cmd->geometry[0], line_cmd->geometry[1], line_cmd->type, idx++, i);
+          line_cmd = &ctx->cmd_buf[++idx2];
+          printf("Line to %5.1f %5.1f | %d | %d | %d\n", line_cmd->geometry[0], line_cmd->geometry[1], line_cmd->type, idx++, i);
+          line_cmd = &ctx->cmd_buf[++idx2];  
+          printf("Line to %5.1f %5.1f | %d | %d | %d\n", line_cmd->geometry[0], line_cmd->geometry[1], line_cmd->type, idx++, i);
+          line_cmd = &ctx->cmd_buf[++idx2];  
+          // if( idx > 4) break;
+        // }
+        exit(-1);
+      }
+      printf("TEST2 %d %d\n", i, cur_cmd->type);
       cur_cmd = &ctx->cmd_buf[++i];
       if( i >= ctx->cmd_buf_size ) break;
     }
@@ -1029,16 +1050,61 @@ msh_draw_arc( msh_draw_ctx_t* ctx, float x, float y, float r, float fraction )
 void 
 msh_draw_circle( msh_draw_ctx_t* ctx, float x, float y, float r )
 {
+  msh_draw_arc(ctx, x, y, r, 1.0f );
+}
+
+void 
+msh_draw_line_start( msh_draw_ctx_t* ctx, float x, float y )
+{
   msh_draw__resize_cmd_buf( ctx, 1 );
   
   // Populate command 
   msh_draw_cmd_t cmd;
-  cmd.type = MSHD_ARC;
+  cmd.type = MSHD_LINE_START;
   cmd.paint_id = ctx->paint_id;
   cmd.geometry[0] = x;
   cmd.geometry[1] = y;
-  cmd.geometry[2] = r;
-  cmd.geometry[3] = 1.0f;
+  cmd.z_idx = ctx->z_idx;
+  
+  // Modify the context
+  ctx->cmd_idx = ctx->cmd_buf_size;  
+  ctx->cmd_buf[ctx->cmd_idx] = cmd;
+  ctx->cmd_buf_size += 1;
+  printf("LINE_START: Buf_size: %d\n", ctx->cmd_buf_size );
+}
+
+
+void 
+msh_draw_line_to( msh_draw_ctx_t* ctx, float x, float y )
+{
+  msh_draw__resize_cmd_buf( ctx, 1 );
+  
+  // Populate command 
+  msh_draw_cmd_t cmd;
+  cmd.type = MSHD_LINE_TO;
+  cmd.paint_id = ctx->paint_id;
+  cmd.geometry[0] = x;
+  cmd.geometry[1] = y;
+  cmd.z_idx = ctx->z_idx;
+  
+  // Modify the context
+  ctx->cmd_idx = ctx->cmd_buf_size;  
+  ctx->cmd_buf[ctx->cmd_idx] = cmd;
+  ctx->cmd_buf_size += 1;
+  printf("LINE_TO: Buf_size: %d\n", ctx->cmd_buf_size );
+}
+
+void 
+msh_draw_line_end( msh_draw_ctx_t* ctx, float x, float y )
+{
+  msh_draw__resize_cmd_buf( ctx, 1 );
+  
+  // Populate command 
+  msh_draw_cmd_t cmd;
+  cmd.type = MSHD_LINE_END;
+  cmd.paint_id = ctx->paint_id;
+  cmd.geometry[0] = x;
+  cmd.geometry[1] = y;
   cmd.z_idx = ctx->z_idx;
   
   // Modify the context
@@ -1046,6 +1112,7 @@ msh_draw_circle( msh_draw_ctx_t* ctx, float x, float y, float r )
   ctx->cmd_idx = ctx->cmd_buf_size;  
   ctx->cmd_buf[ctx->cmd_idx] = cmd;
   ctx->cmd_buf_size += 1;
+  printf("LINE_END: Buf_size: %d\n", ctx->cmd_buf_size );
 }
 
 void 
