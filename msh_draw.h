@@ -554,7 +554,6 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
     int base_idx = 0;
     msh_draw_cmd_t* cur_cmd = &ctx->cmd_buf[i];
     int cur_paint_id = cur_cmd->paint_id;
-    printf("TEST %d %d\n", i, ctx->cmd_buf_size);
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     while( cur_paint_id == cur_cmd->paint_id )
@@ -605,7 +604,6 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
       }
       else if( cur_cmd->type == MSHD_TEXT )
       {
-        printf("TEXT\n");
         float x = cur_cmd->geometry[0];
         float y = cur_cmd->geometry[1];
         float s = 1.0;
@@ -652,7 +650,6 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
       }
       else if (cur_cmd->type == MSHD_ARC)
       {
-        printf("aRC\n");
         float x_pos  = cur_cmd->geometry[0];
         float y_pos  = cur_cmd->geometry[1];
         float rad    = cur_cmd->geometry[2];
@@ -699,22 +696,61 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
       }
       else if (cur_cmd->type == MSHD_LINE_START)
       {
+        msh_draw_cmd_t* line_cmd_a = &ctx->cmd_buf[i];
+        msh_draw_cmd_t* line_cmd_b = &ctx->cmd_buf[i+1];
+        printf("Data_idx = %d\n", data_idx );
+        // TODO(maciej): HOW to even draw lines correctly? Line adjacency seems relevant.
+        int n_verts = 0;
         int idx = 0;
-        msh_draw_cmd_t* line_cmd = cur_cmd;
-        int idx2 = i;
-        // while( line_cmd->type != MSHD_LINE_END )
-        // {
-          printf("Line to %5.1f %5.1f | %d | %d | %d\n", line_cmd->geometry[0], line_cmd->geometry[1], line_cmd->type, idx++, i);
-          line_cmd = &ctx->cmd_buf[++idx2];
-          printf("Line to %5.1f %5.1f | %d | %d | %d\n", line_cmd->geometry[0], line_cmd->geometry[1], line_cmd->type, idx++, i);
-          line_cmd = &ctx->cmd_buf[++idx2];  
-          printf("Line to %5.1f %5.1f | %d | %d | %d\n", line_cmd->geometry[0], line_cmd->geometry[1], line_cmd->type, idx++, i);
-          line_cmd = &ctx->cmd_buf[++idx2];  
-          // if( idx > 4) break;
-        // }
-        exit(-1);
+        while( line_cmd_a->type != MSHD_LINE_END )
+        {
+          float x1 = line_cmd_a->geometry[0];
+          float x2 = line_cmd_b->geometry[0];
+          
+          float y1 = line_cmd_a->geometry[1];
+          float y2 = line_cmd_b->geometry[1];
+          
+          data_buf[data_idx++] = x1 + rand()%10;
+          data_buf[data_idx++] = y1 + rand()%10;
+          data_buf[data_idx++] = line_cmd_a->z_idx;
+          data_buf[data_idx++] = 0.0f;
+          data_buf[data_idx++] = 0.0f;
+
+          data_buf[data_idx++] = x1 + rand()%10;
+          data_buf[data_idx++] = y2 + rand()%10;
+          data_buf[data_idx++] = line_cmd_a->z_idx;
+          data_buf[data_idx++] = 0.0f;
+          data_buf[data_idx++] = 1.0f;
+
+          data_buf[data_idx++] = x2 + rand()%10;
+          data_buf[data_idx++] = y1 + rand()%10;
+          data_buf[data_idx++] = line_cmd_a->z_idx;
+          data_buf[data_idx++] = 1.0f;
+          data_buf[data_idx++] = 0.0f;
+
+          data_buf[data_idx++] = x2 + rand()%10;
+          data_buf[data_idx++] = y2 + rand()%10;
+          data_buf[data_idx++] = line_cmd_a->z_idx;
+          data_buf[data_idx++] = 1.0f;
+          data_buf[data_idx++] = 1.0f;
+
+          elem_buf[elem_idx++] = base_idx + 4 * idx + 0;
+          elem_buf[elem_idx++] = base_idx + 4 * idx + 1;
+          elem_buf[elem_idx++] = base_idx + 4 * idx + 3;
+
+          elem_buf[elem_idx++] = base_idx + 4 * idx + 3;
+          elem_buf[elem_idx++] = base_idx + 4 * idx + 0;
+          elem_buf[elem_idx++] = base_idx + 4 * idx + 2;
+
+          i++;
+          idx++;
+          n_verts += 4;
+          line_cmd_a = &ctx->cmd_buf[i];
+          line_cmd_b = &ctx->cmd_buf[i+1];
+        }
+        printf("Data_idx = %d\n", data_idx );
+        base_idx += n_verts;
       }
-      printf("TEST2 %d %d\n", i, cur_cmd->type);
       cur_cmd = &ctx->cmd_buf[++i];
       if( i >= ctx->cmd_buf_size ) break;
     }
@@ -1070,7 +1106,6 @@ msh_draw_line_start( msh_draw_ctx_t* ctx, float x, float y )
   ctx->cmd_idx = ctx->cmd_buf_size;  
   ctx->cmd_buf[ctx->cmd_idx] = cmd;
   ctx->cmd_buf_size += 1;
-  printf("LINE_START: Buf_size: %d\n", ctx->cmd_buf_size );
 }
 
 
@@ -1091,7 +1126,6 @@ msh_draw_line_to( msh_draw_ctx_t* ctx, float x, float y )
   ctx->cmd_idx = ctx->cmd_buf_size;  
   ctx->cmd_buf[ctx->cmd_idx] = cmd;
   ctx->cmd_buf_size += 1;
-  printf("LINE_TO: Buf_size: %d\n", ctx->cmd_buf_size );
 }
 
 void 
@@ -1112,7 +1146,6 @@ msh_draw_line_end( msh_draw_ctx_t* ctx, float x, float y )
   ctx->cmd_idx = ctx->cmd_buf_size;  
   ctx->cmd_buf[ctx->cmd_idx] = cmd;
   ctx->cmd_buf_size += 1;
-  printf("LINE_END: Buf_size: %d\n", ctx->cmd_buf_size );
 }
 
 void 
