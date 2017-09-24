@@ -278,13 +278,13 @@ int msh_cutouts__ear_test(msh_cutouts_path_t *path, int convex_idx, int reflex_i
   float cy3 = path->vertices[2*next_idx+1]; 
   float rx  = path->vertices[2*reflex_idx]; 
   float ry  = path->vertices[2*reflex_idx+1];
-  printf("%d %d %d | %d\n", prev_idx, convex_idx, next_idx, reflex_idx);
-  printf(" %f %f  %f %f  %f %f\n", cx1, cy1, cx2, cy2, rx, ry);
-  printf(" %f %f  %f %f  %f %f\n", cx2, cy2, cx3, cy3, rx, ry);
-  printf(" %f %f  %f %f  %f %f\n", cx3, cy3, cx1, cy1, rx, ry);
-  printf("  %f %f %f\n", msh_cutouts__signed_area(cx1, cy1, cx2, cy2, rx, ry),
-                         msh_cutouts__signed_area(cx2, cy2, cx3, cy3, rx, ry),
-                         msh_cutouts__signed_area(cx3, cy3, cx1, cy1, rx, ry));
+  // printf("%d %d %d | %d\n", prev_idx, convex_idx, next_idx, reflex_idx);
+  // printf(" %f %f  %f %f  %f %f\n", cx1, cy1, cx2, cy2, rx, ry);
+  // printf(" %f %f  %f %f  %f %f\n", cx2, cy2, cx3, cy3, rx, ry);
+  // printf(" %f %f  %f %f  %f %f\n", cx3, cy3, cx1, cy1, rx, ry);
+  // printf("  %f %f %f\n", msh_cutouts__signed_area(cx1, cy1, cx2, cy2, rx, ry),
+  //                        msh_cutouts__signed_area(cx2, cy2, cx3, cy3, rx, ry),
+  //                        msh_cutouts__signed_area(cx3, cy3, cx1, cy1, rx, ry));
   if( msh_cutouts__signed_area(cx1, cy1, cy2, cy2, rx, ry) > 0.0f &&
       msh_cutouts__signed_area(cx2, cy2, cy3, cy3, rx, ry) > 0.0f &&
       msh_cutouts__signed_area(cx3, cy3, cy1, cy1, rx, ry) > 0.0f )
@@ -294,62 +294,63 @@ int msh_cutouts__ear_test(msh_cutouts_path_t *path, int convex_idx, int reflex_i
   return 1;
 }
 
+typedef enum msh_cutouts__vertex_type
+{
+  MSHC_UNKNOWN = 0,
+  MSHC_REFLEX = 1,
+  MSHC_CONVEX = 2,
+  MSHC_EAR = 3,
+  MSHC_CLIPPED = 4;
+} msh_cutouts__vert_type;
+
 int msh_cutouts__path_to_shape(msh_cutouts_path_t *path)
 {
-  // Find reflex vertices
-  int reflex_list[1024];
-  int reflex_list_idx = -1;
-  int convex_list[1024];
-  int convex_list_idx = -1;
-  int ear_list[1024];
-  int ear_list_idx = -1;
-  
+  // categorize vertices
+  int n_verts = 1024;
+  int vertex_type[1024] = {MSHC_UNKNOWN};
+
   for( int i = 0 ; i < path->idx; i++ )
   {
-    if(!msh_cutouts__is_convex(path, i)) 
-    { 
-      reflex_list_idx+=1;
-      reflex_list[reflex_list_idx] = i;
-    }
-    else
-    { 
-      convex_list_idx+=1;
-      convex_list[convex_list_idx] = i;
-    }
+    if(!msh_cutouts__is_convex(path, i)) { vertex_type[i] = MSHC_REFLEX; }
+    else                                 { vertex_type[i] = MSHC_CONVEX; }
   }
 
   // DEBUG: Print the list
   printf("Reflex verices: ");
-  for(int i = 0; i < reflex_list_idx+1; ++i)
+  for(int i = 0; i < path->idx; ++i)
   {
-    printf("%d ", reflex_list[i]);
+    if(vertex_type[i] == MSHC_REFLEX)printf("%d ", i);
   }
   printf("\n");
 
   // Get initial ear list
-  for(int i = 0; i < convex_list_idx+1; ++i )
+  for(int i = 0; i < path->idx; ++i )
   {
-    int convex_idx = convex_list[i];
     int is_ear = 1;
-    for(int j = 0; j < reflex_list_idx+1; ++j)
+    if(vertex_type[i] == MSHC_REFLEX) continue; // only consider convex
+    for(int j = 0; j < path->idx; ++j) // TODO(maciej): At each iteration create reflex list?
     {
-      int reflex_idx = reflex_list[j];
-      if(!msh_cutouts__ear_test(path, convex_idx, reflex_idx))//TODO(maciej): Need a better name for this function
+      if(vertex_type[j] != MSHC_REFLEX) continue; // only consider reflex
+      if(!msh_cutouts__ear_test(path, i, j))//TODO(maciej): Need a better name for this function
       {
         is_ear = 0;
       }
     }
+    if( is_ear ) vertex_type[i] = MSHC_EAR;
     if( is_ear )
     {
-      ear_list_idx+=1;
-      ear_list[ear_list_idx]=convex_idx;
+      int prev_i = msh__amod(i-1, path->idx);
+      int next_i = msh__amod(i+1, path->idx);
+      printf("TRIANGLE: %d %d %d", prev_i, i, next_i);
+      // Classify vertex
+      
     }
   }
 
   printf("Ear verices: ");
-  for(int i = 0; i < ear_list_idx+1;++i)
+  for(int i = 0; i < path->idx; ++i)
   {
-    printf("%d ", ear_list[i]);
+    if(vertex_type[i] == MSHC_EAR)printf("%d ", i);
   }
   printf("\n");
 
