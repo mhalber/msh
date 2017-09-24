@@ -679,31 +679,31 @@ msh_vec4_scalar_div( msh_vec4_t v, msh_scalar_t s )
 MSHVMDEF inline msh_vec2_t 
 msh_vec2_abs( msh_vec2_t v )
 {
-  return (msh_vec2_t){{ fabs(v.x), fabs(v.y) }};
+  return (msh_vec2_t){{ (msh_scalar_t)fabs(v.x), (msh_scalar_t)fabs(v.y) }};
 }
 
 MSHVMDEF inline msh_vec3_t 
 msh_vec3_abs( msh_vec3_t v )
 {
-  return (msh_vec3_t){{ fabs(v.x), fabs(v.y), fabs(v.z) }};
+  return (msh_vec3_t){{ (msh_scalar_t)fabs(v.x), (msh_scalar_t)fabs(v.y), (msh_scalar_t)fabs(v.z) }};
 }
 
 MSHVMDEF inline msh_vec4_t 
 msh_vec4_abs( msh_vec4_t v )
 {
-  return (msh_vec4_t){{ fabs(v.x), fabs(v.y), fabs(v.z), fabs(v.w) }};
+  return (msh_vec4_t){{ (msh_scalar_t)fabs(v.x), (msh_scalar_t)fabs(v.y), (msh_scalar_t)fabs(v.z), (msh_scalar_t)fabs(v.w) }};
 }
 
 MSHVMDEF inline msh_vec2_t 
 msh_vec2_sqrt( msh_vec2_t v )
 {
-  return (msh_vec2_t){{ sqrtf(v.x), sqrtf(v.y) }};
+  return (msh_vec2_t){{ (msh_scalar_t)sqrt(v.x), (msh_scalar_t)sqrt(v.y) }};
 }
 
 MSHVMDEF inline msh_vec3_t 
 msh_vec3_sqrt( msh_vec3_t v )
 {
-  return (msh_vec3_t){{ sqrtf(v.x), sqrtf(v.y), sqrtf(v.z) }};
+  return (msh_vec3_t){{ (msh_scalar_t)sqrt(v.x), (msh_scalar_t)sqrt(v.y), (msh_scalar_t)sqrt(v.z) }};
 }
 
 MSHVMDEF inline msh_vec4_t 
@@ -1876,7 +1876,7 @@ msh_rotate( msh_mat4_t m, msh_scalar_t angle, msh_vec3_t v )
 {
   msh_scalar_t c = cosf( angle );
   msh_scalar_t s = sinf( angle );
-  msh_scalar_t t = 1.0 - c;
+  msh_scalar_t t = 1.0f - c;
 
   msh_vec3_t axis = msh_vec3_normalize( v );
 
@@ -1924,28 +1924,28 @@ msh_rotate( msh_mat4_t m, msh_scalar_t angle, msh_vec3_t v )
 MSHVMDEF inline msh_vec3_t 
 msh_mat3_to_euler( msh_mat3_t m )
 {
-  msh_scalar_t pi = 3.14159265359;
+  msh_scalar_t pi = (msh_scalar_t)3.14159265359;
   msh_vec3_t angles;
   if( m.col[2].x < 1.0 )
   {
     if ( m.col[2].x > -1.0)
     {
-      angles.y = asin(m.col[2].x);
-      angles.x = atan2( -m.col[2].y, m.col[2].z );
-      angles.z = atan2( -m.col[1].x, m.col[0].x );
+      angles.y = (msh_scalar_t)asin( m.col[2].x );
+      angles.x = (msh_scalar_t)atan2( -m.col[2].y, m.col[2].z );
+      angles.z = (msh_scalar_t)atan2( -m.col[1].x, m.col[0].x );
     }
     else
     {
-      angles.y = -pi * 0.5;
-      angles.x = -atan2(m.col[0].y, m.col[1].y );
-      angles.z = 0.0;
+      angles.y = (msh_scalar_t)(-pi * 0.5);
+      angles.x = (msh_scalar_t)(-atan2(m.col[0].y, m.col[1].y ));
+      angles.z = (msh_scalar_t)0.0;
     }
   }
   else
   {
-    angles.y = pi * 0.5;
-    angles.x = atan2(m.col[0].y, m.col[1].y );
-    angles.z = 0;
+    angles.y = (msh_scalar_t)(pi * 0.5);
+    angles.x = (msh_scalar_t)atan2(m.col[0].y, m.col[1].y );
+    angles.z = (msh_scalar_t)0;
   }
   return angles;
 }
@@ -1955,12 +1955,12 @@ msh_mat3_to_euler( msh_mat3_t m )
 MSHVMDEF inline msh_mat3_t 
 msh_mat3_from_euler( msh_vec3_t euler_angles )
 {
-  msh_scalar_t sx = sin( euler_angles.x );
-  msh_scalar_t sy = sin( euler_angles.y );
-  msh_scalar_t sz = sin( euler_angles.z );
-  msh_scalar_t cx = cos( euler_angles.x );
-  msh_scalar_t cy = cos( euler_angles.y );
-  msh_scalar_t cz = cos( euler_angles.z );
+  msh_scalar_t sx = (msh_scalar_t)sin( euler_angles.x );
+  msh_scalar_t sy = (msh_scalar_t)sin( euler_angles.y );
+  msh_scalar_t sz = (msh_scalar_t)sin( euler_angles.z );
+  msh_scalar_t cx = (msh_scalar_t)cos( euler_angles.x );
+  msh_scalar_t cy = (msh_scalar_t)cos( euler_angles.y );
+  msh_scalar_t cz = (msh_scalar_t)cos( euler_angles.z );
   return ((msh_mat3_t){{cy*cz,          cy*sz,          -sy, 
                         sx*sy*cz-cx*sz, cx*cz+sx*sy*sz, sx*cy, 
                         cx*sy*cz+sx*sz, cx*sy*sz-sx*cz, cx*cy}});
@@ -1975,20 +1975,20 @@ msh_mat3_from_euler( msh_vec3_t euler_angles )
 MSHVMDEF inline msh_quat_t
 msh_quat_from_axis_angle( msh_vec3_t axis, msh_scalar_t angle )
 {
-  msh_scalar_t a = angle * 0.5;
-  msh_scalar_t s = sinf(a);
+  msh_scalar_t a = (msh_scalar_t)(angle * 0.5);
+  msh_scalar_t s = (msh_scalar_t)sin(a);
   return (msh_quat_t){{ axis.x * s, axis.y * s, axis.z * s, cosf(a)}};
 }
 
 MSHVMDEF inline msh_quat_t 
 msh_quat_from_euler_angles( msh_scalar_t pitch, msh_scalar_t yaw, msh_scalar_t roll )
 {
-  msh_scalar_t c1 = cos(pitch * 0.5 );
-  msh_scalar_t s1 = sin(pitch * 0.5 );
-  msh_scalar_t c2 = cos(yaw * 0.5 );
-  msh_scalar_t s2 = sin(yaw * 0.5 );
-  msh_scalar_t c3 = cos(roll * 0.5 );
-  msh_scalar_t s3 = sin(roll * 0.5 );
+  msh_scalar_t c1 = (msh_scalar_t)cos(pitch * 0.5 );
+  msh_scalar_t s1 = (msh_scalar_t)sin(pitch * 0.5 );
+  msh_scalar_t c2 = (msh_scalar_t)cos(yaw * 0.5 );
+  msh_scalar_t s2 = (msh_scalar_t)sin(yaw * 0.5 );
+  msh_scalar_t c3 = (msh_scalar_t)cos(roll * 0.5 );
+  msh_scalar_t s3 = (msh_scalar_t)sin(roll * 0.5 );
 
   return msh_quat( c1*c2*c3 - s1*s2*s3, 
                    c1*c2*s3 + s1*s2*c3, 
@@ -2000,7 +2000,7 @@ msh_quat_from_euler_angles( msh_scalar_t pitch, msh_scalar_t yaw, msh_scalar_t r
 MSHVMDEF inline msh_quat_t 
 msh_quat_from_vectors( msh_vec3_t v1, msh_vec3_t v2 )
 {
-    msh_scalar_t norm_v1_norm_v2 = sqrt(msh_vec3_dot(v1, v1) * msh_vec3_dot(v2, v2));
+    msh_scalar_t norm_v1_norm_v2 = (msh_scalar_t)sqrt(msh_vec3_dot(v1, v1) * msh_vec3_dot(v2, v2));
     msh_scalar_t real_part = norm_v1_norm_v2 + msh_vec3_dot(v1, v2);
     msh_vec3_t v3;
 
@@ -2134,7 +2134,7 @@ msh_quat_conjugate( msh_quat_t q )
 MSHVMDEF inline msh_quat_t 
 msh_quat_inverse( msh_quat_t q )
 {
-  msh_quat_t o;
+  msh_quat_t o =( msh_quat_t){0.0, 0.0, 0.0, 0.0};
   msh_scalar_t denom = 1.0f / msh_quat_norm_sq( q );
   o.x = -q.x * denom;
   o.y = -q.y * denom;
@@ -2165,8 +2165,8 @@ msh_quat_slerp( msh_quat_t q,
   msh_quat_t o;
   if ( fabs( a ) > 1e-6 )
   {
-    o = msh_quat_add(msh_quat_scalar_mul(q, sin(a * (1.0-t)) / sin(a) ), 
-                     msh_quat_scalar_mul(r, sin(a * t) / sin(a) ) );
+    o = msh_quat_add(msh_quat_scalar_mul(q, (msh_scalar_t)(sin(a * (1.0-t)) / sin(a)) ), 
+                     msh_quat_scalar_mul(r, (msh_scalar_t)(sin(a * t) / sin(a)) ) );
   }
   else
   {

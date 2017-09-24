@@ -88,11 +88,11 @@
 
 
 #ifndef msh_rad2deg
-#define msh_rad2deg(x) ((x) * 180.0 * msh_INV_PI)
+#define msh_rad2deg(x) ((x) * 180.0 * MSH_INV_PI)
 #endif
 
 #ifndef msh_deg2rad
-#define msh_deg2rad(x) ((x) * 0.005555555556 * msh_PI)
+#define msh_deg2rad(x) ((x) * 0.005555555556 * MSH_PI)
 #endif
 
 #ifndef msh_size_of

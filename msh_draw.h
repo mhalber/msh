@@ -33,9 +33,17 @@
   ==============================================================================
   TODO
   [ ] API Design
+  [ ] Change the name to msh_cutouts
+  [ ] Add Paint Builder
+  [ ] Add Shape Builder
+  [ ] Add Triangulation
+  [ ] Add line mitter/caps/bevels etc.
+  [ ] Strokes 
+  [ ] Text/Fonts are very special, and should be treated differently
   [ ] OpenGL backend
+  [ ] Blending
+  [ ] Antialiasing
   [ ] Software Rasterizer backend
-  [ ] Rethink the name
   [x] How to deal with materials - materials need to be hashed somehow. For now linear search.
   ==============================================================================
   REFERENCES:
@@ -174,7 +182,185 @@ void msh_draw_line_end( msh_draw_ctx_t* ctx, float x1, float y1 );
 
 int msh_draw_add_font( msh_draw_ctx_t* ctx, const char* filename, const float size );
 
+
+// ALTERNATIVE API
+// The heart of this api needs to be polygon triangulator. I will either use 
+// earclipping (possibly the FIST variant) or monotone subdivision
+
+typedef struct msh_cutouts_path
+{
+  float vertices[1024 * 2];
+  
+  // cursor (?)
+  float cur_x;
+  float cur_y;
+
+  int idx;
+} msh_cutouts_path_t;
+
+// These functions are path builders.
+int msh_cutouts_path_begin(msh_cutouts_path_t* path, float x, float y);
+int msh_cutouts_move_to(msh_cutouts_path_t* path, float x, float y);
+int msh_cutouts_line_to(msh_cutouts_path_t* path, float x, float y);
+int msh_cutouts_path_close(msh_cutouts_path_t* path);
+int msh_cutouts_path_end(msh_cutouts_path_t* path);
+
+int msh_cutouts__path_to_shape();// This function will do the triangulation
+
+
+int msh_cutouts_path_begin(msh_cutouts_path_t* path, float x, float y)
+{
+  path->vertices[0] = x;
+  path->vertices[1] = y;
+  path->idx = 1;
+  return 1;
+}
+
+int msh_cutouts_line_to(msh_cutouts_path_t* path, float x, float y)
+{
+  path->vertices[2*path->idx  ] = x;
+  path->vertices[2*path->idx+1] = y;
+  path->idx += 1;
+  return 1;
+}
+
+int msh_cutouts_path_close(msh_cutouts_path_t *path)
+{
+  path->vertices[2*path->idx  ] = path->vertices[0];
+  path->vertices[2*path->idx+1] = path->vertices[1];
+  path->idx += 1;
+  return msh_cutouts_path_end(path);
+}
+
+int msh_cutouts_path_end(msh_cutouts_path_t *path)
+{
+  //This command will move path to some other buffer
+  return 1;
+}
+
+float msh_cutouts__signed_area(float x1, float y1, 
+                             float x2, float y2, 
+                             float x3, float y3)
+{
+  // NOTE(maciej): in our case positive y goes "down" hence need to flip this.
+  return -0.5f*(-x2*y1+x3*y1+x1*y2-x3*y2-x1*y3+x2*y3);
+}
+
+int msh__amod(int x, int m)
+{
+  return (x % m + m) % m;
+}
+
+int msh_cutouts__is_convex(msh_cutouts_path_t *path, int idx)
+{
+  int prev_idx = msh__amod(idx-1, path->idx);
+  int next_idx = msh__amod(idx+1, path->idx);
+  float x1 = path->vertices[2*prev_idx];
+  float y1 = path->vertices[2*prev_idx+1];
+  float x2 = path->vertices[2*idx];
+  float y2 = path->vertices[2*idx+1];
+  float x3 = path->vertices[2*next_idx];
+  float y3 = path->vertices[2*next_idx+1];
+  return (msh_cutouts__signed_area(x1, y1, x2, y2, x3, y3) > 0.0f) ? 1 : 0;
+}
+
+int msh_cutouts__ear_test(msh_cutouts_path_t *path, int convex_idx, int reflex_idx)
+{
+  int prev_idx = msh__amod(convex_idx-1, path->idx);
+  int next_idx = msh__amod(convex_idx+1, path->idx);
+  if(prev_idx == reflex_idx || next_idx == reflex_idx) return 1;
+
+  float cx1 = path->vertices[2*prev_idx];
+  float cy1 = path->vertices[2*prev_idx+1];
+  float cx2 = path->vertices[2*convex_idx];
+  float cy2 = path->vertices[2*convex_idx+1];
+  float cx3 = path->vertices[2*next_idx];
+  float cy3 = path->vertices[2*next_idx+1]; 
+  float rx  = path->vertices[2*reflex_idx]; 
+  float ry  = path->vertices[2*reflex_idx+1];
+  printf("%d %d %d | %d\n", prev_idx, convex_idx, next_idx, reflex_idx);
+  printf(" %f %f  %f %f  %f %f\n", cx1, cy1, cx2, cy2, rx, ry);
+  printf(" %f %f  %f %f  %f %f\n", cx2, cy2, cx3, cy3, rx, ry);
+  printf(" %f %f  %f %f  %f %f\n", cx3, cy3, cx1, cy1, rx, ry);
+  printf("  %f %f %f\n", msh_cutouts__signed_area(cx1, cy1, cx2, cy2, rx, ry),
+                         msh_cutouts__signed_area(cx2, cy2, cx3, cy3, rx, ry),
+                         msh_cutouts__signed_area(cx3, cy3, cx1, cy1, rx, ry));
+  if( msh_cutouts__signed_area(cx1, cy1, cy2, cy2, rx, ry) > 0.0f &&
+      msh_cutouts__signed_area(cx2, cy2, cy3, cy3, rx, ry) > 0.0f &&
+      msh_cutouts__signed_area(cx3, cy3, cy1, cy1, rx, ry) > 0.0f )
+  {
+    return 0;
+  }
+  return 1;
+}
+
+int msh_cutouts__path_to_shape(msh_cutouts_path_t *path)
+{
+  // Find reflex vertices
+  int reflex_list[1024];
+  int reflex_list_idx = -1;
+  int convex_list[1024];
+  int convex_list_idx = -1;
+  int ear_list[1024];
+  int ear_list_idx = -1;
+  
+  for( int i = 0 ; i < path->idx; i++ )
+  {
+    if(!msh_cutouts__is_convex(path, i)) 
+    { 
+      reflex_list_idx+=1;
+      reflex_list[reflex_list_idx] = i;
+    }
+    else
+    { 
+      convex_list_idx+=1;
+      convex_list[convex_list_idx] = i;
+    }
+  }
+
+  // DEBUG: Print the list
+  printf("Reflex verices: ");
+  for(int i = 0; i < reflex_list_idx+1; ++i)
+  {
+    printf("%d ", reflex_list[i]);
+  }
+  printf("\n");
+
+  // Get initial ear list
+  for(int i = 0; i < convex_list_idx+1; ++i )
+  {
+    int convex_idx = convex_list[i];
+    int is_ear = 1;
+    for(int j = 0; j < reflex_list_idx+1; ++j)
+    {
+      int reflex_idx = reflex_list[j];
+      if(!msh_cutouts__ear_test(path, convex_idx, reflex_idx))//TODO(maciej): Need a better name for this function
+      {
+        is_ear = 0;
+      }
+    }
+    if( is_ear )
+    {
+      ear_list_idx+=1;
+      ear_list[ear_list_idx]=convex_idx;
+    }
+  }
+
+  printf("Ear verices: ");
+  for(int i = 0; i < ear_list_idx+1;++i)
+  {
+    printf("%d ", ear_list[i]);
+  }
+  printf("\n");
+
+  return 1;
+}
+
+
+
 #endif /*MSH_DRAW_H*/
+
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -498,7 +684,7 @@ msh_draw_init_ctx( msh_draw_ctx_t* ctx )
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   // glDisableVertexAttribArray( pos_attrib );
-  // glDisable(GL_CULL_FACE);
+  glDisable(GL_CULL_FACE);
 #endif
   return 1;
 }
@@ -698,38 +884,44 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
       {
         msh_draw_cmd_t* line_cmd_a = &ctx->cmd_buf[i];
         msh_draw_cmd_t* line_cmd_b = &ctx->cmd_buf[i+1];
-        printf("Data_idx = %d\n", data_idx );
         // TODO(maciej): HOW to even draw lines correctly? Line adjacency seems relevant.
         int n_verts = 0;
         int idx = 0;
         while( line_cmd_a->type != MSHD_LINE_END )
         {
-          float x1 = line_cmd_a->geometry[0];
-          float x2 = line_cmd_b->geometry[0];
+          float x0 = line_cmd_a->geometry[0];
+          float x1 = line_cmd_b->geometry[0];
           
-          float y1 = line_cmd_a->geometry[1];
-          float y2 = line_cmd_b->geometry[1];
+          float y0 = line_cmd_a->geometry[1];
+          float y1 = line_cmd_b->geometry[1];
           
-          data_buf[data_idx++] = x1 + rand()%10;
-          data_buf[data_idx++] = y1 + rand()%10;
+          float v0 = x1 - x0;
+          float v1 = y1 - y0;
+          float n0 = 12 * (v1 / sqrtf(v1*v1 + v0*v0));
+          float n1 = 12 * -(v0 / sqrtf(v1*v1 + v0*v0));
+// printf("%f %f | %f |$|  %f %f | %f\n", v0, v1, sqrt(v0*v0 + v1*v1), n0, n1, sqrtf(n0*n0 + n1*n1));
+          data_buf[data_idx++] = x0 - n0;
+          data_buf[data_idx++] = y0 - n1;
           data_buf[data_idx++] = line_cmd_a->z_idx;
           data_buf[data_idx++] = 0.0f;
           data_buf[data_idx++] = 0.0f;
 
-          data_buf[data_idx++] = x1 + rand()%10;
-          data_buf[data_idx++] = y2 + rand()%10;
+          data_buf[data_idx++] = x0 + n0;
+          data_buf[data_idx++] = y0 + n1;
           data_buf[data_idx++] = line_cmd_a->z_idx;
           data_buf[data_idx++] = 0.0f;
           data_buf[data_idx++] = 1.0f;
 
-          data_buf[data_idx++] = x2 + rand()%10;
-          data_buf[data_idx++] = y1 + rand()%10;
+
+          data_buf[data_idx++] = x1 - n0;
+          data_buf[data_idx++] = y1 - n1;
           data_buf[data_idx++] = line_cmd_a->z_idx;
           data_buf[data_idx++] = 1.0f;
           data_buf[data_idx++] = 0.0f;
 
-          data_buf[data_idx++] = x2 + rand()%10;
-          data_buf[data_idx++] = y2 + rand()%10;
+
+          data_buf[data_idx++] = x1 + n0;
+          data_buf[data_idx++] = y1 + n1;
           data_buf[data_idx++] = line_cmd_a->z_idx;
           data_buf[data_idx++] = 1.0f;
           data_buf[data_idx++] = 1.0f;
@@ -739,8 +931,8 @@ int msh_draw_render( msh_draw_ctx_t* ctx )
           elem_buf[elem_idx++] = base_idx + 4 * idx + 3;
 
           elem_buf[elem_idx++] = base_idx + 4 * idx + 3;
-          elem_buf[elem_idx++] = base_idx + 4 * idx + 0;
           elem_buf[elem_idx++] = base_idx + 4 * idx + 2;
+          elem_buf[elem_idx++] = base_idx + 4 * idx + 0;
 
           i++;
           idx++;
