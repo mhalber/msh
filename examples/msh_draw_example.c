@@ -32,23 +32,26 @@ int amod(int x, int m)
 
 int main( int argc, char** argv )
 {
+  ttTime();
   msh_cutouts_path_t path;
   msh_cutouts_path_begin(&path, 10.0f, 10.0f);
+  msh_cutouts_line_to(&path, 10.0f, 16.0f);
+  msh_cutouts_line_to(&path, 13.0f, 18.0f);
   msh_cutouts_line_to(&path, 10.0f, 20.0f);
-  msh_cutouts_line_to(&path, 12.0f, 20.0f);
-  msh_cutouts_line_to(&path, 15.0f, 18.0f);
-  msh_cutouts_line_to(&path, 18.0f, 20.0f);
+  msh_cutouts_line_to(&path, 14.0f, 20.0f);
+  msh_cutouts_line_to(&path, 15.0f, 14.0f);
+  msh_cutouts_line_to(&path, 16.0f, 20.0f);
   msh_cutouts_line_to(&path, 20.0f, 20.0f);
   msh_cutouts_line_to(&path, 20.0f, 10.0f);
   msh_cutouts_path_end(&path);
 
-  for( int i = 0 ; i < path.idx; i++ )
-  {
-    printf("Point %d %f %f\n", i, path.vertices[2*i], path.vertices[2*i+1]);
-  }
+  // for( int i = 0 ; i < path.idx; i++ )
+  // {
+  //   printf("Point %d %f %f\n", i, path.vertices[2*i], path.vertices[2*i+1]);
+  // }
 
   msh_cutouts__path_to_shape(&path);
-
+  printf("TimeTo Triangulate: %f\n", ttTime());
   return 1;
   GLFWwindow* window;
   NVGcontext* vg = NULL;

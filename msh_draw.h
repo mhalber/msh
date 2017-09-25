@@ -238,12 +238,30 @@ int msh_cutouts_path_end(msh_cutouts_path_t *path)
   return 1;
 }
 
-float msh_cutouts__signed_area(float x1, float y1, 
-                             float x2, float y2, 
-                             float x3, float y3)
+
+// Triangulation stuff
+typedef enum msh_cutouts__vertex_type
+{
+  MSHC_REFLEX = 0,
+  MSHC_CONVEX = 1,
+  MSHC_EAR    = 2,
+} msh_cutouts__vert_type;
+
+typedef struct msh_cutouts__vertex
+{
+  float x;
+  float y;
+  int prev;
+  int next;
+  msh_cutouts__vert_type type;
+} msh_cutouts__vertex_t;
+
+
+float msh_cutouts__signed_area(float x1, float y1, float x2, float y2, 
+                                                             float x3, float y3)
 {
   // NOTE(maciej): in our case positive y goes "down" hence need to flip this.
-  return -0.5f*(-x2*y1+x3*y1+x1*y2-x3*y2-x1*y3+x2*y3);
+  return (-x2*y1+x3*y1+x1*y2-x3*y2-x1*y3+x2*y3);
 }
 
 int msh__amod(int x, int m)
@@ -251,109 +269,85 @@ int msh__amod(int x, int m)
   return (x % m + m) % m;
 }
 
-int msh_cutouts__is_convex(msh_cutouts_path_t *path, int idx)
+int msh_cutouts__is_convex(msh_cutouts__vertex_t* verts, int idx)
 {
-  int prev_idx = msh__amod(idx-1, path->idx);
-  int next_idx = msh__amod(idx+1, path->idx);
-  float x1 = path->vertices[2*prev_idx];
-  float y1 = path->vertices[2*prev_idx+1];
-  float x2 = path->vertices[2*idx];
-  float y2 = path->vertices[2*idx+1];
-  float x3 = path->vertices[2*next_idx];
-  float y3 = path->vertices[2*next_idx+1];
-  return (msh_cutouts__signed_area(x1, y1, x2, y2, x3, y3) > 0.0f) ? 1 : 0;
+  msh_cutouts__vertex_t* cv = &(verts[idx]);
+  msh_cutouts__vertex_t* pv = &(verts[cv->prev]);
+  msh_cutouts__vertex_t* nv = &(verts[cv->next]);
+  return (msh_cutouts__signed_area(pv->x, pv->y, 
+                                   cv->x, cv->y,
+                                   nv->x, nv->y) > 0.0f) ? 0 : 1;
 }
 
-int msh_cutouts__ear_test(msh_cutouts_path_t *path, int convex_idx, int reflex_idx)
+int msh_cutouts__is_ear(msh_cutouts__vertex_t* verts, int n_verts, int idx)
 {
-  int prev_idx = msh__amod(convex_idx-1, path->idx);
-  int next_idx = msh__amod(convex_idx+1, path->idx);
-  if(prev_idx == reflex_idx || next_idx == reflex_idx) return 1;
-
-  float cx1 = path->vertices[2*prev_idx];
-  float cy1 = path->vertices[2*prev_idx+1];
-  float cx2 = path->vertices[2*convex_idx];
-  float cy2 = path->vertices[2*convex_idx+1];
-  float cx3 = path->vertices[2*next_idx];
-  float cy3 = path->vertices[2*next_idx+1]; 
-  float rx  = path->vertices[2*reflex_idx]; 
-  float ry  = path->vertices[2*reflex_idx+1];
-  // printf("%d %d %d | %d\n", prev_idx, convex_idx, next_idx, reflex_idx);
-  // printf(" %f %f  %f %f  %f %f\n", cx1, cy1, cx2, cy2, rx, ry);
-  // printf(" %f %f  %f %f  %f %f\n", cx2, cy2, cx3, cy3, rx, ry);
-  // printf(" %f %f  %f %f  %f %f\n", cx3, cy3, cx1, cy1, rx, ry);
-  // printf("  %f %f %f\n", msh_cutouts__signed_area(cx1, cy1, cx2, cy2, rx, ry),
-  //                        msh_cutouts__signed_area(cx2, cy2, cx3, cy3, rx, ry),
-  //                        msh_cutouts__signed_area(cx3, cy3, cx1, cy1, rx, ry));
-  if( msh_cutouts__signed_area(cx1, cy1, cy2, cy2, rx, ry) > 0.0f &&
-      msh_cutouts__signed_area(cx2, cy2, cy3, cy3, rx, ry) > 0.0f &&
-      msh_cutouts__signed_area(cx3, cy3, cy1, cy1, rx, ry) > 0.0f )
+  msh_cutouts__vertex_t* cv = &(verts[idx]);
+  msh_cutouts__vertex_t* pv = &(verts[cv->prev]);
+  msh_cutouts__vertex_t* nv = &(verts[cv->next]);
+  for(int i = 0; i < n_verts; ++i)
   {
-    return 0;
+    if(verts[i].type != MSHC_REFLEX) continue;
+    msh_cutouts__vertex_t* rv = &(verts[i]);
+    if(msh_cutouts__signed_area(pv->x, pv->y, cv->x, cv->y, rv->x, rv->y)<.0f &&
+       msh_cutouts__signed_area(cv->x, cv->y, nv->x, nv->y, rv->x, rv->y)<.0f &&
+       msh_cutouts__signed_area(nv->x, nv->y, pv->x, pv->y, rv->x, rv->y)<.0f )
+      {
+        return 0;
+      }
   }
   return 1;
 }
 
-typedef enum msh_cutouts__vertex_type
-{
-  MSHC_UNKNOWN = 0,
-  MSHC_REFLEX = 1,
-  MSHC_CONVEX = 2,
-  MSHC_EAR = 3,
-  MSHC_CLIPPED = 4;
-} msh_cutouts__vert_type;
-
 int msh_cutouts__path_to_shape(msh_cutouts_path_t *path)
 {
-  // categorize vertices
-  int n_verts = 1024;
-  int vertex_type[1024] = {MSHC_UNKNOWN};
-
-  for( int i = 0 ; i < path->idx; i++ )
+  // convert path to vertices
+  int n_verts = path->idx;
+  msh_cutouts__vertex_t verts[1024]; 
+  for(int i = 0; i < n_verts; ++i)
   {
-    if(!msh_cutouts__is_convex(path, i)) { vertex_type[i] = MSHC_REFLEX; }
-    else                                 { vertex_type[i] = MSHC_CONVEX; }
+    verts[i].x = path->vertices[2*i];
+    verts[i].y = path->vertices[2*i+1];
+    verts[i].prev = msh__amod(i-1, path->idx);
+    verts[i].next = msh__amod(i+1, path->idx);
   }
 
-  // DEBUG: Print the list
-  printf("Reflex verices: ");
-  for(int i = 0; i < path->idx; ++i)
+  // classify vertices
+  for( int i = 0 ; i < n_verts; i++ )
   {
-    if(vertex_type[i] == MSHC_REFLEX)printf("%d ", i);
+    if(!msh_cutouts__is_convex(verts, i)) { verts[i].type = MSHC_REFLEX; }
+    else                                  { verts[i].type = MSHC_CONVEX; }
   }
-  printf("\n");
 
-  // Get initial ear list
-  for(int i = 0; i < path->idx; ++i )
+  // triangulate
+  int i = 0;
+  int non_cut_verts = n_verts;
+  while( non_cut_verts > 2 )
   {
-    int is_ear = 1;
-    if(vertex_type[i] == MSHC_REFLEX) continue; // only consider convex
-    for(int j = 0; j < path->idx; ++j) // TODO(maciej): At each iteration create reflex list?
+    if(verts[i].type == MSHC_CONVEX)
     {
-      if(vertex_type[j] != MSHC_REFLEX) continue; // only consider reflex
-      if(!msh_cutouts__ear_test(path, i, j))//TODO(maciej): Need a better name for this function
+      if(msh_cutouts__is_ear(verts, n_verts, i))
       {
-        is_ear = 0;
+        verts[i].type = MSHC_EAR;
+        int pi = verts[i].prev;
+        int ni = verts[i].next; 
+        printf("Triangle: %d %d %d | %d\n", pi, i, ni, non_cut_verts);
+        verts[pi].next = ni;
+        verts[ni].prev = pi;
+        if(!msh_cutouts__is_convex(verts, pi)){ verts[pi].type = MSHC_REFLEX; }
+        else                                  { verts[pi].type = MSHC_CONVEX; }
+        if(!msh_cutouts__is_convex(verts, ni)){ verts[ni].type = MSHC_REFLEX; }
+        else                                  { verts[ni].type = MSHC_CONVEX; }
+        // printf("Reflex verices: ");
+        // for(int i = 0; i < path->idx; ++i)
+        // {
+          // if(verts[i].type == MSHC_REFLEX) printf("%d ", i);
+        // }
+        // printf("\n");
+        non_cut_verts--;
       }
     }
-    if( is_ear ) vertex_type[i] = MSHC_EAR;
-    if( is_ear )
-    {
-      int prev_i = msh__amod(i-1, path->idx);
-      int next_i = msh__amod(i+1, path->idx);
-      printf("TRIANGLE: %d %d %d", prev_i, i, next_i);
-      // Classify vertex
-      
-    }
+    i = msh__amod(++i, n_verts);
   }
-
-  printf("Ear verices: ");
-  for(int i = 0; i < path->idx; ++i)
-  {
-    if(vertex_type[i] == MSHC_EAR)printf("%d ", i);
-  }
-  printf("\n");
-
   return 1;
 }
 
