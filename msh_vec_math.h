@@ -707,26 +707,18 @@ msh_vec2_abs( msh_vec2_t v )
 MSHVMDEF inline msh_vec3_t 
 msh_vec3_abs( msh_vec3_t v )
 {
-<<<<<<< HEAD
   return (msh_vec3_t){{ (msh_scalar_t)fabs(v.x), 
                         (msh_scalar_t)fabs(v.y), 
                         (msh_scalar_t)fabs(v.z) }};
-=======
-  return (msh_vec3_t){{ (msh_scalar_t)fabs(v.x), (msh_scalar_t)fabs(v.y), (msh_scalar_t)fabs(v.z) }};
->>>>>>> ae30034c2cf45622f7ed4705ea23628f17e1374a
 }
 
 MSHVMDEF inline msh_vec4_t 
 msh_vec4_abs( msh_vec4_t v )
 {
-<<<<<<< HEAD
   return (msh_vec4_t){{ (msh_scalar_t)fabs(v.x),
                         (msh_scalar_t)fabs(v.y),
                         (msh_scalar_t)fabs(v.z),
                         (msh_scalar_t)fabs(v.w) }};
-=======
-  return (msh_vec4_t){{ (msh_scalar_t)fabs(v.x), (msh_scalar_t)fabs(v.y), (msh_scalar_t)fabs(v.z), (msh_scalar_t)fabs(v.w) }};
->>>>>>> ae30034c2cf45622f7ed4705ea23628f17e1374a
 }
 
 MSHVMDEF inline msh_vec2_t 

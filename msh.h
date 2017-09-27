@@ -312,7 +312,7 @@ typedef struct msh_array_header
 } while (0)
 
 MSHDEF void*
-msh__array_reserve( void* array, int64_t capacity, int64_t item_size )
+msh__array_reserve( void* array, int32_t capacity, int32_t item_size )
 {
   MSH_ASSERT( item_size > 0 );
 
@@ -322,8 +322,8 @@ msh__array_reserve( void* array, int64_t capacity, int64_t item_size )
     return array;
   }
 
-  int64_t prev_count = array ? ah->count : 0;
-  int64_t new_size = item_size * capacity + sizeof(msh_array_header_t);
+  int32_t prev_count = array ? ah->count : 0;
+  int32_t new_size = item_size * capacity + sizeof(msh_array_header_t);
   void *p = (void*)realloc( (array ? ah : 0), new_size );
   MSH_ASSERT(p);
 

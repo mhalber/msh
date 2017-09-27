@@ -276,7 +276,7 @@ int msh_cutouts__is_convex(msh_cutouts__vertex_t* verts, int idx)
   msh_cutouts__vertex_t* nv = &(verts[cv->next]);
   return (msh_cutouts__signed_area(pv->x, pv->y, 
                                    cv->x, cv->y,
-                                   nv->x, nv->y) > 0.0f) ? 0 : 1;
+                                   nv->x, nv->y) > 0.01f) ? 0 : 1; //Bias to deal with small triangles
 }
 
 int msh_cutouts__is_ear(msh_cutouts__vertex_t* verts, int n_verts, int idx)
@@ -287,10 +287,11 @@ int msh_cutouts__is_ear(msh_cutouts__vertex_t* verts, int n_verts, int idx)
   for(int i = 0; i < n_verts; ++i)
   {
     if(verts[i].type != MSHC_REFLEX) continue;
+    if(i==cv->prev || i == cv->next) continue;
     msh_cutouts__vertex_t* rv = &(verts[i]);
-    if(msh_cutouts__signed_area(pv->x, pv->y, cv->x, cv->y, rv->x, rv->y)<.0f &&
-       msh_cutouts__signed_area(cv->x, cv->y, nv->x, nv->y, rv->x, rv->y)<.0f &&
-       msh_cutouts__signed_area(nv->x, nv->y, pv->x, pv->y, rv->x, rv->y)<.0f )
+    if(msh_cutouts__signed_area(pv->x, pv->y, cv->x, cv->y, rv->x, rv->y)<=.0f &&
+       msh_cutouts__signed_area(cv->x, cv->y, nv->x, nv->y, rv->x, rv->y)<=.0f &&
+       msh_cutouts__signed_area(nv->x, nv->y, pv->x, pv->y, rv->x, rv->y)<=.0f )
       {
         return 0;
       }
@@ -298,7 +299,7 @@ int msh_cutouts__is_ear(msh_cutouts__vertex_t* verts, int n_verts, int idx)
   return 1;
 }
 
-int msh_cutouts__path_to_shape(msh_cutouts_path_t *path)
+int msh_cutouts__path_to_shape(msh_cutouts_path_t* path, int* tris)
 {
   // convert path to vertices
   int n_verts = path->idx;
@@ -317,10 +318,18 @@ int msh_cutouts__path_to_shape(msh_cutouts_path_t *path)
     if(!msh_cutouts__is_convex(verts, i)) { verts[i].type = MSHC_REFLEX; }
     else                                  { verts[i].type = MSHC_CONVEX; }
   }
+  
+  // printf("Reflex verices: ");
+  // for(int i = 0; i < path->idx; ++i)
+  // {
+  //   if(verts[i].type == MSHC_REFLEX) printf("%d ", i);
+  // }
+  // printf("\n");
 
   // triangulate
   int i = 0;
   int non_cut_verts = n_verts;
+  int tmp_tri_idx = 0;
   while( non_cut_verts > 2 )
   {
     if(verts[i].type == MSHC_CONVEX)
@@ -330,7 +339,10 @@ int msh_cutouts__path_to_shape(msh_cutouts_path_t *path)
         verts[i].type = MSHC_EAR;
         int pi = verts[i].prev;
         int ni = verts[i].next; 
-        printf("Triangle: %d %d %d | %d\n", pi, i, ni, non_cut_verts);
+        // printf("Triangle: %d %d %d | %d\n", pi, i, ni, non_cut_verts);
+        tris[tmp_tri_idx++] = pi;
+        tris[tmp_tri_idx++] = i;
+        tris[tmp_tri_idx++] = ni;
         verts[pi].next = ni;
         verts[ni].prev = pi;
         if(!msh_cutouts__is_convex(verts, pi)){ verts[pi].type = MSHC_REFLEX; }
