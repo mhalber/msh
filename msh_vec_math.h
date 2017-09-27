@@ -205,6 +205,10 @@ MSHVMDEF msh_vec3_t msh_vec4_to_vec3( msh_vec4_t v );
 MSHVMDEF msh_vec4_t msh_vec2_to_vec4( msh_vec2_t v );
 MSHVMDEF msh_vec4_t msh_vec3_to_vec4( msh_vec3_t v );
 
+MSHVMDEF msh_vec3_t msh_vec2_scalar_to_vec3( msh_vec2_t v, msh_scalar_t s);
+MSHVMDEF msh_vec4_t msh_vec2_scalar_to_vec4( msh_vec2_t v, msh_scalar_t s0, msh_scalar_t s1 );
+MSHVMDEF msh_vec4_t msh_vec3_scalar_to_vec4( msh_vec3_t v, msh_scalar_t s );
+
 MSHVMDEF msh_vec2_t msh_vec2_add( msh_vec2_t a, msh_vec2_t b );
 MSHVMDEF msh_vec3_t msh_vec3_add( msh_vec3_t a, msh_vec3_t b );
 MSHVMDEF msh_vec4_t msh_vec4_add( msh_vec4_t a, msh_vec4_t b );
@@ -510,6 +514,18 @@ msh_vec2_to_vec3( msh_vec2_t v )
 }
 
 MSHVMDEF inline msh_vec3_t 
+msh_vec2_scalar_to_vec3( msh_vec2_t v, msh_scalar_t s )
+{
+  return (msh_vec3_t){{ v.x, v.y, s }};
+}
+
+MSHVMDEF inline msh_vec4_t 
+msh_vec2_scalar_to_vec4( msh_vec2_t v, msh_scalar_t s0, msh_scalar_t s1 )
+{
+  return (msh_vec4_t){{ v.x, v.y, s0, s1 }};
+}
+
+MSHVMDEF inline msh_vec3_t 
 msh_vec4_to_vec3( msh_vec4_t v )
 {
   return (msh_vec3_t){{ v.x, v.y, v.z }};
@@ -525,6 +541,12 @@ MSHVMDEF inline msh_vec4_t
 msh_vec3_to_vec4( msh_vec3_t v )
 {
   return (msh_vec4_t){{ v.x, v.y, v.z, 0.0f }};
+}
+
+MSHVMDEF inline msh_vec4_t 
+msh_vec3_scalar_to_vec4( msh_vec3_t v, msh_scalar_t s )
+{
+  return (msh_vec4_t){{ v.x, v.y, v.z, s }};
 }
 
 MSHVMDEF inline msh_vec2_t 
@@ -679,19 +701,24 @@ msh_vec4_scalar_div( msh_vec4_t v, msh_scalar_t s )
 MSHVMDEF inline msh_vec2_t 
 msh_vec2_abs( msh_vec2_t v )
 {
-  return (msh_vec2_t){{ fabs(v.x), fabs(v.y) }};
+  return (msh_vec2_t){{ (msh_scalar_t)fabs(v.x), (msh_scalar_t)fabs(v.y) }};
 }
 
 MSHVMDEF inline msh_vec3_t 
 msh_vec3_abs( msh_vec3_t v )
 {
-  return (msh_vec3_t){{ fabs(v.x), fabs(v.y), fabs(v.z) }};
+  return (msh_vec3_t){{ (msh_scalar_t)fabs(v.x), 
+                        (msh_scalar_t)fabs(v.y), 
+                        (msh_scalar_t)fabs(v.z) }};
 }
 
 MSHVMDEF inline msh_vec4_t 
 msh_vec4_abs( msh_vec4_t v )
 {
-  return (msh_vec4_t){{ fabs(v.x), fabs(v.y), fabs(v.z), fabs(v.w) }};
+  return (msh_vec4_t){{ (msh_scalar_t)fabs(v.x),
+                        (msh_scalar_t)fabs(v.y),
+                        (msh_scalar_t)fabs(v.z),
+                        (msh_scalar_t)fabs(v.w) }};
 }
 
 MSHVMDEF inline msh_vec2_t 

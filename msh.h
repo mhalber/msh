@@ -79,11 +79,11 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Useful constants and macros
 ////////////////////////////////////////////////////////////////////////////////
-#ifndef msh_PI
-#define msh_PI          3.1415926535897932384626433832
-#define msh_TWO_PI      6.2831853072
-#define msh_INV_PI      0.3183098862
-#define msh_PI_OVER_TWO 1.5707963268
+#ifndef MSH_PI
+#define MSH_PI          3.1415926535897932384626433832
+#define MSH_TWO_PI      6.2831853072
+#define MSH_INV_PI      0.3183098862
+#define MSH_PI_OVER_TWO 1.5707963268
 #endif
 
 
@@ -201,7 +201,7 @@
 
 // NOTE(bill): Things that shouldn't happen with a message!
 #ifndef MSH_PANIC
-#define MSH_PANIC(msg, ...) GB_ASSERT_MSG(0, msg, ##__VA_ARGS__)
+#define MSH_PANIC(msg, ...) MSH_ASSERT_MSG(0, msg, ##__VA_ARGS__)
 #endif
 
 
@@ -220,6 +220,7 @@ void msh__assert_handler( char const *condition, char const *file,
 // Array
 ////////////////////////////////////////////////////////////////////////////////
 
+// TODO(maciej): Are we messing up alignement?
 // TODO(maciej): Better docs
 // msh_array_init(a, n)     // <- Initialize array of size n with unitialized values
 // msh_array_grow(a, n)     // <- Grow array to size n
@@ -227,14 +228,15 @@ void msh__assert_handler( char const *condition, char const *file,
 // msh_array_pop(a)         // <- Pop value from array
 // msh_array_last(a)        // <- Access the last element
 // msh_array_count(a)       // <- Size of an array
+// msh_array_size(a)       // <- Size of an array
 // msh_array_capacity(a)    // <- Capacity of an array
 // msh_array_clear(a)       // <- Clear elements but leave array allocated
 // msh_array_free(a)        // <- Free memory
 
 typedef struct msh_array_header
 {
-  int64_t count;
-  int64_t capacity;
+  int32_t count;
+  int32_t capacity;
 } msh_array_header_t;
 
 #define msh_array(T) T *

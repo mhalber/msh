@@ -467,7 +467,7 @@ msh__parse_argument( msh_arg_t * arg,
                      char** argv, 
                      size_t * argv_index )
 {
-  /* NOTE: CAN I AVOID THIS SWITCH SOMEHOW...? */
+  /* NOTE(maciej): can i avoid this switch somehow...? */
   switch ( arg->type )
   {
     case BOOL:
@@ -668,7 +668,7 @@ msh_parse_arguments( int argc,
                                                argv[argv_index], 
                                                -1,
                                                argparse );
-    if ( !cur_arg ) 
+    if(!cur_arg) 
     { 
       fprintf( stderr, "Argparse Error: Unknown argument %s encountered!\n", 
                        argv[argv_index] );
@@ -679,12 +679,28 @@ msh_parse_arguments( int argc,
   return 1;
 }
 
+//NOTE(maciej): This assumes argparse->program description is valid null-terminated
+// string
 MSHAPDEF int 
 msh_display_help( msh_argparse_t *argparse )
 {
   printf("\n|%s\n", argparse->program_name );
-  printf("|\t%s\n|\n", argparse->program_description );
-  
+  char* description = (char*)argparse->program_description;
+  char* line_start = description;
+  char* line_end = description;
+  char buf[1024];
+  while(1)
+  {
+    while(*line_end != (char)'\n') { if(*line_end == 0) break; line_end++; }
+    strncpy(buf, description+(line_start-description), line_end-line_start );
+    buf[line_end-line_start] = 0;
+    printf("|  %s\n", buf);
+    if(*line_end == 0) break;
+    line_end++;
+    line_start = line_end;
+  }
+  printf("|\n");
+
   /* sort arguments */
   qsort( argparse->args, 
          argparse->n_args, 
