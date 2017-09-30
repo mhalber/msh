@@ -238,9 +238,9 @@ mship_img_##id##b##_init(int width, int height, int n_comp, int initialize)\
 
 #define MSH_IMAGE_FREE_DEF(id, b)\
 MSHIPDEF void \
-mship_img_##id##b##_free(msh_img##id##b##_t* img)\
+mship_img_##id##b##_free(msh_img_##id##b##_t* img)\
 {\
-  free(img.data);\
+  free(img->data);\
 }\
 
 #define MSH_IMAGE_PIXEL_PTR_DEF(id,b,s) \
@@ -356,11 +356,11 @@ MSH_IMAGE_INIT_DEF(ui, 32)
 MSH_IMAGE_INIT_DEF(f, 32)
 MSH_IMAGE_INIT_DEF(f, 64)
 
-// MSH_IMAGE_FREE_DEF(ui, 8)
-// MSH_IMAGE_FREE_DEF(ui, 16)
-// MSH_IMAGE_FREE_DEF(ui, 32)
-// MSH_IMAGE_FREE_DEF(f, 32)
-// MSH_IMAGE_FREE_DEF(f, 64)
+MSH_IMAGE_FREE_DEF(ui, 8)
+MSH_IMAGE_FREE_DEF(ui, 16)
+MSH_IMAGE_FREE_DEF(ui, 32)
+MSH_IMAGE_FREE_DEF(f, 32)
+MSH_IMAGE_FREE_DEF(f, 64)
 
 // MSH_IMAGE_PIXEL_PTR_DEF(ui, 8)
 // MSH_IMAGE_PIXEL_PTR_DEF(ui, 16)
