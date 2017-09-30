@@ -57,9 +57,8 @@ int main( int argc, char** argv )
   for( float i = 0.0f ; i <= 360.0f; i += 10.0f )
   {
     float theta = (float)msh_deg2rad(i);
-    float x = cx + r * sinf(theta);// + r*cosf(theta);
-    float y = cy + r * cosf(theta);// + r*cosf(theta);
-    // printf("%f, %f:\n", x, y);
+    float x = cx + r * sinf(theta);
+    float y = cy + r * cosf(theta);
     if(i==0) msh_cutouts_path_begin(&path, x, y);
     else     msh_cutouts_line_to(&path, x, y);
     if(c==1 || c==2) r = 128;
