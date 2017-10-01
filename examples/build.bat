@@ -18,6 +18,6 @@ REM |popd
 
 REM |# Image example
 pushd examples
-cl /c /I..\ /I..\extern /nologo /D WIN32 /D _WINDOWS /D NDEBUG /D _CRT_SECURE_NO_WARNINGS /MD /W3 /fp:fast /Fo"out\\" msh_image_example.c
+cl /c /I..\ /I..\extern /O2 /nologo /D WIN32 /D _WINDOWS /D NDEBUG /D _CRT_SECURE_NO_WARNINGS /MD /W3 /fp:fast /Fo"out\\" msh_image_example.c
 link /OUT:"..\bin\msh_image_example.exe" /NOLOGO /INCREMENTAL:NO  /SUBSYSTEM:CONSOLE /ENTRY:"mainCRTStartup" out\msh_image_example.obj
 popd

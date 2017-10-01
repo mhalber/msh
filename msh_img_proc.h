@@ -82,7 +82,7 @@ extern "C" {
 #include <stdlib.h>
 #include <string.h>
 // #include <float.h>
-// #include <math.h>
+#include <math.h>
 // #include <stdbool.h>
 // #endif
 
@@ -133,14 +133,14 @@ msh_img_##id##b##_t mship_img_##id##b##_free(msh_img_##id##b##_t *img);
 
 #define MSH_IMAGE_SAMPLE_NN_DECL(id, b)\
 inline mship_##id##b \
-mship_sample_nn_##id##b##(msh_img_##id##b##_t *img, float x, float y, int c);
+mship_sample_nn_##id##b##(msh_img_##id##b##_t *img, float x, float y);
 
 #define MSH_IMAGE_SAMPLE_NN_PIX_DECL(id, b, s)\
 inline msh_pixel##s##_##id##b##_t \
 mship_sample##s##_nn_##id##b##(msh_img_##id##b##_t *img, float x, float y);
 
 #define MSH_IMAGE_SAMPLE_BILINEAR_DECL(id, b)\
-inline mship_##id##b mship_sample_bl_##id##b##(msh_img_##id##b##_t *img, float x, float y, int c);
+inline mship_##id##b mship_sample_bl_##id##b##(msh_img_##id##b##_t *img, float x, float y);
 
 #define MSH_IMAGE_PIXEL_PTR_DECL(id,b) \
 inline mship_##id##b* mship_pixel_ptr_##id##b##(msh_img_##id##b##_t *img, int x, int y);
@@ -221,134 +221,175 @@ msh_imgui8 msh_load_png();
 
 #ifdef MSH_IMG_PROC_IMPLEMENTATION
 
+
+#define MSH_IMAGE__PIXEL2_SCALAR_MUL(id, b)\
+static inline \
+msh_pixel2_##id##b##_t mship__pixel2_##id##b##_mul_scalar(msh_pixel2_##id##b##_t pix, float s)\
+{\
+  return (msh_pixel2_##id##b##_t){ (mship_##id##b)(pix.data[0]*s), (mship_##id##b)(pix.data[1]*s)};\
+}
+
+#define MSH_IMAGE__PIXEL3_SCALAR_MUL(id, b)\
+static inline \
+msh_pixel3_##id##b##_t mship__pixel3_##id##b##_mul_scalar(msh_pixel3_##id##b##_t pix, float s)\
+{\
+  return (msh_pixel3_##id##b##_t){(mship_##id##b)(pix.data[0]*s), \
+                                  (mship_##id##b)(pix.data[1]*s), \
+                                  (mship_##id##b)(pix.data[2]*s)}; \
+}
+
+#define MSH_IMAGE__PIXEL4_SCALAR_MUL(id, b)\
+static inline \
+msh_pixel4_##id##b##_t mship__pixel4_##id##b##_mul_scalar(msh_pixel4_##id##b##_t pix, float s)\
+{\
+  return (msh_pixel4_##id##b##_t){(mship_##id##b)(pix.data[0]*s), \
+                                  (mship_##id##b)(pix.data[1]*s), \
+                                  (mship_##id##b)(pix.data[2]*s), \
+                                  (mship_##id##b)(pix.data[3]*s)};\
+}
+
+#define MSH_IMAGE__PIXEL2_ADD(id, b)\
+static inline \
+msh_pixel2_##id##b##_t mship__pixel2_##id##b##_add(msh_pixel2_##id##b##_t pix_a, msh_pixel2_##id##b##_t pix_b)\
+{\
+  return (msh_pixel2_##id##b##_t){pix_a.data[0]+pix_b.data[0], pix_a.data[1]+pix_b.data[1]};\
+}
+
+#define MSH_IMAGE__PIXEL3_ADD(id, b)\
+static inline \
+msh_pixel3_##id##b##_t mship__pixel3_##id##b##_add(msh_pixel3_##id##b##_t pix_a, msh_pixel3_##id##b##_t pix_b)\
+{\
+  return (msh_pixel3_##id##b##_t){\
+    pix_a.data[0]+pix_b.data[0], pix_a.data[1]+pix_b.data[1], pix_a.data[2]+pix_b.data[2]};\
+}
+
+#define MSH_IMAGE__PIXEL4_ADD(id, b)\
+static inline \
+msh_pixel4_##id##b##_t mship__pixel4_##id##b##_add(msh_pixel4_##id##b##_t pix_a, msh_pixel4_##id##b##_t pix_b)\
+{\
+  return (msh_pixel4_##id##b##_t){\
+    pix_a.data[0]+pix_b.data[0], pix_a.data[1]+pix_b.data[1],\
+    pix_a.data[2]+pix_b.data[2], pix_a.data[3]+pix_b.data[3]};\
+}
+
+
 #define MSH_IMAGE_INIT_DEF(id, b)\
 MSHIPDEF msh_img_##id##b##_t \
 mship_img_##id##b##_init(int width, int height, int n_comp, int initialize)\
 {\
   msh_img_##id##b##_t img;\
   int n_elems = width*height*n_comp;\
-  int byte_size = n_elems*sizeof(mship_ui8);\
+  int byte_size = n_elems*sizeof(mship_##id##b);\
   img.width  = width;\
   img.height = height;\
   img.n_comp = n_comp;\
   img.data   = (mship_##id##b*)malloc(byte_size);\
   if(initialize) { memset((void*)img.data, 0, byte_size); }\
   return img;\
-}\
+}
 
 #define MSH_IMAGE_FREE_DEF(id, b)\
 MSHIPDEF void \
 mship_img_##id##b##_free(msh_img_##id##b##_t* img)\
 {\
   free(img->data);\
-}\
+}
 
-#define MSH_IMAGE_PIXEL_PTR_DEF(id,b,s) \
+#define MSH_IMAGE_PIXEL_PTR_DEF(id,b) \
 MSHIPDEF inline mship_##id##b* \
-mship_pixel_ptr_##id##b(msh_img##id##b_t *img, int x, int y)\
+mship_pixel_ptr_##id##b##(msh_img_##id##b##_t *img, int x, int y)\
 {\
-  return &(img->data[img->n_comp*(img->width*y + x)])\
-}\
+  return &(img->data[img->n_comp*(img->width*y + x)]);\
+}
 
 #define MSH_IMAGE_SAMPLE_NN_DEF(id, b)\
 MSHIPDEF inline mship_##id##b \
-mship_sample_nn_##id##b(msh_img##id##b##_t *img, int x, int y, int c)\
+mship_sample_nn_##id##b##(msh_img_##id##b##_t *img, float x, float y)\
 {\
-  return (img->data[img->n_comp*(img->width*y + x)+c])\
-}\ 
+  return (img->data[(img->width*(int)(floorf(y)) + (int)(floorf(x)))]); \
+}
 
 #define MSH_IMAGE_SAMPLE_NN_PIX_DEF(id, b, s)\
-MSHIPDEF inline msh_pixel##s##_##id##b \
-mship_sample##s##_nn_##id##b(msh_img##id##b##_t *img, int x, int y)\
+MSHIPDEF inline msh_pixel##s##_##id##b##_t \
+mship_sample##s##_nn_##id##b##(msh_img_##id##b##_t *img, float x, float y)\
 {\
-  msh_pixel##s##_##id##b pix;\
-  memcpy(img->data[img->n_comp*(img->width*y + x)], &pix.data[0], (s##*##b)/sizeof(char));\
+  msh_pixel##s##_##id##b##_t pix;\
+  memcpy((&(pix.data[0])),(&(img->data[img->n_comp*(img->width*(int)(floorf(y)) + (int)(floorf(x)))])), (s##*##b)/8);\
   return pix;\
-}\ 
+}
 
 // NOTE(maciej): There might be more efficient version of this that writes to a pixel
 #define MSH_IMAGE_SAMPLE_BILINEAR_DEF(id, b)\
 MSHIPDEF inline mship_##id##b \
-mship_sample_bl_##id##b(msh_img##id##b##_t *img, float x, float y, int c)\
+mship_sample_bl_##id##b##(msh_img_##id##b##_t *img, float x, float y)\
 {\
-  int lx = floorf(x); int rx = min(lx+1.0, img->width-1); \
-  int ly = floorf(y); int ry = min(ly+1.0, img->height-1); \
-  float val1 = mship_sample_nn_##id##b(img_ptr, lx, ly, c) * (1.0f+lx-x)*(1.0f+ly-y);\
-  float val2 = mship_sample_nn_##id##b(img_ptr, lx, ry, c) * (1.0f+lx-x)*(y-ly);\
-  float val3 = mship_sample_nn_##id##b(img_ptr, rx, ly, c) * (x-lx)*(1.0f+ly-y);\
-  float val4 = mship_sample_nn_##id##b(img_ptr, rx, ry, c) * (x-lx)*(y-ly);\
-  return (val1+val2+val3+val3)\
+  float lx = floorf(x); float rx = min(lx+1, img->width-1); \
+  float ly = floorf(y); float ry = min(ly+1, img->height-1); \
+  double val1 = (double)mship_sample_nn_##id##b##(img, lx, ly) * (1.0+lx-x)*(1.0+ly-y);\
+  double val2 = (double)mship_sample_nn_##id##b##(img, lx, ry) * (1.0+lx-x)*(y-ly);\
+  double val3 = (double)mship_sample_nn_##id##b##(img, rx, ly) * (x-lx)*(1.0+ly-y);\
+  double val4 = (double)mship_sample_nn_##id##b##(img, rx, ry) * (x-lx)*(y-ly);\
+  return (mship_##id##b)(val1+val2+val3+val3);\
 }
-
-#define MSH_IMAGE__PIXEL2_SCALAR_MUL(id, b)\
-static inline \
-msh_pixel2_##id##b mship__pixel2_##id##b##_mul_scalar(msh_pixel2_##id##b pix, float s)\
-{\
-  return (msh_pixel2_##id##b){ pix.data[0]*s, pix.data[1]*s};\
-}
-
-#define MSH_IMAGE__PIXEL3_SCALAR_MUL(id, b)\
-static inline \
-msh_pixel3_##id##b mship__pixel3_##id##b##_mul_scalar(msh_pixel3_##id##b pix, float s)\
-{\
-  return (msh_pixel3_##id##b){pix.data[0]*s, pix.data[1]*s, pix.data[2]*s};\
-}
-
-#define MSH_IMAGE__PIXEL4_SCALAR_MUL(id, b)\
-static inline \
-msh_pixel4_##id##b mship__pixel4_##id##b##_mul_scalar(msh_pixel4_##id##b pix, float s)\
-{\
-  return (msh_pixel4_##id##b){pix.data[0]*s, pix.data[1]*s, pix.data[2]*s, pix.data[3]*s};\
-}
-
-#define MSH_IMAGE__PIXEL2_ADD(id, b)\
-static inline \
-msh_pixel2_##id##b mship__pixel2_##id##b##_add(msh_pixel2_##id##b pix_a, msh_pixel2_##id##b pix_b)\
-{\
-  return (msh_pixel2_##id##b){pix_a.data[0]+pix_b.data[0], pix_a.data[1]+pix_b.data[1]};\
-}
-
-#define MSH_IMAGE__PIXEL3_ADD(id, b)\
-static inline \
-msh_pixel3_##id##b mship__pixel3_##id##b##_mul_scalar(msh_pixel3_##id##b pix, float s)\
-{\
-  return (msh_pixel3_##id##b){\
-    pix_a.data[0]+pix_b.data[0], pix_a.data[1]+pix_b.data[1], pix_a.data[2]+pix_b.data[2]};\
-}
-
-#define MSH_IMAGE__PIXEL4_ADD(id, b)\
-static inline \
-msh_pixel4_##id##b mship__pixel4_##id##b##_mul_scalar(msh_pixel4_##id##b pix, float s)\
-{\
-  return (msh_pixel4_##id##b){\
-    pix_a.data[0]+pix_b.data[0], pix_a.data[1]+pix_b.data[1],\
-    pix_a.data[2]+pix_b.data[2], pix_a.data[3]+pix_b.data[3]};\
-}
-
 
 // NOTE(maciej): Decide whether we want to have pixel with one elem
 #define MSH_IMAGE_SAMPLE_BILINEAR_PIX_DEF(id, b, s)\
-MSHIPDEF inline mship_##id##b \
-mship_sample##s##_bl_##id##b(msh_img##id##b##_t *img, float x, float y)\
+MSHIPDEF inline msh_pixel##s##_##id##b##_t \
+mship_sample##s##_bl_##id##b##(msh_img_##id##b##_t *img, float x, float y)\
 {\
-  int lx = floorf(x); int rx = min(lx+1.0, img->width-1); \
-  int ly = floorf(y); int ry = min(ly+1.0, img->height-1); \
+  float lx = floorf(x); float rx = min(lx+1, img->width-1); \
+  float ly = floorf(y); float ry = min(ly+1, img->height-1); \
   float w1 = (1.0f+lx-x)*(1.0f+ly-y);\
   float w2 = (1.0f+lx-x)*(y-ly);\
   float w3 = (x-lx)*(1.0f+ly-y);\
   float w4 = (x-lx)*(y-ly);\
-  msh_pixel##s##_##id##b pix1 = mship_sample##s##_nn_##id##b(img_ptr, lx, ry);\
-  msh_pixel##s##_##id##b pix2 = mship_sample##s##_nn_##id##b(img_ptr, lx, ry);\
-  msh_pixel##s##_##id##b pix3 = mship_sample##s##_nn_##id##b(img_ptr, rx, ly);\
-  msh_pixel##s##_##id##b pix4 = mship_sample##s##_nn_##id##b(img_ptr, rx, ry);\
+  msh_pixel##s##_##id##b##_t pix1 = mship_sample##s##_nn_##id##b##(img, lx, ly);\
+  msh_pixel##s##_##id##b##_t pix2 = mship_sample##s##_nn_##id##b##(img, lx, ry);\
+  msh_pixel##s##_##id##b##_t pix3 = mship_sample##s##_nn_##id##b##(img, rx, ly);\
+  msh_pixel##s##_##id##b##_t pix4 = mship_sample##s##_nn_##id##b##(img, rx, ry);\
   pix1 = mship__pixel##s##_##id##b##_mul_scalar(pix1, w1);\
-  pix2 = mship__pixel##s##_##id##b##_mul_scalar(pix1, w1);\
-  pix2 = mship__pixel##s##_##id##b##_mul_scalar(pix1, w1);\
-  pix2 = mship__pixel##s##_##id##b##_mul_scalar(pix1, w1);\
-  msh_pixel##s##_##id##b pixa = mship__pixel##s##_##id##b##_add(pix1, pix2);\
-  msh_pixel##s##_##id##b pixb = mship__pixel##s##_##id##b##_add(pix3, pix4);\
-  return (mship__pixel##s##_##id##b##_add(pix_a, pix_b);\
+  pix2 = mship__pixel##s##_##id##b##_mul_scalar(pix2, w2);\
+  pix3 = mship__pixel##s##_##id##b##_mul_scalar(pix3, w3);\
+  pix4 = mship__pixel##s##_##id##b##_mul_scalar(pix4, w4);\
+  msh_pixel##s##_##id##b##_t pixa = mship__pixel##s##_##id##b##_add(pix1, pix2);\
+  msh_pixel##s##_##id##b##_t pixb = mship__pixel##s##_##id##b##_add(pix3, pix4);\
+  return (mship__pixel##s##_##id##b##_add(pixa, pixb));\
 }
+MSH_IMAGE__PIXEL2_SCALAR_MUL(ui, 8)
+MSH_IMAGE__PIXEL2_SCALAR_MUL(ui, 16)
+MSH_IMAGE__PIXEL2_SCALAR_MUL(ui, 32)
+MSH_IMAGE__PIXEL2_SCALAR_MUL(f, 32)
+MSH_IMAGE__PIXEL2_SCALAR_MUL(f, 64)
+
+MSH_IMAGE__PIXEL3_SCALAR_MUL(ui, 8)
+MSH_IMAGE__PIXEL3_SCALAR_MUL(ui, 16)
+MSH_IMAGE__PIXEL3_SCALAR_MUL(ui, 32)
+MSH_IMAGE__PIXEL3_SCALAR_MUL(f, 32)
+MSH_IMAGE__PIXEL3_SCALAR_MUL(f, 64)
+
+MSH_IMAGE__PIXEL4_SCALAR_MUL(ui, 8)
+MSH_IMAGE__PIXEL4_SCALAR_MUL(ui, 16)
+MSH_IMAGE__PIXEL4_SCALAR_MUL(ui, 32)
+MSH_IMAGE__PIXEL4_SCALAR_MUL(f, 32)
+MSH_IMAGE__PIXEL4_SCALAR_MUL(f, 64)
+
+MSH_IMAGE__PIXEL2_ADD(ui, 8)
+MSH_IMAGE__PIXEL2_ADD(ui, 16)
+MSH_IMAGE__PIXEL2_ADD(ui, 32)
+MSH_IMAGE__PIXEL2_ADD(f, 32)
+MSH_IMAGE__PIXEL2_ADD(f, 64)
+
+MSH_IMAGE__PIXEL3_ADD(ui, 8)
+MSH_IMAGE__PIXEL3_ADD(ui, 16)
+MSH_IMAGE__PIXEL3_ADD(ui, 32)
+MSH_IMAGE__PIXEL3_ADD(f, 32)
+MSH_IMAGE__PIXEL3_ADD(f, 64)
+
+MSH_IMAGE__PIXEL4_ADD(ui, 8)
+MSH_IMAGE__PIXEL4_ADD(ui, 16)
+MSH_IMAGE__PIXEL4_ADD(ui, 32)
+MSH_IMAGE__PIXEL4_ADD(f, 32)
+MSH_IMAGE__PIXEL4_ADD(f, 64)
 
 MSH_IMAGE_INIT_DEF(ui, 8)
 MSH_IMAGE_INIT_DEF(ui, 16)
@@ -362,26 +403,86 @@ MSH_IMAGE_FREE_DEF(ui, 32)
 MSH_IMAGE_FREE_DEF(f, 32)
 MSH_IMAGE_FREE_DEF(f, 64)
 
-// MSH_IMAGE_PIXEL_PTR_DEF(ui, 8)
-// MSH_IMAGE_PIXEL_PTR_DEF(ui, 16)
-// MSH_IMAGE_PIXEL_PTR_DEF(ui, 32)
-// MSH_IMAGE_PIXEL_PTR_DEF(f, 32)
-// MSH_IMAGE_PIXEL_PTR_DEF(f, 64)
+MSH_IMAGE_PIXEL_PTR_DEF(ui, 8)
+MSH_IMAGE_PIXEL_PTR_DEF(ui, 16)
+MSH_IMAGE_PIXEL_PTR_DEF(ui, 32)
+MSH_IMAGE_PIXEL_PTR_DEF(f, 32)
+MSH_IMAGE_PIXEL_PTR_DEF(f, 64)
 
-// MSH_IMAGE_SAMPLE_NN_DEF(ui, 8)
-// MSH_IMAGE_SAMPLE_NN_PIX_DEF(ui, 8, 2)
-// MSH_IMAGE_SAMPLE_NN_PIX_DEF(ui, 8, 3)
-// MSH_IMAGE_SAMPLE_NN_PIX_DEF(ui, 8, 4)
-// MSH_IMAGE_SAMPLE_NN_DEF(ui, 16)
-// MSH_IMAGE_SAMPLE_NN_PIX_DEF(ui, 16, 2)
-// MSH_IMAGE_SAMPLE_NN_PIX_DEF(ui, 16, 3)
-// MSH_IMAGE_SAMPLE_NN_PIX_DEF(ui, 16, 4)
-// MSH_IMAGE_SAMPLE_NN_DEF(ui, 32)
-// MSH_IMAGE_SAMPLE_NN_PIX_DEF(ui, 32, 2)
-// MSH_IMAGE_SAMPLE_NN_PIX_DEF(ui, 32, 3)
-// MSH_IMAGE_SAMPLE_NN_PIX_DEF(ui, 32, 4)
+MSH_IMAGE_SAMPLE_NN_DEF(ui, 8)
+MSH_IMAGE_SAMPLE_NN_DEF(ui, 16)
+MSH_IMAGE_SAMPLE_NN_DEF(ui, 32)
+MSH_IMAGE_SAMPLE_NN_DEF(f, 32)
+MSH_IMAGE_SAMPLE_NN_DEF(f, 64)
 
+MSH_IMAGE_SAMPLE_NN_PIX_DEF(ui, 8, 2)
+MSH_IMAGE_SAMPLE_NN_PIX_DEF(ui, 16, 2)
+MSH_IMAGE_SAMPLE_NN_PIX_DEF(ui, 32, 2)
+MSH_IMAGE_SAMPLE_NN_PIX_DEF(f, 32, 2)
+MSH_IMAGE_SAMPLE_NN_PIX_DEF(f, 64, 2)
 
+MSH_IMAGE_SAMPLE_NN_PIX_DEF(ui, 8, 3)
+MSH_IMAGE_SAMPLE_NN_PIX_DEF(ui, 16, 3)
+MSH_IMAGE_SAMPLE_NN_PIX_DEF(ui, 32, 3)
+MSH_IMAGE_SAMPLE_NN_PIX_DEF(f, 32, 3)
+MSH_IMAGE_SAMPLE_NN_PIX_DEF(f, 64, 3)
+
+MSH_IMAGE_SAMPLE_NN_PIX_DEF(ui, 8, 4)
+MSH_IMAGE_SAMPLE_NN_PIX_DEF(ui, 16, 4)
+MSH_IMAGE_SAMPLE_NN_PIX_DEF(ui, 32, 4)
+MSH_IMAGE_SAMPLE_NN_PIX_DEF(f, 32, 4)
+MSH_IMAGE_SAMPLE_NN_PIX_DEF(f, 64, 4)
+
+MSH_IMAGE_SAMPLE_BILINEAR_DEF(ui, 8)
+MSH_IMAGE_SAMPLE_BILINEAR_DEF(ui, 16)
+MSH_IMAGE_SAMPLE_BILINEAR_DEF(ui, 32)
+MSH_IMAGE_SAMPLE_BILINEAR_DEF(f, 32)
+MSH_IMAGE_SAMPLE_BILINEAR_DEF(f, 64)
+
+MSH_IMAGE_SAMPLE_BILINEAR_PIX_DEF(ui, 8, 2)
+MSH_IMAGE_SAMPLE_BILINEAR_PIX_DEF(ui, 16, 2)
+MSH_IMAGE_SAMPLE_BILINEAR_PIX_DEF(ui, 32, 2)
+MSH_IMAGE_SAMPLE_BILINEAR_PIX_DEF(f,  32, 2)
+MSH_IMAGE_SAMPLE_BILINEAR_PIX_DEF(f,  64, 2)
+
+MSH_IMAGE_SAMPLE_BILINEAR_PIX_DEF(ui, 8, 3)
+MSH_IMAGE_SAMPLE_BILINEAR_PIX_DEF(ui, 16, 3)
+MSH_IMAGE_SAMPLE_BILINEAR_PIX_DEF(ui, 32, 3)
+MSH_IMAGE_SAMPLE_BILINEAR_PIX_DEF(f,  32, 3)
+MSH_IMAGE_SAMPLE_BILINEAR_PIX_DEF(f,  64, 3)
+
+MSH_IMAGE_SAMPLE_BILINEAR_PIX_DEF(ui, 8, 4)
+MSH_IMAGE_SAMPLE_BILINEAR_PIX_DEF(ui, 16, 4)
+MSH_IMAGE_SAMPLE_BILINEAR_PIX_DEF(ui, 32, 4)
+MSH_IMAGE_SAMPLE_BILINEAR_PIX_DEF(f,  32, 4)
+MSH_IMAGE_SAMPLE_BILINEAR_PIX_DEF(f,  64, 4)
+
+void mship_median_filter(msh_img_ui8_t* img, int filter_size )
+{
+  int w = img->width;
+  int h = img->height;
+  int filter_size = (filter_size%2==0) ? filter_size+1 : filter_size;
+  int r = (filter_size+1)/2;
+  int storage_size = filter_size*filter_size*img->n_comp*sizeof(mship_ui8)/8;
+  mship_ui8 filter_data = malloc(storage_size);
+  for(int y=0; y<h; ++y)
+  {
+    for(int x=0; x<w; ++x)
+    {
+      int counter = 0;
+      for(int oy = -r; oy<=r; ++oy)
+      {
+        for(int ox = -r; ox<=r; ++ox)
+        {
+          int cx = max(0, min(x+ox, w-1));
+          int cy = max(0, min(y+oy, h-1));
+          msh_ui8* pix_ptr = mship_pixel_ptr_ui8(img, cx, cy);
+
+        }
+      }
+    }
+  }
+}
 #ifdef MSH_IMG_PROC_IO
 #endif
 
