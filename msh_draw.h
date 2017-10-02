@@ -319,12 +319,6 @@ int msh_cutouts__path_to_shape(msh_cutouts_path_t* path, int* tris)
     else                                  { verts[i].type = MSHC_CONVEX; }
   }
   
-  // printf("Reflex verices: ");
-  // for(int i = 0; i < path->idx; ++i)
-  // {
-  //   if(verts[i].type == MSHC_REFLEX) printf("%d ", i);
-  // }
-  // printf("\n");
 
   // triangulate
   int i = 0;
