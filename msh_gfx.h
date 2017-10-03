@@ -91,9 +91,7 @@
 
 #ifdef __APPLE__
   #include <OpenGL/gl3.h>
-#endif
-
-#ifdef __linux__
+#else if
   #include "glad/glad.h"
 #endif
 
@@ -712,8 +710,8 @@ int32_t msh_viewport_init(msh_viewport_t *v, msh_vec2_t p1, msh_vec2_t p2)
 
 void msh_viewport_begin( const msh_viewport_t *v)
 {
-  glScissor( v->p1.x, v->p1.y, v->p2.x, v->p2.y );
-  glViewport( v->p1.x, v->p1.y, v->p2.x, v->p2.y );
+  glScissor((GLint)v->p1.x, (GLint)v->p1.y, (GLsizei)v->p2.x, (GLsizei)v->p2.y);
+  glViewport((GLint)v->p1.x, (GLint)v->p1.y, (GLsizei)v->p2.x, (GLsizei)v->p2.y );
 }
 
 void msh_viewport_end()
@@ -1390,11 +1388,11 @@ mshgfx_shader_prog_set_uniform_4fmc( const mshgfx_shader_prog_t *p,
    calulates offset of requested flag into buffer stored in geo,
    depending on what has been requested 
 */
-unsigned long 
+uint64_t
 msh__gpu_geo_get_offset( const mshgfx_geometry_t * geo, 
                         const int32_t flag )
 {
-  unsigned long offset = 0;
+  uint64_t offset = 0;
   if ( geo->flags & POSITION )
   {
     if ( flag & POSITION ) return offset * geo->n_indices;  
@@ -1457,8 +1455,8 @@ mshgfx_geometry_update( const mshgfx_geometry_t * geo,
  
   if ( flags & POSITION )
   {
-    unsigned long offset = msh__gpu_geo_get_offset( geo, flags & POSITION );
-    unsigned long current_size = 3 * sizeof(float) * geo->n_indices;
+    uint64_t offset = msh__gpu_geo_get_offset( geo, flags & POSITION );
+    uint64_t current_size = 3 * sizeof(float) * geo->n_indices;
     glBufferSubData( GL_ARRAY_BUFFER, offset, 
                                       current_size, 
                                       &(host_data->positions[0]) );
@@ -1469,8 +1467,8 @@ mshgfx_geometry_update( const mshgfx_geometry_t * geo,
 
   if ( flags & NORMAL )
   {
-    unsigned long offset = msh__gpu_geo_get_offset( geo, flags & NORMAL);
-    unsigned long current_size = 3 * sizeof(float) * geo->n_indices;
+    uint64_t offset = msh__gpu_geo_get_offset( geo, flags & NORMAL);
+    uint64_t current_size = 3 * sizeof(float) * geo->n_indices;
     glBufferSubData( GL_ARRAY_BUFFER, offset, 
                                       current_size, 
                                       &(host_data->normals[0]) );
@@ -1481,8 +1479,8 @@ mshgfx_geometry_update( const mshgfx_geometry_t * geo,
 
   if ( flags & TANGENT )
   {
-    unsigned long offset = msh__gpu_geo_get_offset( geo, flags & TANGENT);
-    unsigned long current_size = 3 * sizeof(float) * geo->n_indices;
+    uint64_t offset = msh__gpu_geo_get_offset( geo, flags & TANGENT);
+    uint64_t current_size = 3 * sizeof(float) * geo->n_indices;
     glBufferSubData( GL_ARRAY_BUFFER, offset, 
                                       current_size, 
                                       &(host_data->tangents[0]) );
@@ -1493,8 +1491,8 @@ mshgfx_geometry_update( const mshgfx_geometry_t * geo,
 
   if ( flags & TEX_COORD )
   {
-    unsigned long offset = msh__gpu_geo_get_offset( geo, flags & TEX_COORD);
-    unsigned long current_size = 2 * sizeof(float) * geo->n_indices;
+    uint64_t offset = msh__gpu_geo_get_offset( geo, flags & TEX_COORD);
+    uint64_t current_size = 2 * sizeof(float) * geo->n_indices;
     glBufferSubData( GL_ARRAY_BUFFER, offset, 
                                       current_size, 
                                       &(host_data->texcoords[0]) );
@@ -1505,8 +1503,8 @@ mshgfx_geometry_update( const mshgfx_geometry_t * geo,
 
   if ( flags & COLOR_A )
   {
-    unsigned long offset = msh__gpu_geo_get_offset( geo, flags & COLOR_A);
-    unsigned long current_size = 4 * sizeof(uint8_t) * geo->n_indices;
+    uint64_t offset = msh__gpu_geo_get_offset( geo, flags & COLOR_A);
+    uint64_t current_size = 4 * sizeof(uint8_t) * geo->n_indices;
     glBufferSubData( GL_ARRAY_BUFFER, offset, 
                                       current_size, 
                                       &(host_data->colors_a[0]) );
@@ -1517,8 +1515,8 @@ mshgfx_geometry_update( const mshgfx_geometry_t * geo,
 
   if ( flags & COLOR_B )
   {
-    unsigned long offset = msh__gpu_geo_get_offset( geo, flags & COLOR_B);
-    unsigned long current_size = 4 * sizeof(uint8_t) * geo->n_indices;
+    uint64_t offset = msh__gpu_geo_get_offset( geo, flags & COLOR_B);
+    uint64_t current_size = 4 * sizeof(uint8_t) * geo->n_indices;
     glBufferSubData( GL_ARRAY_BUFFER, offset, 
                                       current_size, 
                                       &(host_data->colors_b[0]) );
@@ -1529,8 +1527,8 @@ mshgfx_geometry_update( const mshgfx_geometry_t * geo,
 
   if ( flags & COLOR_C )
   {
-    unsigned long offset = msh__gpu_geo_get_offset( geo, flags & COLOR_C);
-    unsigned long current_size = 4 * sizeof(uint8_t) * geo->n_indices;
+    uint64_t offset = msh__gpu_geo_get_offset( geo, flags & COLOR_C);
+    uint64_t current_size = 4 * sizeof(uint8_t) * geo->n_indices;
     glBufferSubData( GL_ARRAY_BUFFER, offset, 
                                       current_size, 
                                       &(host_data->colors_c[0]) );
@@ -1541,8 +1539,8 @@ mshgfx_geometry_update( const mshgfx_geometry_t * geo,
 
   if ( flags & COLOR_D )
   {
-    unsigned long offset = msh__gpu_geo_get_offset( geo, flags & COLOR_D);
-    unsigned long current_size = 4 * sizeof(uint8_t) * geo->n_indices;
+    uint64_t offset = msh__gpu_geo_get_offset( geo, flags & COLOR_D);
+    uint64_t current_size = 4 * sizeof(uint8_t) * geo->n_indices;
     glBufferSubData( GL_ARRAY_BUFFER, offset, 
                                       current_size, 
                                       &(host_data->colors_d)[0] );

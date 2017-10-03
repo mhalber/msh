@@ -124,8 +124,6 @@ typedef struct msh_camera
   /* Params */
   msh_scalar_t fovy;
   msh_scalar_t aspect_ratio;
-  msh_scalar_t near;
-  msh_scalar_t far;
 
   /* Generated -- Not sure if should be stored, or computed per request*/
   msh_mat4_t view;
@@ -193,8 +191,8 @@ msh__screen_to_sphere( msh_scalar_t x, msh_scalar_t y, msh_vec4_t viewport )
                            ((h - y) - h*0.5f) / r, 
                            0.0f );
   msh_scalar_t l_sq = p.x * p.x + p.y * p.y;
-  msh_scalar_t l = sqrt( l_sq );
-  p.z = (l_sq > 0.5) ? (0.5 / l) : (sqrt( 1.0 - l_sq));
+  msh_scalar_t l = (msh_scalar_t)sqrt( l_sq );
+  p.z = (msh_scalar_t)((l_sq > 0.5) ? (0.5 / l) : (sqrt( 1.0 - l_sq)));
   p = msh_vec3_normalize(p);
   return p;
 }
@@ -228,6 +226,7 @@ msh_camera_update_perspective( msh_camera_t *camera,
                                const msh_scalar_t zfar )
 {
   camera->proj = msh_perspective( fovy, aspect_ratio, znear, zfar );
+
 }
 
 MSHCAMDEF void

@@ -248,6 +248,13 @@ msh_imgui8 msh_load_png();
 #define mship_min(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
+// NOTE(maciej): CPP mode in MSVC is wierd, boy
+#if defined(__cplusplus) && defined(_MSC_VER)
+#define MSHIP_INIT_CAST(x) x
+#else if
+#define MSHIP_INIT_CAST(x) (x)
+#endif
+
 #define MSH_IMAGE__COMPAR(id, b)\
 static int \
 mship__compar_##id##b(const void* x, const void* y)\
@@ -259,7 +266,7 @@ mship__compar_##id##b(const void* x, const void* y)\
 static inline \
 msh_pixel2_##id##b##_t mship__pixel2_##id##b##_mul_scalar(msh_pixel2_##id##b##_t pix, float s)\
 {\
-  return (msh_pixel2_##id##b##_t){\
+  return MSHIP_INIT_CAST(msh_pixel2_##id##b##_t){\
     (mship_##id##b##_t)(pix.data[0]*s), \
     (mship_##id##b##_t)(pix.data[1]*s)};\
 }
@@ -268,49 +275,51 @@ msh_pixel2_##id##b##_t mship__pixel2_##id##b##_mul_scalar(msh_pixel2_##id##b##_t
 static inline \
 msh_pixel3_##id##b##_t mship__pixel3_##id##b##_mul_scalar(msh_pixel3_##id##b##_t pix, float s)\
 {\
-  return (msh_pixel3_##id##b##_t){(mship_##id##b##_t)(pix.data[0]*s), \
-                                  (mship_##id##b##_t)(pix.data[1]*s), \
-                                  (mship_##id##b##_t)(pix.data[2]*s)}; \
+  return MSHIP_INIT_CAST(msh_pixel3_##id##b##_t){\
+                    (mship_##id##b##_t)(pix.data[0]*s), \
+                    (mship_##id##b##_t)(pix.data[1]*s), \
+                    (mship_##id##b##_t)(pix.data[2]*s)}; \
 }
 
 #define MSH_IMAGE__PIXEL4_SCALAR_MUL(id, b)\
 static inline \
 msh_pixel4_##id##b##_t mship__pixel4_##id##b##_mul_scalar(msh_pixel4_##id##b##_t pix, float s)\
 {\
-  return (msh_pixel4_##id##b##_t){(mship_##id##b##_t)(pix.data[0]*s), \
-                                  (mship_##id##b##_t)(pix.data[1]*s), \
-                                  (mship_##id##b##_t)(pix.data[2]*s), \
-                                  (mship_##id##b##_t)(pix.data[3]*s)};\
+  return MSHIP_INIT_CAST(msh_pixel4_##id##b##_t){\
+                    (mship_##id##b##_t)(pix.data[0]*s), \
+                    (mship_##id##b##_t)(pix.data[1]*s), \
+                    (mship_##id##b##_t)(pix.data[2]*s), \
+                    (mship_##id##b##_t)(pix.data[3]*s)};\
 }
 
 #define MSH_IMAGE__PIXEL2_ADD(id, b)\
 static inline \
 msh_pixel2_##id##b##_t mship__pixel2_##id##b##_add(msh_pixel2_##id##b##_t pix_a, msh_pixel2_##id##b##_t pix_b)\
 {\
-  return (msh_pixel2_##id##b##_t){\
-      (mship_##id##b##_t)(pix_a.data[0]+pix_b.data[0]),\
-      (mship_##id##b##_t)(pix_a.data[1]+pix_b.data[1])};\
+  return MSHIP_INIT_CAST(msh_pixel2_##id##b##_t){\
+                    (mship_##id##b##_t)(pix_a.data[0]+pix_b.data[0]),\
+                    (mship_##id##b##_t)(pix_a.data[1]+pix_b.data[1])};\
 }
 
 #define MSH_IMAGE__PIXEL3_ADD(id, b)\
 static inline \
 msh_pixel3_##id##b##_t mship__pixel3_##id##b##_add(msh_pixel3_##id##b##_t pix_a, msh_pixel3_##id##b##_t pix_b)\
 {\
-  return (msh_pixel3_##id##b##_t){\
-    (mship_##id##b##_t)(pix_a.data[0]+pix_b.data[0]),\
-    (mship_##id##b##_t)(pix_a.data[1]+pix_b.data[1]),\
-    (mship_##id##b##_t)(pix_a.data[2]+pix_b.data[2])};\
+  return MSHIP_INIT_CAST(msh_pixel3_##id##b##_t){\
+                    (mship_##id##b##_t)(pix_a.data[0]+pix_b.data[0]),\
+                    (mship_##id##b##_t)(pix_a.data[1]+pix_b.data[1]),\
+                    (mship_##id##b##_t)(pix_a.data[2]+pix_b.data[2])};\
 }
 
 #define MSH_IMAGE__PIXEL4_ADD(id, b)\
 static inline \
 msh_pixel4_##id##b##_t mship__pixel4_##id##b##_add(msh_pixel4_##id##b##_t pix_a, msh_pixel4_##id##b##_t pix_b)\
 {\
-  return (msh_pixel4_##id##b##_t){\
-    (mship_##id##b##_t)(pix_a.data[0]+pix_b.data[0]),\
-    (mship_##id##b##_t)(pix_a.data[1]+pix_b.data[1]),\
-    (mship_##id##b##_t)(pix_a.data[2]+pix_b.data[2]),\
-    (mship_##id##b##_t)(pix_a.data[3]+pix_b.data[3])};\
+  return MSHIP_INIT_CAST(msh_pixel4_##id##b##_t){\
+                    (mship_##id##b##_t)(pix_a.data[0]+pix_b.data[0]),\
+                    (mship_##id##b##_t)(pix_a.data[1]+pix_b.data[1]),\
+                    (mship_##id##b##_t)(pix_a.data[2]+pix_b.data[2]),\
+                    (mship_##id##b##_t)(pix_a.data[3]+pix_b.data[3])};\
 }
 
 

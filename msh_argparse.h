@@ -24,7 +24,7 @@
   allowed do the following when including library:
 
   #define MSH_ARGPARSE_IMPLEMENTATION
-  #define MSH_MAX_N_ARGS 128
+  #define MSHAP_MAX_N_ARGS 128
   #include "msh_argparse.h"
 
   -----------------------
@@ -124,34 +124,34 @@
 
 /* Main options. Should be sane defaults. */
 
-#ifndef MSH_MAX_NAME_LEN   /* Maximum string lengths for names */
-#define MSH_MAX_NAME_LEN   64
+#ifndef MSHAP_MAX_NAME_LEN   /* Maximum string lengths for names */
+#define MSHAP_MAX_NAME_LEN   64
 #endif
 
-#ifndef MSH_MAX_STR_LEN   /* Maximum string length for descriptions */
-#define MSH_MAX_STR_LEN   512
+#ifndef MSHAP_MAX_STR_LEN   /* Maximum string length for descriptions */
+#define MSHAP_MAX_STR_LEN   512
 #endif
 
-#ifndef MSH_MAX_N_ARGS   /* Maximum number of arguments one can add */
-#define MSH_MAX_N_ARGS   100
+#ifndef MSHAP_MAX_N_ARGS   /* Maximum number of arguments one can add */
+#define MSHAP_MAX_N_ARGS   100
 #endif
 
 /* If you're confident all your arguments are setup properly it is fine to 
-   define MSH_NO_DEBUG, to prevent bounds check from hapenning. */
+   define MSHAP_NO_DEBUG, to prevent bounds check from hapenning. */
 
-/* #define MSH_NO_DEBUG */
+/* #define MSHAP_NO_DEBUG */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#ifdef MSH_ARGPARSE_INCLUDE_HEADERS
+// #ifdef MSH_ARGPARSE_INCLUDE_HEADERS
 #include <string.h>
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#endif
+// #endif
 
 #ifdef MSH_ARGPARSE_STATIC
 #define MSHAPDEF static
@@ -161,19 +161,19 @@ extern "C" {
 
 typedef enum 
 {
-  BOOL,
-  CHAR,
-  UNSIGNED_CHAR,
-  SHORT,
-  UNSIGNED_SHORT,
-  INT,
-  UNSIGNED_INT,
-  LONG,
-  UNSIGNED_LONG,
-  FLOAT,
-  DOUBLE,
-  STRING,
-  N_TYPES
+  MSHAP_BOOL,
+  MSHAP_CHAR,
+  MSHAP_UNSIGNED_CHAR,
+  MSHAP_SHORT,
+  MSHAP_UNSIGNED_SHORT,
+  MSHAP_INT,
+  MSHAP_UNSIGNED_INT,
+  MSHAP_LONG,
+  MSHAP_UNSIGNED_LONG,
+  MSHAP_FLOAT,
+  MSHAP_DOUBLE,
+  MSHAP_STRING,
+  MSHAP_N_TYPES
 } msh_type_t;
 
 typedef struct msh_arg
@@ -181,7 +181,7 @@ typedef struct msh_arg
   const char *name;
   const char *shorthand;
   const char *message;
-  char position;
+  int position;
   msh_type_t type;
   size_t num_vals;
   void* values;
@@ -192,11 +192,11 @@ typedef struct msh_argparse
   const char *program_name; 
   const char *program_description;
 
-  msh_arg_t args[ MSH_MAX_N_ARGS ];
+  msh_arg_t args[ MSHAP_MAX_N_ARGS ];
   size_t n_args;
   size_t n_required;
 
-  char * typenames[ N_TYPES ];
+  char * typenames[ MSHAP_N_TYPES ];
 
 } msh_argparse_t;
 
@@ -213,7 +213,7 @@ MSHAPDEF int msh_display_help( msh_argparse_t * argparse );
 
 /* Argument addition function prototype.  */
 /* typename follows the convention of msh_typenames */
-#define MSH_ADD_ARGUMENT(typename,val_t)                                       \
+#define MSHAP_ADD_ARGUMENT(typename,val_t)                                       \
   MSHAPDEF int msh_add_##typename##_argument( const char * name,               \
                                               const char * shorthand,          \
                                               const char * message,            \
@@ -222,29 +222,29 @@ MSHAPDEF int msh_display_help( msh_argparse_t * argparse );
                                               msh_argparse_t * argparse ); 
 
 /* msh_add_bool_argument(...) */
-MSH_ADD_ARGUMENT(bool, bool)
+MSHAP_ADD_ARGUMENT(bool, bool)
 /* msh_add_char_argument(...) */
-MSH_ADD_ARGUMENT(char, char)
+MSHAP_ADD_ARGUMENT(char, char)
 /* msh_add_unsigned_char_argument(...) */
-MSH_ADD_ARGUMENT(unsigned_char, unsigned char)  
+MSHAP_ADD_ARGUMENT(unsigned_char, unsigned char)  
 /* msh_add_short_argument(...) */
-MSH_ADD_ARGUMENT(short, short)
+MSHAP_ADD_ARGUMENT(short, short)
 /* msh_add_unsigned_short_argument(...) */
-MSH_ADD_ARGUMENT(unsigned_short, unsigned short)
+MSHAP_ADD_ARGUMENT(unsigned_short, unsigned short)
 /* msh_add_int_argument(...) */
-MSH_ADD_ARGUMENT(int,int)
+MSHAP_ADD_ARGUMENT(int,int)
 /* msh_add_unsigned_int_argument(...) */
-MSH_ADD_ARGUMENT(unsigned_int, unsigned int)
+MSHAP_ADD_ARGUMENT(unsigned_int, unsigned int)
 /* msh_add_long_argument(...) */
-MSH_ADD_ARGUMENT(long,long)
+MSHAP_ADD_ARGUMENT(long,long)
 /* msh_add_unsigned_long_argument(...) */
-MSH_ADD_ARGUMENT(unsigned_long, unsigned long)
+MSHAP_ADD_ARGUMENT(unsigned_long, unsigned long)
 /* msh_add_float_argument(...) */
-MSH_ADD_ARGUMENT(float,float)
+MSHAP_ADD_ARGUMENT(float,float)
 /* msh_add_double_argument(...) */
-MSH_ADD_ARGUMENT(double,double)
+MSHAP_ADD_ARGUMENT(double,double)
 /* msh_add_sting_argument(...) */
-MSH_ADD_ARGUMENT(string,char*)
+MSHAP_ADD_ARGUMENT(string,char*)
 
 #ifdef __cplusplus
 }
@@ -254,17 +254,10 @@ MSH_ADD_ARGUMENT(string,char*)
 
 /*
  * =============================================================================
- *       VECTORS
+ *       IMPLEMENTATION
  * =============================================================================
  */
 #ifdef MSH_ARGPARSE_IMPLEMENTATION
-
-typedef struct test_struct
-{
-  int a;
-  float b;
-  double c;
-} test_t;
 
 
 static int 
@@ -277,7 +270,7 @@ msh__arg_compare ( const void * data_a, const void * data_b )
     return (arg_a->position - arg_b->position);
 
   if ( arg_a->position < 0 && arg_b->position < 0 ) 
-    return strncmp( arg_a->name, arg_b->name, MSH_MAX_NAME_LEN );
+    return strncmp( arg_a->name, arg_b->name, MSHAP_MAX_NAME_LEN );
 
   if (  arg_a->position >= 0 && arg_b->position < 0 )
     return -1;
@@ -295,8 +288,8 @@ msh__are_options_valid( const char * name,
                         const void * values, 
                         const msh_argparse_t *argparse )
 {
-#ifndef MSH_NO_DEBUG
-  if ( argparse->n_args >= MSH_MAX_N_ARGS )
+#ifndef MSHAP_NO_DEBUG
+  if ( argparse->n_args >= MSHAP_MAX_N_ARGS )
   {
     fprintf(stderr, "Argparse Error: Reached maxiumum numbers of arguments!\n"
                     "Did not add argument %s\n"
@@ -305,12 +298,12 @@ msh__are_options_valid( const char * name,
     return 0;
   }
 
-  if ( strlen(name) > MSH_MAX_NAME_LEN )
+  if ( strlen(name) > MSHAP_MAX_NAME_LEN )
   {
     fprintf(stderr, "Argparse Error: Name for argument %s is too long "
                     "(more than %d). Please shorten or modify your options "
                     "as necessary!\n", 
-                    name, MSH_MAX_NAME_LEN );
+                    name, MSHAP_MAX_NAME_LEN );
     return 0;
   }
 
@@ -339,12 +332,12 @@ msh__are_options_valid( const char * name,
     return 0;
   }
 
-  if ( message && strlen(message) > MSH_MAX_STR_LEN )
+  if ( message && strlen(message) > MSHAP_MAX_STR_LEN )
   {
     fprintf(stderr, "Argparse Error: Message for argument %s is too long "
                     "(more than %d). Please shorten or modify your options "
                     "as necessary!\n", 
-            name, MSH_MAX_STR_LEN );
+            name, MSHAP_MAX_STR_LEN );
     return 0;
   }
 
@@ -363,17 +356,17 @@ msh__print_arguments( const msh_argparse_t * argparse,
     const msh_arg_t * argument = &argparse->args[i];
     if ( argument->shorthand == NULL )
     {
-      printf("|\t%-32s - %s <%lu %s>\n", argument->name,
+      printf("|\t%-32s - %s <%zu %s>\n", argument->name,
                                          argument->message,
                                          argument->num_vals,
                                          argparse->typenames[argument->type] );
     }
     else
     {
-      char name_and_shorthand[MSH_MAX_NAME_LEN + 10];
+      char name_and_shorthand[MSHAP_MAX_NAME_LEN + 10];
       sprintf( name_and_shorthand, "%s, %s", argument->name, 
                                              argument->shorthand );
-      printf("|\t%-32s - %s <%lu %s>\n", name_and_shorthand,
+      printf("|\t%-32s - %s <%zu %s>\n", name_and_shorthand,
                                          argument->message,
                                          argument->num_vals,
                                          argparse->typenames[argument->type] );
@@ -384,10 +377,10 @@ msh__print_arguments( const msh_argparse_t * argparse,
 static int
 msh__find_type( const msh_argparse_t * argparse, char * type_id )
 {
-  for ( size_t i = 0 ; i < N_TYPES ; ++i )
+  for ( size_t i = 0 ; i < MSHAP_N_TYPES ; ++i )
   {
     if ( !strncmp( type_id, argparse->typenames[i], 15 ) ) {
-      return i;
+      return (int)i;
     }
   }
   return -1;
@@ -419,7 +412,7 @@ msh__find_argument( const char * arg_name,
   return NULL;
 }
 
-#define MSH__PARSE_ARGUMENT(typename, val_t, cfunc)                            \
+#define MSHAP__PARSE_ARGUMENT(typename, val_t, cfunc)                            \
   static int                                                                   \
   msh__parse_##typename##_argument( msh_arg_t * arg,                           \
                                     size_t argc,                               \
@@ -439,27 +432,27 @@ msh__find_argument( const char * arg_name,
                                   !isdigit(argv[*argv_index][1]) ) )           \
       {                                                                        \
         fprintf( stderr, "Argparse Error: Wrong number of parameters "         \
-                         "for argument %s. Correct value is: %lu\n",           \
+                         "for argument %s. Correct value is: %zu\n",           \
                          arg->name,                                            \
                          arg->num_vals );                                      \
         return 0;                                                              \
       }                                                                        \
-      values[j] = cfunc( argv[*argv_index] );                                  \
+      values[j] = (val_t)cfunc( argv[*argv_index] );                           \
     }                                                                          \
     return 1;                                                                  \
   }                                                                            
-MSH__PARSE_ARGUMENT(bool, bool, (bool)atoi)
-MSH__PARSE_ARGUMENT(char, char, atoi)
-MSH__PARSE_ARGUMENT(unsigned_char, unsigned char, atoi)
-MSH__PARSE_ARGUMENT(short, short, atoi)
-MSH__PARSE_ARGUMENT(unsigned_short, unsigned short, atoi)
-MSH__PARSE_ARGUMENT(int, int, atoi)
-MSH__PARSE_ARGUMENT(unsigned_int, unsigned int, atoi)
-MSH__PARSE_ARGUMENT(long, long, atoi)
-MSH__PARSE_ARGUMENT(unsigned_long, unsigned long, atoi)
-MSH__PARSE_ARGUMENT(float, float, atof)
-MSH__PARSE_ARGUMENT(double, double, atof)
-MSH__PARSE_ARGUMENT(string, char*, /*nothing*/ )
+MSHAP__PARSE_ARGUMENT(bool, bool, (bool)atoi)
+MSHAP__PARSE_ARGUMENT(char, char, atoi)
+MSHAP__PARSE_ARGUMENT(unsigned_char, unsigned char, atoi)
+MSHAP__PARSE_ARGUMENT(short, short, atoi)
+MSHAP__PARSE_ARGUMENT(unsigned_short, unsigned short, atoi)
+MSHAP__PARSE_ARGUMENT(int, int, atoi)
+MSHAP__PARSE_ARGUMENT(unsigned_int, unsigned int, atoi)
+MSHAP__PARSE_ARGUMENT(long, long, atoi)
+MSHAP__PARSE_ARGUMENT(unsigned_long, unsigned long, atoi)
+MSHAP__PARSE_ARGUMENT(float, float, atof)
+MSHAP__PARSE_ARGUMENT(double, double, atof)
+MSHAP__PARSE_ARGUMENT(string, char*, /*nothing*/ )
 
 static int 
 msh__parse_argument( msh_arg_t * arg, 
@@ -470,51 +463,51 @@ msh__parse_argument( msh_arg_t * arg,
   /* NOTE(maciej): can i avoid this switch somehow...? */
   switch ( arg->type )
   {
-    case BOOL:
+    case MSHAP_BOOL:
       if ( !msh__parse_bool_argument(arg, argc, argv, argv_index) ) 
         { return 0; }
       break;
-    case CHAR:
+    case MSHAP_CHAR:
       if ( !msh__parse_char_argument(arg, argc, argv, argv_index) ) 
         { return 0; }
       break;
-    case UNSIGNED_CHAR:
+    case MSHAP_UNSIGNED_CHAR:
       if ( !msh__parse_unsigned_char_argument(arg, argc, argv, argv_index) )
         { return 0; }
       break;
-    case SHORT:
+    case MSHAP_SHORT:
       if ( !msh__parse_short_argument(arg, argc, argv, argv_index) ) 
         { return 0; }
       break;
-    case UNSIGNED_SHORT:
+    case MSHAP_UNSIGNED_SHORT:
       if ( !msh__parse_unsigned_short_argument(arg, argc, argv, argv_index) )
         { return 0; }
       break;
-    case INT:
+    case MSHAP_INT:
       if ( !msh__parse_int_argument(arg, argc, argv, argv_index) ) 
         { return 0; }
       break;
-    case UNSIGNED_INT:
+    case MSHAP_UNSIGNED_INT:
       if ( !msh__parse_unsigned_int_argument(arg, argc, argv, argv_index) )
-        { return 0; }
+        {return 0; }
       break;
-    case LONG:
+    case MSHAP_LONG:
       if ( !msh__parse_long_argument(arg, argc, argv, argv_index) ) 
         { return 0; }
       break;
-    case UNSIGNED_LONG:
+    case MSHAP_UNSIGNED_LONG:
       if ( !msh__parse_unsigned_long_argument(arg, argc, argv, argv_index) )
         { return 0; }
       break;
-    case FLOAT:
+    case MSHAP_FLOAT:
       if ( !msh__parse_float_argument(arg, argc, argv, argv_index) )
         { return 0; }
       break;
-    case DOUBLE:
+    case MSHAP_DOUBLE:
       if ( !msh__parse_double_argument(arg, argc, argv, argv_index) )
         { return 0; }
       break;
-    case STRING:
+    case MSHAP_STRING:
       if ( !msh__parse_string_argument(arg, argc, argv, argv_index) )
         { return 0; }
       break;
@@ -525,11 +518,11 @@ msh__parse_argument( msh_arg_t * arg,
 }
 
 
-#define MSH_ADD_ARGUMENT_IMPL(typename, val_t)                                 \
+#define MSHAP_ADD_ARGUMENT_IMPL(typename, val_t)                                 \
   MSHAPDEF int                                                                 \
-  msh_add_##typename##_argument( const char * name,                                  \
-                                 const char * shorthand,                             \
-                                 const char * message,                               \
+  msh_add_##typename##_argument( const char * name,                            \
+                                 const char * shorthand,                       \
+                                 const char * message,                         \
                                  val_t *values,                                \
                                  const size_t num_vals,                        \
                                  msh_argparse_t * argparse )                   \
@@ -562,7 +555,7 @@ msh__parse_argument( msh_arg_t * arg,
       argument->position = -1;                                                 \
       if ( name[0] != '-' )                                                    \
       {                                                                        \
-        argument->position = ++argparse->n_required - 1;                       \
+        argument->position = (int)(++argparse->n_required - 1);                \
       }                                                                        \
                                                                                \
       /* assign properties */                                                  \
@@ -585,18 +578,19 @@ msh__parse_argument( msh_arg_t * arg,
       return 1;                                                                \
     }                                                                          \
   }
-MSH_ADD_ARGUMENT_IMPL(bool, bool)
-MSH_ADD_ARGUMENT_IMPL(char, char)
-MSH_ADD_ARGUMENT_IMPL(unsigned_char, unsigned char)
-MSH_ADD_ARGUMENT_IMPL(short, short)
-MSH_ADD_ARGUMENT_IMPL(unsigned_short, unsigned short)
-MSH_ADD_ARGUMENT_IMPL(int, int)
-MSH_ADD_ARGUMENT_IMPL(unsigned_int, unsigned int)
-MSH_ADD_ARGUMENT_IMPL(long, long)
-MSH_ADD_ARGUMENT_IMPL(unsigned_long, unsigned long)
-MSH_ADD_ARGUMENT_IMPL(float, float)
-MSH_ADD_ARGUMENT_IMPL(double, double)
-MSH_ADD_ARGUMENT_IMPL(string, char*)
+
+MSHAP_ADD_ARGUMENT_IMPL(bool, bool)
+MSHAP_ADD_ARGUMENT_IMPL(char, char)
+MSHAP_ADD_ARGUMENT_IMPL(unsigned_char, unsigned char)
+MSHAP_ADD_ARGUMENT_IMPL(short, short)
+MSHAP_ADD_ARGUMENT_IMPL(unsigned_short, unsigned short)
+MSHAP_ADD_ARGUMENT_IMPL(int, int)
+MSHAP_ADD_ARGUMENT_IMPL(unsigned_int, unsigned int)
+MSHAP_ADD_ARGUMENT_IMPL(long, long)
+MSHAP_ADD_ARGUMENT_IMPL(unsigned_long, unsigned long)
+MSHAP_ADD_ARGUMENT_IMPL(float, float)
+MSHAP_ADD_ARGUMENT_IMPL(double, double)
+MSHAP_ADD_ARGUMENT_IMPL(string, char*)
 
 
 MSHAPDEF int 
@@ -604,19 +598,19 @@ msh_init_argparse( const char * program_name,
                    const char * program_description,
                    msh_argparse_t * argparse )
 {
-#ifndef MSH_NO_DEBUG
-  if( strlen(program_name) >= MSH_MAX_NAME_LEN ) 
+#ifndef MSHAP_NO_DEBUG
+  if( strlen(program_name) >= MSHAP_MAX_NAME_LEN ) 
   { 
     fprintf(stderr, "Argparse Error: Name %s is too long (more than %d). "
            "Please shorten or modify your options as necessary!\n", 
-           program_name, MSH_MAX_NAME_LEN );
+           program_name, MSHAP_MAX_NAME_LEN );
   }
   
-  if( strlen(program_description) >= MSH_MAX_STR_LEN )
+  if( strlen(program_description) >= MSHAP_MAX_STR_LEN )
   { 
     fprintf(stderr, "Argparse Error: Description %s is too long (more than %d)."
            " Please shorten or modify your options as necessary!\n", 
-           program_description, MSH_MAX_STR_LEN );
+           program_description, MSHAP_MAX_STR_LEN );
   }
 #endif
 

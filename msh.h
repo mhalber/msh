@@ -273,7 +273,7 @@ typedef struct msh_array_header
 
 #define msh__array_grow(a) do                                                  \
 {                                                                              \
-  int64_t new_capacity = MSH_ARRAY_GROW_FORMULA( msh_array_capacity(a) );      \
+  int32_t new_capacity=(int32_t)MSH_ARRAY_GROW_FORMULA(msh_array_capacity(a)); \
   void** msh__array = (void**)&(a);                                            \
   *msh__array = msh__array_reserve( (void*)a, new_capacity, sizeof(*(a)) );    \
 } while( 0 )

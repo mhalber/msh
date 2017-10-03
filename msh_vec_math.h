@@ -185,18 +185,26 @@ typedef msh_vec3_t msh_point4_t;
  * =============================================================================
  */
 
-#define msh_vec2_zeros()  ((msh_vec2_t){{0, 0}})
-#define msh_vec3_zeros()  ((msh_vec3_t){{0, 0, 0}})
-#define msh_vec4_zeros()  ((msh_vec4_t){{0, 0, 0, 0}})
-#define msh_vec2_ones()   ((msh_vec2_t){{1, 1}})
-#define msh_vec3_ones()   ((msh_vec3_t){{1, 1, 1}})
-#define msh_vec4_ones()   ((msh_vec4_t){{1, 1, 1, 1}})
-#define msh_vec2_value(x) ((msh_vec2_t){{x, x}})
-#define msh_vec3_value(x) ((msh_vec3_t){{x, x, x}})
-#define msh_vec4_value(x) ((msh_vec4_t){{x, x, x, x}})
-#define msh_vec2(x,y)     ((msh_vec2_t){{x, y}})
-#define msh_vec3(x,y,z)   ((msh_vec3_t){{x, y, z}})
-#define msh_vec4(x,y,z,w) ((msh_vec4_t){{x, y, z, w}})
+// NOTE(maciej): CPP mode in MSVC is wierd, boy
+#if defined(__cplusplus) && defined(_MSC_VER)
+#define MSHVM_INIT_CAST(x) x
+#else if
+#define MSHVM_INIT_CAST(x) (x)
+#endif
+
+
+#define msh_vec2_zeros()  MSHVM_INIT_CAST(msh_vec2_t){{0, 0}}
+#define msh_vec3_zeros()  MSHVM_INIT_CAST(msh_vec3_t){{0, 0, 0}}
+#define msh_vec4_zeros()  MSHVM_INIT_CAST(msh_vec4_t){{0, 0, 0, 0}}
+#define msh_vec2_ones()   MSHVM_INIT_CAST(msh_vec2_t){{1, 1}}
+#define msh_vec3_ones()   MSHVM_INIT_CAST(msh_vec3_t){{1, 1, 1}}
+#define msh_vec4_ones()   MSHVM_INIT_CAST(msh_vec4_t){{1, 1, 1, 1}}
+#define msh_vec2_value(x) MSHVM_INIT_CAST(msh_vec2_t){{x, x}}
+#define msh_vec3_value(x) MSHVM_INIT_CAST(msh_vec3_t){{x, x, x}}
+#define msh_vec4_value(x) MSHVM_INIT_CAST(msh_vec4_t){{x, x, x, x}}
+#define msh_vec2(x,y)     MSHVM_INIT_CAST(msh_vec2_t){{x, y}}
+#define msh_vec3(x,y,z)   MSHVM_INIT_CAST(msh_vec3_t){{x, y, z}}
+#define msh_vec4(x,y,z,w) MSHVM_INIT_CAST(msh_vec4_t){{x, y, z, w}}
 
 MSHVMDEF msh_vec2_t msh_vec3_to_vec2( msh_vec3_t v );
 MSHVMDEF msh_vec2_t msh_vec4_to_vec2( msh_vec4_t v );
@@ -292,15 +300,15 @@ MSHVMDEF void msh_vec4_print( msh_vec4_t v );
  * =============================================================================
  */
 
-#define msh_mat2_zeros() ((msh_mat2_t){{0, 0, 0, 0}})
-#define msh_mat3_zeros() ((msh_mat3_t){{0, 0, 0, 0, 0, 0, 0, 0, 0}})
-#define msh_mat4_zeros() ((msh_mat4_t){{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}})
-#define msh_mat2_identity() ((msh_mat2_t){{1, 0, 0, 1}})
-#define msh_mat3_identity() ((msh_mat3_t){{1, 0, 0, 0, 1, 0, 0, 0, 1}})
-#define msh_mat4_identity() ((msh_mat4_t){{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}})
-#define msh_mat2_diag(x) ((msh_mat2_t){{x, 0, 0, x}})
-#define msh_mat3_diag(x) ((msh_mat3_t){{x, 0, 0, 0, x, 0, 0, 0, x}})
-#define msh_mat4_diag(x) ((msh_mat4_t){{x, 0, 0, 0, 0, x, 0, 0, 0, 0, x, 0, 0, 0, 0, x}})
+#define msh_mat2_zeros() MSHVM_INIT_CAST(msh_mat2_t){{0, 0, 0, 0}}
+#define msh_mat3_zeros() MSHVM_INIT_CAST(msh_mat3_t){{0, 0, 0, 0, 0, 0, 0, 0, 0}}
+#define msh_mat4_zeros() MSHVM_INIT_CAST(msh_mat4_t){{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}
+#define msh_mat2_identity() MSHVM_INIT_CAST(msh_mat2_t){{1, 0, 0, 1}}
+#define msh_mat3_identity() MSHVM_INIT_CAST(msh_mat3_t){{1, 0, 0, 0, 1, 0, 0, 0, 1}}
+#define msh_mat4_identity() MSHVM_INIT_CAST(msh_mat4_t){{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}}
+#define msh_mat2_diag(x) MSHVM_INIT_CAST(msh_mat2_t){{x, 0, 0, x}}
+#define msh_mat3_diag(x) MSHVM_INIT_CAST(msh_mat3_t){{x, 0, 0, 0, x, 0, 0, 0, x}}
+#define msh_mat4_diag(x) MSHVM_INIT_CAST(msh_mat4_t){{x, 0, 0, 0, 0, x, 0, 0, 0, 0, x, 0, 0, 0, 0, x}}
 
 MSHVMDEF msh_mat2_t msh_mat3_to_mat2( msh_mat3_t m );
 MSHVMDEF msh_mat2_t msh_mat4_to_mat2( msh_mat4_t m );
@@ -419,9 +427,9 @@ void eig( msh_mat3_t * mat, msh_mat3_t * eigvec, msh_vec3_t * eigval );
  * =============================================================================
  */
 
-#define msh_quat_zeros() ((msh_quat_t){{0, 0, 0, 0}})
-#define msh_quat_identity() ((msh_quat_t){{0, 0, 0, 1}})
-#define msh_quat(x,y,z,w) ((msh_quat_t){{ x, y, z, w }})
+#define msh_quat_zeros() MSHVM_INIT_CAST(msh_quat_t){{0, 0, 0, 0}}
+#define msh_quat_identity() MSHVM_INIT_CAST(msh_quat_t){{0, 0, 0, 1}}
+#define msh_quat(x,y,z,w) MSHVM_INIT_CAST(msh_quat_t){{ x, y, z, w }}
 
 MSHVMDEF msh_quat_t msh_quat_from_axis_angle( msh_vec3_t axis, msh_scalar_t angle );
 MSHVMDEF msh_quat_t msh_quat_from_euler_angles( msh_scalar_t pitch, 
@@ -498,299 +506,296 @@ MSHVMDEF msh_vec4_t &operator+=( msh_vec4_t &a, msh_vec4_t &b );
 MSHVMDEF inline msh_vec2_t 
 msh_vec3_to_vec2( msh_vec3_t v )
 {
-  return (msh_vec2_t){{ v.x, v.y }};
+  return MSHVM_INIT_CAST(msh_vec2_t){{ v.x, v.y }};
 }
 
 MSHVMDEF inline msh_vec2_t 
 msh_vec4_to_vec2( msh_vec4_t v )
 {
-  return (msh_vec2_t){{ v.x, v.y }};
+  return MSHVM_INIT_CAST(msh_vec2_t){{ v.x, v.y }};
 }
 
 MSHVMDEF inline msh_vec3_t 
 msh_vec2_to_vec3( msh_vec2_t v )
 {
-  return (msh_vec3_t){{ v.x, v.y, 0.0f }};
+  return MSHVM_INIT_CAST(msh_vec3_t){{ v.x, v.y, 0.0f }};
 }
 
 MSHVMDEF inline msh_vec3_t 
 msh_vec2_scalar_to_vec3( msh_vec2_t v, msh_scalar_t s )
 {
-  return (msh_vec3_t){{ v.x, v.y, s }};
+  return MSHVM_INIT_CAST(msh_vec3_t){{ v.x, v.y, s }};
 }
 
 MSHVMDEF inline msh_vec4_t 
 msh_vec2_scalar_to_vec4( msh_vec2_t v, msh_scalar_t s0, msh_scalar_t s1 )
 {
-  return (msh_vec4_t){{ v.x, v.y, s0, s1 }};
+  return MSHVM_INIT_CAST(msh_vec4_t){{ v.x, v.y, s0, s1 }};
 }
 
 MSHVMDEF inline msh_vec3_t 
 msh_vec4_to_vec3( msh_vec4_t v )
 {
-  return (msh_vec3_t){{ v.x, v.y, v.z }};
+  return MSHVM_INIT_CAST(msh_vec3_t){{ v.x, v.y, v.z }};
 }
 
 MSHVMDEF inline msh_vec4_t 
 msh_vec2_to_vec4( msh_vec2_t v )
 {
-  return (msh_vec4_t){{ v.x, v.y, 0.0f, 0.0f }};
+  return MSHVM_INIT_CAST(msh_vec4_t){{ v.x, v.y, 0.0f, 0.0f }};
 }
 
 MSHVMDEF inline msh_vec4_t 
 msh_vec3_to_vec4( msh_vec3_t v )
 {
-  return (msh_vec4_t){{ v.x, v.y, v.z, 0.0f }};
+  return MSHVM_INIT_CAST(msh_vec4_t){{ v.x, v.y, v.z, 0.0f }};
 }
 
 MSHVMDEF inline msh_vec4_t 
 msh_vec3_scalar_to_vec4( msh_vec3_t v, msh_scalar_t s )
 {
-  return (msh_vec4_t){{ v.x, v.y, v.z, s }};
+  return MSHVM_INIT_CAST(msh_vec4_t){{ v.x, v.y, v.z, s }};
 }
 
 MSHVMDEF inline msh_vec2_t 
 msh_vec2_add( msh_vec2_t a, msh_vec2_t b )
 {
-  return (msh_vec2_t){{ a.x + b.x, a.y + b.y }};
+  return MSHVM_INIT_CAST(msh_vec2_t){{ a.x + b.x, a.y + b.y }};
 }
 
 MSHVMDEF inline msh_vec3_t 
 msh_vec3_add( msh_vec3_t a, msh_vec3_t b )
 {
-  return (msh_vec3_t){{ a.x + b.x, a.y + b.y, a.z + b.z }};
+  return MSHVM_INIT_CAST(msh_vec3_t){{ a.x + b.x, a.y + b.y, a.z + b.z }};
 }
 
 MSHVMDEF inline msh_vec4_t 
 msh_vec4_add( msh_vec4_t a, msh_vec4_t b )
 {
-  return (msh_vec4_t){{ a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w }};
+  return MSHVM_INIT_CAST(msh_vec4_t){{ a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w }};
 }
 
 MSHVMDEF inline msh_vec2_t 
 msh_vec2_scalar_add( msh_vec2_t v, msh_scalar_t s )
 {
-  return (msh_vec2_t){{ v.x + s, v.y + s }};
+  return MSHVM_INIT_CAST(msh_vec2_t){{ v.x + s, v.y + s }};
 }
 
 MSHVMDEF inline msh_vec3_t 
 msh_vec3_scalar_add( msh_vec3_t v, msh_scalar_t s )
 {
-  return (msh_vec3_t){{ v.x + s, v.y + s, v.z + s }};
+  return MSHVM_INIT_CAST(msh_vec3_t){{ v.x + s, v.y + s, v.z + s }};
 }
 
 MSHVMDEF inline msh_vec4_t 
 msh_vec4_scalar_add( msh_vec4_t v, msh_scalar_t s )
 {
-  return (msh_vec4_t){{ v.x + s, v.y + s, v.z + s, v.w + s }};
+  return MSHVM_INIT_CAST(msh_vec4_t){{ v.x + s, v.y + s, v.z + s, v.w + s }};
 }
 
 MSHVMDEF inline msh_vec2_t 
 msh_vec2_sub( msh_vec2_t a, msh_vec2_t b )
 {
-  return (msh_vec2_t){{ a.x - b.x, a.y - b.y }};
+  return MSHVM_INIT_CAST(msh_vec2_t){{ a.x - b.x, a.y - b.y }};
 }
 
 MSHVMDEF inline msh_vec3_t 
 msh_vec3_sub( msh_vec3_t a, msh_vec3_t b )
 {
-  return (msh_vec3_t){{ a.x - b.x, a.y - b.y, a.z - b.z }};
+  return MSHVM_INIT_CAST(msh_vec3_t){{ a.x - b.x, a.y - b.y, a.z - b.z }};
 }
 
 MSHVMDEF inline msh_vec4_t 
 msh_vec4_sub( msh_vec4_t a, msh_vec4_t b )
 {
-  return (msh_vec4_t){{ a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w }};
+  return MSHVM_INIT_CAST(msh_vec4_t){{ a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w }};
 }
 
 MSHVMDEF inline msh_vec2_t 
 msh_vec2_scalar_sub( msh_vec2_t v, msh_scalar_t s )
 {
-  return (msh_vec2_t){{ v.x - s, v.y - s }};
+  return MSHVM_INIT_CAST(msh_vec2_t){{ v.x - s, v.y - s }};
 }
 
 MSHVMDEF inline msh_vec3_t 
 msh_vec3_scalar_sub( msh_vec3_t v, msh_scalar_t s )
 {
-  return (msh_vec3_t){{ v.x - s, v.y - s, v.z - s }};
+  return MSHVM_INIT_CAST(msh_vec3_t){{ v.x - s, v.y - s, v.z - s }};
 }
 
 MSHVMDEF inline msh_vec4_t 
 msh_vec4_scalar_sub( msh_vec4_t v, msh_scalar_t s )
 {
-  return (msh_vec4_t){{ v.x - s, v.y - s, v.z - s, v.w - s }};
+  return MSHVM_INIT_CAST(msh_vec4_t){{ v.x - s, v.y - s, v.z - s, v.w - s }};
 }
 
 
 MSHVMDEF inline msh_vec2_t 
 msh_vec2_mul( msh_vec2_t a, msh_vec2_t b )
 {
-  return (msh_vec2_t){{ a.x * b.x, a.y * b.y }};
+  return MSHVM_INIT_CAST(msh_vec2_t){{ a.x * b.x, a.y * b.y }};
 }
 
 MSHVMDEF inline msh_vec3_t 
 msh_vec3_mul( msh_vec3_t a, msh_vec3_t b )
 {
-  return (msh_vec3_t){{ a.x * b.x, a.y * b.y, a.z * b.z }};
+  return MSHVM_INIT_CAST(msh_vec3_t){{ a.x * b.x, a.y * b.y, a.z * b.z }};
 }
 
 MSHVMDEF inline msh_vec4_t 
 msh_vec4_mul( msh_vec4_t a, msh_vec4_t b )
 {
-  return (msh_vec4_t){{ a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w }};
+  return MSHVM_INIT_CAST(msh_vec4_t){{ a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w }};
 }
 
 MSHVMDEF inline msh_vec2_t 
 msh_vec2_scalar_mul( msh_vec2_t v, msh_scalar_t s )
 {
-  return (msh_vec2_t){{ v.x * s, v.y * s }};
+  return MSHVM_INIT_CAST(msh_vec2_t){{ v.x * s, v.y * s }};
 }
 
 MSHVMDEF inline msh_vec3_t 
 msh_vec3_scalar_mul( msh_vec3_t v, msh_scalar_t s )
 {
-  return (msh_vec3_t){{ v.x * s, v.y * s, v.z * s }};
+  return MSHVM_INIT_CAST(msh_vec3_t){{ v.x * s, v.y * s, v.z * s }};
 }
 
 MSHVMDEF inline msh_vec4_t 
 msh_vec4_scalar_mul( msh_vec4_t v, msh_scalar_t s )
 {
-  return (msh_vec4_t){{ v.x * s, v.y * s, v.z * s, v.w * s }};
+  return MSHVM_INIT_CAST(msh_vec4_t){{ v.x * s, v.y * s, v.z * s, v.w * s }};
 }
 
 
 MSHVMDEF inline msh_vec2_t 
 msh_vec2_div( msh_vec2_t a, msh_vec2_t b )
 {
-  return (msh_vec2_t){{ a.x / b.x, a.y / b.y }};
+  return MSHVM_INIT_CAST(msh_vec2_t){{ a.x / b.x, a.y / b.y }};
 }
 
 MSHVMDEF inline msh_vec3_t 
 msh_vec3_div( msh_vec3_t a, msh_vec3_t b )
 {
-  return (msh_vec3_t){{ a.x / b.x, a.y / b.y, a.z / b.z }};
+  return MSHVM_INIT_CAST(msh_vec3_t){{ a.x / b.x, a.y / b.y, a.z / b.z }};
 }
 
 MSHVMDEF inline msh_vec4_t 
 msh_vec4_div( msh_vec4_t a, msh_vec4_t b )
 {
-  return (msh_vec4_t){{ a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w }};
+  return MSHVM_INIT_CAST(msh_vec4_t){{ a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w }};
 }
 
 MSHVMDEF inline msh_vec2_t 
 msh_vec2_scalar_div( msh_vec2_t v, msh_scalar_t s )
 {
   msh_scalar_t denom = 1.0f / s;
-  return (msh_vec2_t){{ v.x * denom, v.y * denom }};
+  return MSHVM_INIT_CAST(msh_vec2_t){{ v.x * denom, v.y * denom }};
 }
 
 MSHVMDEF inline msh_vec3_t 
 msh_vec3_scalar_div( msh_vec3_t v, msh_scalar_t s )
 {
   msh_scalar_t denom = 1.0f / s;
-  return (msh_vec3_t){{ v.x * denom, v.y * denom, v.z * denom }};
+  return MSHVM_INIT_CAST(msh_vec3_t){{ v.x * denom, v.y * denom, v.z * denom }};
 }
 
 MSHVMDEF inline msh_vec4_t 
 msh_vec4_scalar_div( msh_vec4_t v, msh_scalar_t s )
 {
   msh_scalar_t denom = 1.0f / s;
-  return (msh_vec4_t){{ v.x * denom, v.y * denom, v.z * denom, v.w * denom }};
+  return MSHVM_INIT_CAST(msh_vec4_t){{ v.x * denom, v.y * denom, v.z * denom, v.w * denom }};
 }
 
 MSHVMDEF inline msh_vec2_t 
 msh_vec2_abs( msh_vec2_t v )
 {
-  return (msh_vec2_t){{ (msh_scalar_t)fabs(v.x), (msh_scalar_t)fabs(v.y) }};
+  return MSHVM_INIT_CAST(msh_vec2_t){{ (msh_scalar_t)fabs(v.x), (msh_scalar_t)fabs(v.y) }};
 }
 
 MSHVMDEF inline msh_vec3_t 
 msh_vec3_abs( msh_vec3_t v )
 {
-  return (msh_vec3_t){{ (msh_scalar_t)fabs(v.x), 
-                        (msh_scalar_t)fabs(v.y), 
-                        (msh_scalar_t)fabs(v.z) }};
+  return MSHVM_INIT_CAST(msh_vec3_t){{ (msh_scalar_t)fabs(v.x), 
+                                       (msh_scalar_t)fabs(v.y), 
+                                       (msh_scalar_t)fabs(v.z) }};
 }
 
 MSHVMDEF inline msh_vec4_t 
 msh_vec4_abs( msh_vec4_t v )
 {
-  return (msh_vec4_t){{ (msh_scalar_t)fabs(v.x),
-                        (msh_scalar_t)fabs(v.y),
-                        (msh_scalar_t)fabs(v.z),
-                        (msh_scalar_t)fabs(v.w) }};
+  return MSHVM_INIT_CAST(msh_vec4_t){{ (msh_scalar_t)fabs(v.x),
+                                       (msh_scalar_t)fabs(v.y),
+                                       (msh_scalar_t)fabs(v.z),
+                                       (msh_scalar_t)fabs(v.w) }};
 }
 
 MSHVMDEF inline msh_vec2_t 
 msh_vec2_sqrt( msh_vec2_t v )
 {
-  return (msh_vec2_t){{ (msh_scalar_t)sqrt(v.x), (msh_scalar_t)sqrt(v.y) }};
+  return MSHVM_INIT_CAST(msh_vec2_t){{ (msh_scalar_t)sqrt(v.x),
+                                       (msh_scalar_t)sqrt(v.y) }};
 }
 
 MSHVMDEF inline msh_vec3_t 
 msh_vec3_sqrt( msh_vec3_t v )
 {
-  return (msh_vec3_t){{ (msh_scalar_t)sqrt(v.x), (msh_scalar_t)sqrt(v.y), (msh_scalar_t)sqrt(v.z) }};
+  return MSHVM_INIT_CAST(msh_vec3_t){{ (msh_scalar_t)sqrt(v.x), 
+                                       (msh_scalar_t)sqrt(v.y), 
+                                       (msh_scalar_t)sqrt(v.z) }};
 }
 
 MSHVMDEF inline msh_vec4_t 
 msh_vec4_sqrt( msh_vec4_t v )
 {
-  return (msh_vec4_t){{ sqrtf(v.x), sqrtf(v.y), sqrtf(v.z), sqrtf(v.w) }};
+  return MSHVM_INIT_CAST(msh_vec4_t){{ (msh_scalar_t)sqrt(v.x), 
+                                       (msh_scalar_t)sqrt(v.y), 
+                                       (msh_scalar_t)sqrt(v.z), 
+                                       (msh_scalar_t)sqrt(v.w) }};
 }
 
 MSHVMDEF inline msh_vec2_t 
 msh_vec2_clamp( msh_vec2_t v, msh_scalar_t min, msh_scalar_t max )
 {
-  if ( min > max )
-  {
-    return v;
-  }
-  return (msh_vec2_t){{ fminf( fmaxf( v.x, min ), max ),
-                        fminf( fmaxf( v.y, min ), max ) }};
+  if ( min > max ){ return v; }
+  return MSHVM_INIT_CAST(msh_vec2_t){{ fminf( fmaxf( v.x, min ), max ),
+                                       fminf( fmaxf( v.y, min ), max ) }};
 }
 
 MSHVMDEF inline msh_vec3_t 
 msh_vec3_clamp( msh_vec3_t v, msh_scalar_t min, msh_scalar_t max )
 {
-  if ( min > max )
-  {
-    return v;
-  }
-  return (msh_vec3_t ){{ fminf( fmaxf( v.x, min ), max ),
-                         fminf( fmaxf( v.y, min ), max ),
-                         fminf( fmaxf( v.z, min ), max ) }};
+  if ( min > max ) { return v; }
+  return MSHVM_INIT_CAST(msh_vec3_t ){{ fminf( fmaxf( v.x, min ), max ),
+                                        fminf( fmaxf( v.y, min ), max ),
+                                        fminf( fmaxf( v.z, min ), max ) }};
 }
 
 MSHVMDEF inline msh_vec4_t 
 msh_vec4_clamp( msh_vec4_t v, msh_scalar_t min, msh_scalar_t max )
 {
-  if ( min > max )
-  {
-    return v;
-  }
-  return (msh_vec4_t){{ fminf( fmaxf( v.x, min ), max ),
-                        fminf( fmaxf( v.y, min ), max ),
-                        fminf( fmaxf( v.z, min ), max ),
-                        fminf( fmaxf( v.w, min ), max ) }};
+  if ( min > max ){ return v; }
+  return MSHVM_INIT_CAST(msh_vec4_t){{ fminf( fmaxf( v.x, min ), max ),
+                                       fminf( fmaxf( v.y, min ), max ),
+                                       fminf( fmaxf( v.z, min ), max ),
+                                       fminf( fmaxf( v.w, min ), max ) }};
 }
 
 MSHVMDEF inline msh_vec2_t 
 msh_vec2_invert( msh_vec2_t v )
 {
-  return (msh_vec2_t){{ -v.x, -v.y }};
+  return MSHVM_INIT_CAST(msh_vec2_t){{ -v.x, -v.y }};
 }
 
 MSHVMDEF inline msh_vec3_t 
 msh_vec3_invert( msh_vec3_t v )
 {
-  return (msh_vec3_t){{ -v.x, -v.y, -v.z }};
+  return MSHVM_INIT_CAST(msh_vec3_t){{ -v.x, -v.y, -v.z }};
 }
 
 MSHVMDEF inline msh_vec4_t 
 msh_vec4_invert( msh_vec4_t v )
 {
-  return (msh_vec4_t){{ -v.x, -v.y, -v.z, -v.w }};
+  return MSHVM_INIT_CAST(msh_vec4_t){{ -v.x, -v.y, -v.z, -v.w }};
 }
 
 // Should i do it with fast_inverse_square root?
@@ -798,21 +803,21 @@ MSHVMDEF inline msh_vec2_t
 msh_vec2_normalize( msh_vec2_t v )
 {
   msh_scalar_t denom = 1.0f / sqrtf( v.x * v.x + v.y * v.y );
-  return (msh_vec2_t){{ v.x * denom, v.y * denom }};
+  return MSHVM_INIT_CAST(msh_vec2_t){{ v.x * denom, v.y * denom }};
 }
 
 MSHVMDEF inline msh_vec3_t 
 msh_vec3_normalize( msh_vec3_t v )
 {
   msh_scalar_t denom = 1.0f / sqrtf( v.x * v.x + v.y * v.y + v.z * v.z );
-  return (msh_vec3_t){{ v.x * denom, v.y * denom, v.z * denom }};
+  return MSHVM_INIT_CAST(msh_vec3_t){{ v.x * denom, v.y * denom, v.z * denom }};
 }
 
 MSHVMDEF inline msh_vec4_t 
 msh_vec4_normalize( msh_vec4_t v )
 {
   msh_scalar_t denom = 1.0f / sqrtf( v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w );
-  msh_vec4_t o = {{ v.x * denom, v.y * denom, v.z * denom, v.w * denom }};
+  msh_vec4_t o = MSHVM_INIT_CAST(msh_vec4_t){{ v.x * denom, v.y * denom, v.z * denom, v.w * denom }};
   return o;
 }
 
@@ -838,7 +843,7 @@ msh_vec4_dot( msh_vec4_t a, msh_vec4_t b )
 MSHVMDEF inline msh_vec3_t
 msh_vec3_cross( msh_vec3_t a, msh_vec3_t b )
 {
-  return (msh_vec3_t){{ ( a.y * b.z - a.z * b.y ),
+  return MSHVM_INIT_CAST(msh_vec3_t){{ ( a.y * b.z - a.z * b.y ),
                         ( a.z * b.x - a.x * b.z ),
                         ( a.x * b.y - a.y * b.x ) }};
 }
@@ -846,19 +851,19 @@ msh_vec3_cross( msh_vec3_t a, msh_vec3_t b )
 MSHVMDEF inline msh_scalar_t 
 msh_vec2_norm( msh_vec2_t v )
 {
-  return sqrtf( v.x * v.x + v.y * v.y ); 
+  return (msh_scalar_t)sqrt( v.x * v.x + v.y * v.y ); 
 }
 
 MSHVMDEF inline msh_scalar_t 
 msh_vec3_norm( msh_vec3_t v )
 {
-  return sqrtf( v.x * v.x + v.y * v.y + v.z * v.z ); 
+  return (msh_scalar_t)sqrt( v.x * v.x + v.y * v.y + v.z * v.z ); 
 }
 
 MSHVMDEF inline msh_scalar_t 
 msh_vec4_norm( msh_vec4_t v )
 {
-  return sqrtf( v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w ); 
+  return (msh_scalar_t)sqrt( v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w ); 
 }
 
 MSHVMDEF inline msh_scalar_t 
@@ -1988,9 +1993,9 @@ msh_mat3_from_euler( msh_vec3_t euler_angles )
   msh_scalar_t cx = (msh_scalar_t)cos( euler_angles.x );
   msh_scalar_t cy = (msh_scalar_t)cos( euler_angles.y );
   msh_scalar_t cz = (msh_scalar_t)cos( euler_angles.z );
-  return ((msh_mat3_t){{cy*cz,          cy*sz,          -sy, 
-                        sx*sy*cz-cx*sz, cx*cz+sx*sy*sz, sx*cy, 
-                        cx*sy*cz+sx*sz, cx*sy*sz-sx*cz, cx*cy}});
+  return MSHVM_INIT_CAST(msh_mat3_t){{cy*cz,          cy*sz,          -sy, 
+                                      sx*sy*cz-cx*sz, cx*cz+sx*sy*sz, sx*cy, 
+                                      cx*sy*cz+sx*sz, cx*sy*sz-sx*cz, cx*cy}};
 }
 
 /*
@@ -2004,7 +2009,7 @@ msh_quat_from_axis_angle( msh_vec3_t axis, msh_scalar_t angle )
 {
   msh_scalar_t a = (msh_scalar_t)(angle * 0.5);
   msh_scalar_t s = (msh_scalar_t)sin(a);
-  return (msh_quat_t){{ axis.x * s, axis.y * s, axis.z * s, cosf(a)}};
+  return MSHVM_INIT_CAST(msh_quat_t){{ axis.x * s, axis.y * s, axis.z * s, cosf(a)}};
 }
 
 MSHVMDEF inline msh_quat_t 
@@ -2053,7 +2058,7 @@ msh_quat_from_vectors( msh_vec3_t v1, msh_vec3_t v2 )
 MSHVMDEF inline msh_quat_t 
 msh_quat_add( msh_quat_t a, msh_quat_t b )
 {
-  return (msh_quat_t){{ a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w }};
+  return MSHVM_INIT_CAST(msh_quat_t){{ a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w }};
 }
 
 MSHVMDEF inline msh_quat_t 
@@ -2067,7 +2072,7 @@ msh_quat_scalar_add( msh_quat_t v, msh_scalar_t s )
 MSHVMDEF inline msh_quat_t 
 msh_quat_sub( msh_quat_t a, msh_quat_t b )
 {
-  return (msh_quat_t){{ a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w }};
+  return MSHVM_INIT_CAST(msh_quat_t){{ a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w }};
 }
 
 MSHVMDEF inline msh_quat_t 
@@ -2093,10 +2098,10 @@ msh_quat_mul( msh_quat_t a, msh_quat_t b )
   // return o;
   
 
-  return (msh_quat_t){{ a.w*b.x + a.x*b.w + a.y*b.z - a.z*b.y,
-                        a.w*b.y + a.y*b.w + a.z*b.x - a.x*b.z,
-                        a.w*b.z + a.z*b.w + a.x*b.y - a.y*b.x,
-                        a.w*b.w - a.x*b.x - a.y*b.y - a.z*b.z }};
+  return MSHVM_INIT_CAST(msh_quat_t){{ a.w*b.x + a.x*b.w + a.y*b.z - a.z*b.y,
+                                       a.w*b.y + a.y*b.w + a.z*b.x - a.x*b.z,
+                                       a.w*b.z + a.z*b.w + a.x*b.y - a.y*b.x,
+                                       a.w*b.w - a.x*b.x - a.y*b.y - a.z*b.z }};
 }
 
 MSHVMDEF inline msh_quat_t 
@@ -2118,7 +2123,7 @@ MSHVMDEF inline msh_quat_t
 msh_quat_scalar_div( msh_quat_t v, msh_scalar_t s )
 {
   msh_scalar_t denom = 1.0f / s;
-  return (msh_quat_t){{ v.x * denom, v.y * denom, v.z * denom, v.w * denom }};
+  return MSHVM_INIT_CAST(msh_quat_t){{ v.x * denom, v.y * denom, v.z * denom, v.w * denom }};
 }
 
 msh_scalar_t 
@@ -2130,7 +2135,7 @@ msh_quat_dot( msh_quat_t a,  msh_quat_t b )
 msh_scalar_t 
 msh_quat_norm( msh_quat_t q )
 {
-  return sqrtf( q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w );
+  return (msh_scalar_t)sqrt( q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w );
 }
 
 msh_scalar_t 
@@ -2153,7 +2158,7 @@ MSHVMDEF inline msh_quat_t
 msh_quat_conjugate( msh_quat_t q )
 {
   msh_quat_t o;
-  o.im = (msh_vec3_t){{ -q.x, -q.y, -q.z }};
+  o.im = MSHVM_INIT_CAST(msh_vec3_t){{ -q.x, -q.y, -q.z }};
   o.re = q.re;
   return o;
 }
@@ -2161,7 +2166,7 @@ msh_quat_conjugate( msh_quat_t q )
 MSHVMDEF inline msh_quat_t 
 msh_quat_inverse( msh_quat_t q )
 {
-  msh_quat_t o =( msh_quat_t){0.0, 0.0, 0.0, 0.0};
+  msh_quat_t o = MSHVM_INIT_CAST(msh_quat_t){0.0, 0.0, 0.0, 0.0};
   msh_scalar_t denom = 1.0f / msh_quat_norm_sq( q );
   o.x = -q.x * denom;
   o.y = -q.y * denom;
@@ -2207,7 +2212,7 @@ msh_quat_from_angle_axis( msh_vec3_t axis, msh_scalar_t angle )
 {
     msh_scalar_t a = angle * 0.5f;
     msh_scalar_t s = sinf(a);
-    return (msh_quat_t){{ axis.x * s, axis.y * s, axis.z * s, cosf(a) }};
+    return MSHVM_INIT_CAST(msh_quat_t){{ axis.x * s, axis.y * s, axis.z * s, cosf(a) }};
 }
 
 MSHVMDEF inline msh_mat3_t 
