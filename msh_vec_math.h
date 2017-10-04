@@ -188,7 +188,7 @@ typedef msh_vec3_t msh_point4_t;
 // NOTE(maciej): CPP mode in MSVC is wierd, boy
 #if defined(__cplusplus) && defined(_MSC_VER)
 #define MSHVM_INIT_CAST(x) x
-#else if
+#else
 #define MSHVM_INIT_CAST(x) (x)
 #endif
 
@@ -2166,7 +2166,7 @@ msh_quat_conjugate( msh_quat_t q )
 MSHVMDEF inline msh_quat_t 
 msh_quat_inverse( msh_quat_t q )
 {
-  msh_quat_t o = MSHVM_INIT_CAST(msh_quat_t){0.0, 0.0, 0.0, 0.0};
+  msh_quat_t o = MSHVM_INIT_CAST(msh_quat_t){{0.0, 0.0, 0.0, 0.0}};
   msh_scalar_t denom = 1.0f / msh_quat_norm_sq( q );
   o.x = -q.x * denom;
   o.y = -q.y * denom;

@@ -260,7 +260,8 @@ typedef struct msh_array_header
    (msh_array_header_t *)malloc(sizeof(msh_array_header_t) + sizeof(*(a)) * n);\
   msh__ah->capacity = n;                                                       \
   msh__ah->count = 0;                                                          \
-  (a) = (void*)(msh__ah+1);                                                    \
+  void** msh__array = (void**)&(a);                                            \
+  (*msh__array) = (void*)(msh__ah+1);                                          \
 } while( 0 )
 
 #define msh_array_free(a) do                                                   \

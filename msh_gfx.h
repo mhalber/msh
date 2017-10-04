@@ -91,7 +91,7 @@
 
 #ifdef __APPLE__
   #include <OpenGL/gl3.h>
-#else if
+#else
   #include "glad/glad.h"
 #endif
 
@@ -111,60 +111,64 @@ typedef union vec2
 
 enum mshgfx_shader_type
 {
-  VERTEX_SHADER,
-  FRAGMENT_SHADER,
-  GEOMETRY_SHADER,
-  TESS_CONTROL_SHADER,
-  TESS_EVALUATION_SHADER
+  MSHGFX_VERTEX_SHADER,
+  MSHGFX_FRAGMENT_SHADER,
+  MSGFX_GEOMETRY_SHADER,
+  MSGFX_TESS_CONTROL_SHADER,
+  MSGFX_TESS_EVALUATION_SHADER
 };
 
 enum msh_geometry_properties_flags_
 {
-  POSITION  = 1 << 0, /* layout( location = 0 ) */
-  NORMAL    = 1 << 1, /* layout( location = 1 ) */
-  TANGENT   = 1 << 2, /* layout( location = 2 ) */
-  TEX_COORD = 1 << 3, /* layout( location = 3 ) */
-  COLOR_A   = 1 << 4, /* layout( location = 4 ) */
-  COLOR_B   = 1 << 5, /* layout( location = 5 ) */
-  COLOR_C   = 1 << 6, /* layout( location = 6 ) */
-  COLOR_D   = 1 << 7, /* layout( location = 7 ) */
-  STRUCTURED = 1 << 8,
+  MSHGFX_POSITION    = 1 << 0,  /* layout( location = 0 ) */
+  MSHGFX_NORMAL      = 1 << 1,  /* layout( location = 1 ) */
+  MSHGFX_TANGENT     = 1 << 2,  /* layout( location = 2 ) */
+  MSHGFX_TEX_COORD   = 1 << 3,  /* layout( location = 3 ) */
+  MSHGFX_COLOR_A     = 1 << 4,  /* layout( location = 4 ) */
+  MSHGFX_COLOR_B     = 1 << 5,  /* layout( location = 5 ) */
+  MSHGFX_COLOR_C     = 1 << 6,  /* layout( location = 6 ) */
+  MSHGFX_COLOR_D     = 1 << 7,  /* layout( location = 7 ) */
+  MSHGFX_USER_DATA_A = 1 << 8,  /* layout( location = 8 ) */
+  MSHGFX_USER_DATA_B = 1 << 9,  /* layout( location = 9 ) */
+  MSHGFX_USER_DATA_C = 1 << 10, /* layout( location = 10 ) */
+  MSHGFX_USER_DATA_D = 1 << 11, /* layout( location = 11 ) */
+  MSHGFX_STRUCTURED  = 1 << 12,
 
-  SIMPLE_MESH   = POSITION | NORMAL | STRUCTURED,
-  POINTCLOUD    = POSITION
+  MSHGFX_SIMPLE_MESH   = MSHGFX_POSITION | MSHGFX_NORMAL | MSHGFX_STRUCTURED,
+  MSHGFX_POINTCLOUD    = MSHGFX_POSITION | MSHGFX_NORMAL | MSHGFX_COLOR_A
 };
 
 enum msh_texture_options_flags_
 {
-  MSH_NEAREST               = 1 << 0, 
-  MSH_LINEAR                = 1 << 1,
-  MSH_CLAMP_TO_EDGE         = 1 << 2,
-  MSH_CLAMP_TO_BORDER       = 1 << 3,
-  MSH_REPEAT                = 1 << 4,
-  MSH_MIRRORED_REPEAT       = 1 << 5
+  MSHGFX_NEAREST               = 1 << 0, 
+  MSHGFX_LINEAR                = 1 << 1,
+  MSHGFX_CLAMP_TO_EDGE         = 1 << 2,
+  MSHGFX_CLAMP_TO_BORDER       = 1 << 3,
+  MSHGFX_REPEAT                = 1 << 4,
+  MSHGFX_MIRRORED_REPEAT       = 1 << 5
 };
 
 enum msh_framebuffer_attachments_
 {
-  MSH_COLOR_ATTACHMENT0        = GL_COLOR_ATTACHMENT0,
-  MSH_COLOR_ATTACHMENT1        = GL_COLOR_ATTACHMENT1,
-  MSH_COLOR_ATTACHMENT2        = GL_COLOR_ATTACHMENT2,
-  MSH_COLOR_ATTACHMENT3        = GL_COLOR_ATTACHMENT3,
-  MSH_COLOR_ATTACHMENT4        = GL_COLOR_ATTACHMENT4,
-  MSH_COLOR_ATTACHMENT5        = GL_COLOR_ATTACHMENT5,
-  MSH_COLOR_ATTACHMENT6        = GL_COLOR_ATTACHMENT6,
-  MSH_COLOR_ATTACHMENT7        = GL_COLOR_ATTACHMENT7,
-  MSH_DEPTH_ATTACHMENT         = GL_DEPTH_ATTACHMENT,
-  MSH_STENCIL_ATTACHMENT       = GL_STENCIL_ATTACHMENT,
-  MSH_DEPTH_STENCIL_ATTACHMENT = GL_COLOR_ATTACHMENT7,
+  MSHGFX_COLOR_ATTACHMENT0        = GL_COLOR_ATTACHMENT0,
+  MSHGFX_COLOR_ATTACHMENT1        = GL_COLOR_ATTACHMENT1,
+  MSHGFX_COLOR_ATTACHMENT2        = GL_COLOR_ATTACHMENT2,
+  MSHGFX_COLOR_ATTACHMENT3        = GL_COLOR_ATTACHMENT3,
+  MSHGFX_COLOR_ATTACHMENT4        = GL_COLOR_ATTACHMENT4,
+  MSHGFX_COLOR_ATTACHMENT5        = GL_COLOR_ATTACHMENT5,
+  MSHGFX_COLOR_ATTACHMENT6        = GL_COLOR_ATTACHMENT6,
+  MSHGFX_COLOR_ATTACHMENT7        = GL_COLOR_ATTACHMENT7,
+  MSHGFX_DEPTH_ATTACHMENT         = GL_DEPTH_ATTACHMENT,
+  MSHGFX_STENCIL_ATTACHMENT       = GL_STENCIL_ATTACHMENT,
+  MSHGFX_DEPTH_STENCIL_ATTACHMENT = GL_COLOR_ATTACHMENT7,
 };
 
 
-typedef struct msh_viewport
+typedef struct mshgfx_viewport
 {
   msh_vec2_t p1;
   msh_vec2_t p2;
-} msh_viewport_t;
+} mshgfx_viewport_t;
 
 typedef struct mshgfx_shader
 {
@@ -212,7 +216,7 @@ typedef struct mshgfx_texture3d
   uint32_t unit;
 } mshgfx_texture3d_t;
 
-typedef struct msh_renderbuffer
+typedef struct mshgfx_renderbuffer
 {
   GLuint id;
   int32_t width;
@@ -220,29 +224,33 @@ typedef struct msh_renderbuffer
   uint32_t storage_type;
 } mshgfx_renderbuffer_t;
 
-typedef struct msh_framebuffer
+typedef struct mshgfx_framebuffer
 {
   GLuint id;
   int32_t width;
   int32_t height;
-  mshgfx_texture2d_t * tex_attached;
+  mshgfx_texture2d_t* tex_attached;
 
   int32_t n_tex;
-  mshgfx_renderbuffer_t * rb_attached;
+  mshgfx_renderbuffer_t* rb_attached;
   int32_t n_rb;
 } mshgfx_framebuffer_t;
 
 // TODO(maciej): Add better support for custom user data.
 typedef struct mshgfx_geometry_data
 {
-  float * positions;
-  float * normals;
-  float * tangents;
-  float *texcoords;
-  uint8_t  * colors_a;
-  uint8_t  * colors_b;
-  uint8_t  * colors_c;
-  uint8_t  * colors_d;
+  float* positions;
+  float* normals;
+  float* tangents;
+  float* texcoords;
+  uint8_t* colors_a;
+  uint8_t* colors_b;
+  uint8_t* colors_c;
+  uint8_t* colors_d;
+  float* user_data_a;
+  float* user_data_b;
+  float* user_data_c;
+  float* user_data_d;
   uint32_t * indices;
   int32_t n_vertices;
   int32_t n_elements;
@@ -354,8 +362,8 @@ void mshgfx_texture3d_free( mshgfx_texture3d_t *tex );
  * =============================================================================
  */
 
-int32_t  msh_viewport_init( msh_viewport_t *v, msh_vec2_t p1, msh_vec2_t p2 );
-void msh_viewport_begin( const msh_viewport_t *v);
+int32_t  msh_viewport_init( mshgfx_viewport_t *v, msh_vec2_t p1, msh_vec2_t p2 );
+void msh_viewport_begin( const mshgfx_viewport_t *v);
 void msh_viewport_end();
 
 
@@ -700,7 +708,7 @@ mshgfx_framebuffer_terminate(mshgfx_framebuffer_t *fb)
  * =============================================================================
  */
 
-int32_t msh_viewport_init(msh_viewport_t *v, msh_vec2_t p1, msh_vec2_t p2)
+int32_t msh_viewport_init(mshgfx_viewport_t *v, msh_vec2_t p1, msh_vec2_t p2)
 {
   glEnable(GL_SCISSOR_TEST);
   v->p1 = p1;
@@ -708,7 +716,7 @@ int32_t msh_viewport_init(msh_viewport_t *v, msh_vec2_t p1, msh_vec2_t p2)
   return 1;
 }
 
-void msh_viewport_begin( const msh_viewport_t *v)
+void msh_viewport_begin( const mshgfx_viewport_t *v)
 {
   glScissor((GLint)v->p1.x, (GLint)v->p1.y, (GLsizei)v->p2.x, (GLsizei)v->p2.y);
   glViewport((GLint)v->p1.x, (GLint)v->p1.y, (GLsizei)v->p2.x, (GLsizei)v->p2.y );
@@ -893,21 +901,21 @@ int32_t
 mshgfx_shader_compile( mshgfx_shader_t *s, const char * source )
 {
   switch ( s->type ) {
-      case VERTEX_SHADER:
+      case MSHGFX_VERTEX_SHADER:
           s->id = glCreateShader( GL_VERTEX_SHADER );
           break;
-      case FRAGMENT_SHADER:
+      case MSHGFX_FRAGMENT_SHADER:
           s->id = glCreateShader( GL_FRAGMENT_SHADER );
           break;
 
     #ifndef __EMSCRIPTEN__
-      case GEOMETRY_SHADER:
+      case MSGFX_GEOMETRY_SHADER:
           s->id = glCreateShader( GL_GEOMETRY_SHADER );
           break;
-      case TESS_CONTROL_SHADER:
+      case MSGFX_TESS_CONTROL_SHADER:
           s->id = glCreateShader( GL_TESS_CONTROL_SHADER );
           break;
-      case TESS_EVALUATION_SHADER:
+      case MSGFX_TESS_EVALUATION_SHADER:
           s->id = glCreateShader( GL_TESS_EVALUATION_SHADER );
           break;
     #endif
@@ -933,19 +941,19 @@ mshgfx_shader_compile( mshgfx_shader_t *s, const char * source )
       char * mshgfx_shader_type_str = NULL;
       switch(s->type)
       {
-        case VERTEX_SHADER:
+        case MSHGFX_VERTEX_SHADER:
           mshgfx_shader_type_str = (char*)"Vertex Shader";
           break;
-        case FRAGMENT_SHADER:
+        case MSHGFX_FRAGMENT_SHADER:
           mshgfx_shader_type_str = (char*)"Fragment Shader";
           break;
-        case GEOMETRY_SHADER:
+        case MSGFX_GEOMETRY_SHADER:
           mshgfx_shader_type_str = (char*)"Geometry Shader";
           break;
-        case TESS_CONTROL_SHADER:
+        case MSGFX_TESS_CONTROL_SHADER:
           mshgfx_shader_type_str = (char*)"Tess Control Shader";
           break;
-        case TESS_EVALUATION_SHADER:
+        case MSGFX_TESS_EVALUATION_SHADER:
           mshgfx_shader_type_str = (char*)"Tess Evaluation Shader";
           break;
       }
@@ -1076,8 +1084,8 @@ mshgfx_shader_prog_create_from_source_vf( mshgfx_shader_prog_t *p,
 {
 
   mshgfx_shader_t vs, fs;
-  vs.type = VERTEX_SHADER;
-  fs.type = FRAGMENT_SHADER;
+  vs.type = MSHGFX_VERTEX_SHADER;
+  fs.type = MSHGFX_FRAGMENT_SHADER;
 
   if ( !mshgfx_shader_compile( &vs, vs_src ) )        return 0;
   if ( !mshgfx_shader_compile( &fs, fs_src ) )        return 0;
@@ -1093,9 +1101,9 @@ mshgfx_shader_prog_create_from_source_vgf( mshgfx_shader_prog_t *p,
                                         const char * fs_src )
 {
   mshgfx_shader_t vs, fs, gs;
-  vs.type = VERTEX_SHADER;
-  fs.type = FRAGMENT_SHADER;
-  gs.type = GEOMETRY_SHADER;
+  vs.type = MSHGFX_VERTEX_SHADER;
+  fs.type = MSHGFX_FRAGMENT_SHADER;
+  gs.type = MSGFX_GEOMETRY_SHADER;
 
   if ( !mshgfx_shader_compile( &vs, vs_src ) )            return 0;
   if ( !mshgfx_shader_compile( &gs, gs_src ) )            return 0;
@@ -1393,45 +1401,65 @@ msh__gpu_geo_get_offset( const mshgfx_geometry_t * geo,
                         const int32_t flag )
 {
   uint64_t offset = 0;
-  if ( geo->flags & POSITION )
+  if ( geo->flags & MSHGFX_POSITION )
   {
-    if ( flag & POSITION ) return offset * geo->n_indices;  
+    if ( flag & MSHGFX_POSITION ) return offset * geo->n_indices;  
     offset += 3 * sizeof(float); 
   }
-  if ( geo->flags & NORMAL )
+  if ( geo->flags & MSHGFX_NORMAL )
   {
-    if ( flag & NORMAL ) return offset * geo->n_indices;
+    if ( flag & MSHGFX_NORMAL ) return offset * geo->n_indices;
     offset += 3 * sizeof(float); 
   }
-  if ( geo->flags & TANGENT )
+  if ( geo->flags & MSHGFX_TANGENT )
   {
-    if ( flag & TANGENT ) return offset * geo->n_indices;
+    if ( flag & MSHGFX_TANGENT ) return offset * geo->n_indices;
     offset += 3 * sizeof(float); 
   }
-  if ( geo->flags & TEX_COORD )
+  if ( geo->flags & MSHGFX_TEX_COORD )
   {
-    if ( flag & TEX_COORD ) return offset * geo->n_indices;
+    if ( flag & MSHGFX_TEX_COORD ) return offset * geo->n_indices;
     offset += 2 * sizeof(float); 
   }
-  if ( geo->flags & COLOR_A )
+  if ( geo->flags & MSHGFX_COLOR_A )
   {
-    if ( flag & COLOR_A ) return offset * geo->n_indices;
+    if ( flag & MSHGFX_COLOR_A ) return offset * geo->n_indices;
     offset += 4 * sizeof(uint8_t); 
   }
-  if ( geo->flags & COLOR_B )
+  if ( geo->flags & MSHGFX_COLOR_B )
   {
-    if ( flag & COLOR_B ) return offset * geo->n_indices;
+    if ( flag & MSHGFX_COLOR_B ) return offset * geo->n_indices;
     offset += 4 * sizeof(uint8_t); 
   }
-  if ( geo->flags & COLOR_C )
+  if ( geo->flags & MSHGFX_COLOR_C )
   {
-    if ( flag & COLOR_C ) return offset * geo->n_indices;
+    if ( flag & MSHGFX_COLOR_C ) return offset * geo->n_indices;
     offset += 4 * sizeof(uint8_t); 
   }
-  if ( geo->flags & COLOR_D )
+  if ( geo->flags & MSHGFX_COLOR_D )
   {
-    if ( flag & COLOR_D ) return offset * geo->n_indices;
+    if ( flag & MSHGFX_COLOR_D ) return offset * geo->n_indices;
     offset += 4 * sizeof(uint8_t); 
+  }
+  if ( geo->flags & MSHGFX_USER_DATA_A )
+  {
+    if ( flag & MSHGFX_USER_DATA_A ) return offset * geo->n_indices;
+    offset += 4 * sizeof(float); 
+  }
+  if ( geo->flags & MSHGFX_USER_DATA_B )
+  {
+    if ( flag & MSHGFX_USER_DATA_B ) return offset * geo->n_indices;
+    offset += 4 * sizeof(float); 
+  }
+  if ( geo->flags & MSHGFX_USER_DATA_C )
+  {
+    if ( flag & MSHGFX_USER_DATA_C ) return offset * geo->n_indices;
+    offset += 4 * sizeof(float); 
+  }
+  if ( geo->flags & MSHGFX_USER_DATA_D )
+  {
+    if ( flag & MSHGFX_USER_DATA_D ) return offset * geo->n_indices;
+    offset += 4 * sizeof(float); 
   }
   return offset * geo->n_indices;
 }
@@ -1453,9 +1481,9 @@ mshgfx_geometry_update( const mshgfx_geometry_t * geo,
   glBindVertexArray( geo->vao );
   glBindBuffer( GL_ARRAY_BUFFER, geo->vbo );
  
-  if ( flags & POSITION )
+  if ( flags & MSHGFX_POSITION )
   {
-    uint64_t offset = msh__gpu_geo_get_offset( geo, flags & POSITION );
+    uint64_t offset = msh__gpu_geo_get_offset( geo, MSHGFX_POSITION );
     uint64_t current_size = 3 * sizeof(float) * geo->n_indices;
     glBufferSubData( GL_ARRAY_BUFFER, offset, 
                                       current_size, 
@@ -1465,9 +1493,9 @@ mshgfx_geometry_update( const mshgfx_geometry_t * geo,
                            0, (void*) offset );
   }
 
-  if ( flags & NORMAL )
+  if ( flags & MSHGFX_NORMAL )
   {
-    uint64_t offset = msh__gpu_geo_get_offset( geo, flags & NORMAL);
+    uint64_t offset = msh__gpu_geo_get_offset( geo, MSHGFX_NORMAL);
     uint64_t current_size = 3 * sizeof(float) * geo->n_indices;
     glBufferSubData( GL_ARRAY_BUFFER, offset, 
                                       current_size, 
@@ -1477,9 +1505,9 @@ mshgfx_geometry_update( const mshgfx_geometry_t * geo,
                            0, (void*) offset );
   }
 
-  if ( flags & TANGENT )
+  if ( flags & MSHGFX_TANGENT )
   {
-    uint64_t offset = msh__gpu_geo_get_offset( geo, flags & TANGENT);
+    uint64_t offset = msh__gpu_geo_get_offset( geo, MSHGFX_TANGENT);
     uint64_t current_size = 3 * sizeof(float) * geo->n_indices;
     glBufferSubData( GL_ARRAY_BUFFER, offset, 
                                       current_size, 
@@ -1489,9 +1517,9 @@ mshgfx_geometry_update( const mshgfx_geometry_t * geo,
                            0, (void*) offset );
   }
 
-  if ( flags & TEX_COORD )
+  if ( flags & MSHGFX_TEX_COORD )
   {
-    uint64_t offset = msh__gpu_geo_get_offset( geo, flags & TEX_COORD);
+    uint64_t offset = msh__gpu_geo_get_offset( geo, MSHGFX_TEX_COORD);
     uint64_t current_size = 2 * sizeof(float) * geo->n_indices;
     glBufferSubData( GL_ARRAY_BUFFER, offset, 
                                       current_size, 
@@ -1501,9 +1529,10 @@ mshgfx_geometry_update( const mshgfx_geometry_t * geo,
                            0, (void*) offset );
   }
 
-  if ( flags & COLOR_A )
+  if ( flags & MSHGFX_COLOR_A )
   {
-    uint64_t offset = msh__gpu_geo_get_offset( geo, flags & COLOR_A);
+    uint64_t offset = msh__gpu_geo_get_offset( geo, MSHGFX_COLOR_A);
+    
     uint64_t current_size = 4 * sizeof(uint8_t) * geo->n_indices;
     glBufferSubData( GL_ARRAY_BUFFER, offset, 
                                       current_size, 
@@ -1513,9 +1542,9 @@ mshgfx_geometry_update( const mshgfx_geometry_t * geo,
                             0, (void*) offset );
   }
 
-  if ( flags & COLOR_B )
+  if ( flags & MSHGFX_COLOR_B )
   {
-    uint64_t offset = msh__gpu_geo_get_offset( geo, flags & COLOR_B);
+    uint64_t offset = msh__gpu_geo_get_offset( geo, MSHGFX_COLOR_B);
     uint64_t current_size = 4 * sizeof(uint8_t) * geo->n_indices;
     glBufferSubData( GL_ARRAY_BUFFER, offset, 
                                       current_size, 
@@ -1525,9 +1554,9 @@ mshgfx_geometry_update( const mshgfx_geometry_t * geo,
                             0, (void*) offset );
   }
 
-  if ( flags & COLOR_C )
+  if ( flags & MSHGFX_COLOR_C )
   {
-    uint64_t offset = msh__gpu_geo_get_offset( geo, flags & COLOR_C);
+    uint64_t offset = msh__gpu_geo_get_offset( geo, MSHGFX_COLOR_C);
     uint64_t current_size = 4 * sizeof(uint8_t) * geo->n_indices;
     glBufferSubData( GL_ARRAY_BUFFER, offset, 
                                       current_size, 
@@ -1537,9 +1566,9 @@ mshgfx_geometry_update( const mshgfx_geometry_t * geo,
                             0, (void*) offset );
   }
 
-  if ( flags & COLOR_D )
+  if ( flags & MSHGFX_COLOR_D )
   {
-    uint64_t offset = msh__gpu_geo_get_offset( geo, flags & COLOR_D);
+    uint64_t offset = msh__gpu_geo_get_offset( geo, MSHGFX_COLOR_D);
     uint64_t current_size = 4 * sizeof(uint8_t) * geo->n_indices;
     glBufferSubData( GL_ARRAY_BUFFER, offset, 
                                       current_size, 
@@ -1548,6 +1577,55 @@ mshgfx_geometry_update( const mshgfx_geometry_t * geo,
     glVertexAttribPointer( 7, 4, GL_UNSIGNED_BYTE, GL_TRUE, 
                             0, (void*) offset );
   }
+
+  if ( flags & MSHGFX_USER_DATA_A )
+  {
+    uint64_t offset = msh__gpu_geo_get_offset( geo, MSHGFX_USER_DATA_A);
+    uint64_t current_size = 4 * sizeof(float) * geo->n_indices;
+    glBufferSubData( GL_ARRAY_BUFFER, offset, 
+                                      current_size, 
+                                      &(host_data->user_data_a)[0] );
+    glEnableVertexAttribArray( 8 );
+    glVertexAttribPointer( 8, 4, GL_FLOAT, GL_FALSE, 
+                            0, (void*) offset );
+  }
+
+  if ( flags & MSHGFX_USER_DATA_B )
+  {
+    uint64_t offset = msh__gpu_geo_get_offset( geo, MSHGFX_USER_DATA_B);
+    uint64_t current_size = 4 * sizeof(float) * geo->n_indices;
+    glBufferSubData( GL_ARRAY_BUFFER, offset, 
+                                      current_size, 
+                                      &(host_data->user_data_b)[0] );
+    glEnableVertexAttribArray( 9 );
+    glVertexAttribPointer( 9, 4, GL_FLOAT, GL_FALSE, 
+                            0, (void*) offset );
+  }
+
+  if ( flags & MSHGFX_USER_DATA_C )
+  {
+    uint64_t offset = msh__gpu_geo_get_offset( geo, MSHGFX_USER_DATA_C);
+    uint64_t current_size = 4 * sizeof(float) * geo->n_indices;
+    glBufferSubData( GL_ARRAY_BUFFER, offset, 
+                                      current_size, 
+                                      &(host_data->user_data_c)[0] );
+    glEnableVertexAttribArray( 10 );
+    glVertexAttribPointer( 10, 4, GL_FLOAT, GL_FALSE, 
+                            0, (void*) offset );
+  }
+
+  if ( flags & MSHGFX_USER_DATA_D )
+  {
+    uint64_t offset = msh__gpu_geo_get_offset( geo, MSHGFX_USER_DATA_D);
+    uint64_t current_size = 4 * sizeof(float) * geo->n_indices;
+    glBufferSubData( GL_ARRAY_BUFFER, offset, 
+                                      current_size, 
+                                      &(host_data->user_data_d)[0] );
+    glEnableVertexAttribArray( 11 );
+    glVertexAttribPointer( 11, 4, GL_FLOAT, GL_FALSE, 
+                            0, (void*) offset );
+  }
+
 
   glBindVertexArray(0);
   glBindBuffer( GL_ARRAY_BUFFER, 0 );
@@ -1563,11 +1641,11 @@ mshgfx_geometry_init( mshgfx_geometry_t * geo,
                       const int32_t flags )
 {
   /* Always use position */
-  assert( flags & POSITION );
+  assert( flags & MSHGFX_POSITION );
 
   glGenVertexArrays( 1, &(geo->vao)  );
   glGenBuffers( 1, &(geo->vbo) );
-  if ( flags & STRUCTURED )
+  if ( flags & MSHGFX_STRUCTURED )
   {
     glGenBuffers( 1, &(geo->ebo) );
   }
@@ -1576,15 +1654,19 @@ mshgfx_geometry_init( mshgfx_geometry_t * geo,
   glBindVertexArray( geo->vao );
   glBindBuffer( GL_ARRAY_BUFFER, geo->vbo );
 
-  unsigned long buf_size = 0;
-  if ( flags & POSITION )  buf_size += 3 * sizeof(float); 
-  if ( flags & NORMAL )    buf_size += 3 * sizeof(float);
-  if ( flags & TANGENT )   buf_size += 3 * sizeof(float);
-  if ( flags & TEX_COORD ) buf_size += 2 * sizeof(float);
-  if ( flags & COLOR_A )   buf_size += 4 * sizeof(uint8_t);
-  if ( flags & COLOR_B )   buf_size += 4 * sizeof(uint8_t);
-  if ( flags & COLOR_C )   buf_size += 4 * sizeof(uint8_t);
-  if ( flags & COLOR_D )   buf_size += 4 * sizeof(uint8_t);
+  uint64_t buf_size = 0;
+  if ( flags & MSHGFX_POSITION )      buf_size += 3 * sizeof(float); 
+  if ( flags & MSHGFX_NORMAL )        buf_size += 3 * sizeof(float);
+  if ( flags & MSHGFX_TANGENT )       buf_size += 3 * sizeof(float);
+  if ( flags & MSHGFX_TEX_COORD )     buf_size += 2 * sizeof(float);
+  if ( flags & MSHGFX_COLOR_A )       buf_size += 4 * sizeof(uint8_t);
+  if ( flags & MSHGFX_COLOR_B )       buf_size += 4 * sizeof(uint8_t);
+  if ( flags & MSHGFX_COLOR_C )       buf_size += 4 * sizeof(uint8_t);
+  if ( flags & MSHGFX_COLOR_D )       buf_size += 4 * sizeof(uint8_t);
+  if ( flags & MSHGFX_USER_DATA_A )   buf_size += 4 * sizeof(float);
+  if ( flags & MSHGFX_USER_DATA_B )   buf_size += 4 * sizeof(float);
+  if ( flags & MSHGFX_USER_DATA_C )   buf_size += 4 * sizeof(float);
+  if ( flags & MSHGFX_USER_DATA_D )   buf_size += 4 * sizeof(float);
   buf_size *= host_data->n_vertices;
   
   glBufferData( GL_ARRAY_BUFFER, buf_size, NULL, GL_STATIC_DRAW);
@@ -1599,7 +1681,7 @@ mshgfx_geometry_init( mshgfx_geometry_t * geo,
     return 0;
   }
 
-  if ( flags & STRUCTURED )
+  if ( flags & MSHGFX_STRUCTURED )
   {  
     glBindVertexArray( geo->vao );
     glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, geo->ebo );
@@ -1619,7 +1701,7 @@ int32_t
 mshgfx_geometry_free( mshgfx_geometry_t * geo )
 {
   glDeleteBuffers(1, &(geo->vbo) );
-  if ( geo->flags & STRUCTURED )
+  if ( geo->flags & MSHGFX_STRUCTURED )
   {
     glDeleteBuffers(1, &(geo->ebo) );
   }
@@ -1640,7 +1722,7 @@ mshgfx_geometry_draw( mshgfx_geometry_t * geo,
 
   glBindVertexArray( geo->vao );
   
-  if ( flags & STRUCTURED )
+  if ( flags & MSHGFX_STRUCTURED )
   {
 
     glDrawElements( draw_mode, geo->n_elements, GL_UNSIGNED_INT, 0 );
@@ -1730,12 +1812,12 @@ mshgfx_texture1d_init( mshgfx_texture1d_t *tex,
 
   GLuint filtering = GL_NEAREST;
   GLuint wrapping   = GL_CLAMP_TO_EDGE;
-  if ( user_flags & MSH_NEAREST )              filtering = GL_NEAREST; 
-  if ( user_flags & MSH_LINEAR )               filtering = GL_LINEAR;
-  if ( user_flags & MSH_CLAMP_TO_EDGE )        wrapping = GL_CLAMP_TO_EDGE;       
-  if ( user_flags & MSH_CLAMP_TO_BORDER )      wrapping = GL_CLAMP_TO_BORDER;     
-  if ( user_flags & MSH_REPEAT )               wrapping = GL_REPEAT;              
-  if ( user_flags & MSH_MIRRORED_REPEAT )      wrapping = GL_MIRRORED_REPEAT;     
+  if ( user_flags & MSHGFX_NEAREST )              filtering = GL_NEAREST; 
+  if ( user_flags & MSHGFX_LINEAR )               filtering = GL_LINEAR;
+  if ( user_flags & MSHGFX_CLAMP_TO_EDGE )        wrapping = GL_CLAMP_TO_EDGE;       
+  if ( user_flags & MSHGFX_CLAMP_TO_BORDER )      wrapping = GL_CLAMP_TO_BORDER;     
+  if ( user_flags & MSHGFX_REPEAT )               wrapping = GL_REPEAT;              
+  if ( user_flags & MSHGFX_MIRRORED_REPEAT )      wrapping = GL_MIRRORED_REPEAT;     
 
   glTexParameteri( GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, filtering );
   glTexParameteri( GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, filtering );
@@ -1832,12 +1914,12 @@ mshgfx_texture2d_init( mshgfx_texture2d_t *tex,
 
   GLuint filtering = GL_NEAREST;
   GLuint wrapping   = GL_CLAMP_TO_EDGE;
-  if ( user_flags & MSH_NEAREST )              filtering = GL_NEAREST; 
-  if ( user_flags & MSH_LINEAR )               filtering = GL_LINEAR;
-  if ( user_flags & MSH_CLAMP_TO_EDGE )        wrapping = GL_CLAMP_TO_EDGE;       
-  if ( user_flags & MSH_CLAMP_TO_BORDER )      wrapping = GL_CLAMP_TO_BORDER;     
-  if ( user_flags & MSH_REPEAT )               wrapping = GL_REPEAT;              
-  if ( user_flags & MSH_MIRRORED_REPEAT )      wrapping = GL_MIRRORED_REPEAT;     
+  if ( user_flags & MSHGFX_NEAREST )              filtering = GL_NEAREST; 
+  if ( user_flags & MSHGFX_LINEAR )               filtering = GL_LINEAR;
+  if ( user_flags & MSHGFX_CLAMP_TO_EDGE )        wrapping = GL_CLAMP_TO_EDGE;       
+  if ( user_flags & MSHGFX_CLAMP_TO_BORDER )      wrapping = GL_CLAMP_TO_BORDER;     
+  if ( user_flags & MSHGFX_REPEAT )               wrapping = GL_REPEAT;              
+  if ( user_flags & MSHGFX_MIRRORED_REPEAT )      wrapping = GL_MIRRORED_REPEAT;     
 
   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filtering );
   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filtering );
@@ -1939,12 +2021,12 @@ mshgfx_texture3d_init( mshgfx_texture3d_t *tex,
 
   GLuint filtering = GL_NEAREST;
   GLuint wrapping   = GL_CLAMP_TO_EDGE;
-  if ( user_flags & MSH_NEAREST )              filtering = GL_NEAREST; 
-  if ( user_flags & MSH_LINEAR )               filtering = GL_LINEAR;
-  if ( user_flags & MSH_CLAMP_TO_EDGE )        wrapping = GL_CLAMP_TO_EDGE;       
-  if ( user_flags & MSH_CLAMP_TO_BORDER )      wrapping = GL_CLAMP_TO_BORDER;     
-  if ( user_flags & MSH_REPEAT )               wrapping = GL_REPEAT;              
-  if ( user_flags & MSH_MIRRORED_REPEAT )      wrapping = GL_MIRRORED_REPEAT;     
+  if ( user_flags & MSHGFX_NEAREST )              filtering = GL_NEAREST; 
+  if ( user_flags & MSHGFX_LINEAR )               filtering = GL_LINEAR;
+  if ( user_flags & MSHGFX_CLAMP_TO_EDGE )        wrapping = GL_CLAMP_TO_EDGE;       
+  if ( user_flags & MSHGFX_CLAMP_TO_BORDER )      wrapping = GL_CLAMP_TO_BORDER;     
+  if ( user_flags & MSHGFX_REPEAT )               wrapping = GL_REPEAT;              
+  if ( user_flags & MSHGFX_MIRRORED_REPEAT )      wrapping = GL_MIRRORED_REPEAT;     
 
   glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, filtering );
   glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, filtering );
