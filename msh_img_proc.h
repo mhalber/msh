@@ -77,14 +77,12 @@
 extern "C" {
 #endif
 
-// #ifdef MSH_IMG_PROC_INCLUDE_HEADERS
+#ifdef MSH_IMG_PROC_INCLUDE_HEADERS
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-// #include <float.h>
 #include <math.h>
-// #include <stdbool.h>
-// #endif
+#endif
 
 #ifdef MSH_IMG_PROC_STATIC
 #define MSHIPDEF static
@@ -333,8 +331,11 @@ mship_img_##id##b##_init(int width, int height, int n_comp, int initialize)\
   img.width  = width;\
   img.height = height;\
   img.n_comp = n_comp;\
-  img.data   = (mship_##id##b##_t*)malloc(byte_size);\
-  if(initialize) { memset((void*)img.data, 0, byte_size); }\
+  img.data   = NULL;\
+  if(initialize) {\
+    img.data   = (mship_##id##b##_t*)malloc(byte_size);\
+    memset((void*)img.data, 0, byte_size);\
+  }\
   return img;\
 }
 
@@ -358,7 +359,7 @@ mship_img_##id##b##_copy(msh_img_##id##b##_t *img)\
 MSHIPDEF void \
 mship_img_##id##b##_free(msh_img_##id##b##_t* img)\
 {\
-  free(img->data);\
+  if(img->data) free(img->data);\
 }
 
 #define MSH_IMAGE_PIXEL_PTR_DEF(id,b) \
@@ -628,7 +629,6 @@ mship_dilate_filter(msh_img_ui8_t* img, int filter_size )
   int h = img->height;
   filter_size = (filter_size%2==0) ? filter_size+1 : filter_size;
   int r = (filter_size-1)/2;
-  printf("%d\n", r);
   msh_img_ui8_t filtered= mship_img_ui8_copy(img);
   for(int y=0; y<h; ++y)
   {
