@@ -360,7 +360,7 @@ msh__array_reserve( void* array, int32_t capacity, int32_t item_size )
 inline char* 
 msh_strdup(char *src)
 {
-  int len = strlen(src);
+  size_t len = strlen(src);
   char* cpy = (char*)malloc(len);
   strncpy(cpy, src, len);
   return cpy;

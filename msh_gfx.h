@@ -264,7 +264,7 @@ typedef struct mshgfx_geometry
   uint32_t ebo;
   int32_t n_indices;
   int32_t n_elements;
-  int32_t buffer_size;
+  uint64_t buffer_size;
   msh_geometry_properties_flags flags;
 } mshgfx_geometry_t;
 

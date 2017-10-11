@@ -127,7 +127,7 @@ typedef struct msh_img_##id##b\
 msh_img_##id##b##_t mship_img_##id##b##_init(int w, int h, int n, int init);
 
 #define MSH_IMAGE_COPY_DECL(id, b)\
-msh_img_##id##b##_t mship_img_##id##b##_copy(msh_img_##id##b##_t *img);
+msh_img_##id##b##_t mship_img_##id##b##_copy(const msh_img_##id##b##_t *img);
 
 #define MSH_IMAGE_FREE_DECL(id, b)\
 msh_img_##id##b##_t mship_img_##id##b##_free(msh_img_##id##b##_t *img);
@@ -342,7 +342,7 @@ mship_img_##id##b##_init(int width, int height, int n_comp, int initialize)\
 
 #define MSH_IMAGE_COPY_DEF(id, b)\
 MSHIPDEF msh_img_##id##b##_t \
-mship_img_##id##b##_copy(msh_img_##id##b##_t *img)\
+mship_img_##id##b##_copy(const msh_img_##id##b##_t *img)\
 {\
   msh_img_##id##b##_t cpy;\
   int n_elems = img->width*img->height*img->n_comp;\
