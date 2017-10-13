@@ -63,10 +63,10 @@
 
   ==============================================================================
   TODOs
-
+    [ ] Make all filter functions generic
   ==============================================================================
   REFERENCES:
-
+    1. Bilateral filter by mrharicot: https://www.shadertoy.com/view/4dfGDH 
  */
 
 
@@ -82,6 +82,7 @@ extern "C" {
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include "tt/tiny_time.h"
 #endif
 
 #ifdef MSH_IMG_PROC_STATIC
@@ -648,6 +649,71 @@ mship_dilate_filter(msh_img_ui8_t* img, int filter_size )
           }
         }
       }
+    }
+  }
+  return filtered;
+}
+
+float
+mship__normpdf(float x, float sigma)
+{
+  return 0.39894f*expf((-0.5f*x*x)/(sigma*sigma))/sigma;
+}
+
+void
+mship__compute_gaussian_kernel(float* kernel, int radius, float sigma)
+{
+
+  for(int x = 0; x <= radius; ++x)
+  {
+    kernel[radius+x] = kernel[radius-x] = mship__normpdf(x, sigma); 
+  }
+}
+
+// Assume single channel for now. 
+// This is okay, as long as sigma is not too large.
+msh_img_ui16_t
+mship_img_ui16_bilateral_filter(const msh_img_ui16_t* img, 
+                                float sigma, float bsigma)
+{
+  msh_img_ui16_t filtered = mship_img_ui16_init(img->width, img->height, 
+                                                img->n_comp, 1);
+  //calculate radius in pixels given sigma
+  int r = 3 * sigma;
+  float kernel[1024] = {0}; // Big enough for anything reasonable.
+  mship__compute_gaussian_kernel( &kernel[0], r, sigma );
+
+  int row_size = img->width * img->n_comp * sizeof(mship_ui16_t);
+  for(int y = 0; y < img->height; ++y)
+  {
+    for(int x = 0; x < img->width; ++x)
+    {
+      const mship_ui16_t* i = mship_pixel_cptr_ui16(img, x, y);
+      const float ival = (*i);
+
+      float diff = 0.0;
+      float factor = 0.0;
+      float Z = 0.0;
+      float bZ = 1.0 / mship__normpdf(0.0, bsigma);
+      float final_val = 0.0;
+      for(int oy=-r; oy <= r; ++oy)
+      {
+        for(int ox=-r; ox <= r; ++ox)
+        {
+          int cx = x + ox; int cy = y + oy;
+          if(cx >= 0 && cx < img->width && cy >= 0 && cy < img->height)
+          {
+            const mship_ui16_t* j = mship_pixel_cptr_ui16(img, cx, cy);
+            diff = (float)(*j) - ival;
+            factor = mship__normpdf(diff, bsigma) * bZ * kernel[r+ox] * kernel[r+oy];
+            Z += factor;
+            final_val += factor*(float)(*j);
+          }
+        }
+      }
+      float oval = final_val/Z;
+      mship_ui16_t* o = mship_pixel_ptr_ui16(&filtered, x, y);
+      *o = (mship_ui16_t)oval;
     }
   }
   return filtered;
