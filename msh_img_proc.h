@@ -666,7 +666,7 @@ mship__compute_gaussian_kernel(float* kernel, int radius, float sigma)
 
   for(int x = 0; x <= radius; ++x)
   {
-    kernel[radius+x] = kernel[radius-x] = mship__normpdf(x, sigma); 
+    kernel[radius+x] = kernel[radius-x] = mship__normpdf((float)x, sigma); 
   }
 }
 
@@ -679,7 +679,7 @@ mship_img_ui16_bilateral_filter(const msh_img_ui16_t* img,
   msh_img_ui16_t filtered = mship_img_ui16_init(img->width, img->height, 
                                                 img->n_comp, 1);
   //calculate radius in pixels given sigma
-  int r = 3 * sigma;
+  int r = (int)(3.0 * sigma);
   float kernel[1024] = {0}; // Big enough for anything reasonable.
   mship__compute_gaussian_kernel( &kernel[0], r, sigma );
 
@@ -691,11 +691,11 @@ mship_img_ui16_bilateral_filter(const msh_img_ui16_t* img,
       const mship_ui16_t* i = mship_pixel_cptr_ui16(img, x, y);
       const float ival = (*i);
 
-      float diff = 0.0;
-      float factor = 0.0;
-      float Z = 0.0;
-      float bZ = 1.0 / mship__normpdf(0.0, bsigma);
-      float final_val = 0.0;
+      float diff = 0.0f;
+      float factor = 0.0f;
+      float Z = 0.0f;
+      float bZ = 1.0f / mship__normpdf(0.0f, bsigma);
+      float final_val = 0.0f;
       for(int oy=-r; oy <= r; ++oy)
       {
         for(int ox=-r; ox <= r; ++ox)

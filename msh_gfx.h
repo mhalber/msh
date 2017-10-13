@@ -59,6 +59,8 @@
   ==============================================================================
   TODO
   [ ] Texture and framebuffers resize
+  [ ] Modify how the msh_texture2d function work to support different texture formats
+  [ ] Add framebuffer_present function that wraps screen vao and screen rectangle
   [ ] Modify shader code to enable use of glProgramPipeline
   [ ] For geometry, need to experiment with glMapBufferRange
   [ ] Add informative error messages. Make them optional
@@ -66,7 +68,6 @@
   [ ] Add higher level stuff for wrapping materials
   [ ] Remove the mshgfx_window stuff and replace it with glfw3
   [ ] Think more about the viewport design
-  [ ] Decide msh, mshgfx mgfx
   [ ] Cube maps
   [ ] Regular vs read framebuffers.
 
@@ -224,6 +225,7 @@ typedef struct mshgfx_renderbuffer
   uint32_t storage_type;
 } mshgfx_renderbuffer_t;
 
+// TODO(maciej): Add attachments for iterating over textures that need to be used & for resizes!
 typedef struct mshgfx_framebuffer
 {
   GLuint id;
@@ -1886,9 +1888,17 @@ mshgfx_texture2d_update( mshgfx_texture2d_t *tex,
       internal_format = GL_RGBA;
       format = GL_RGB;
   }
-
-  glTexImage2D( GL_TEXTURE_2D, 0, internal_format, 
+  //NOTE(maciej): Nasty workaround. Need to rethink how textures are handled! Workaround!
+  if(type == GL_DEPTH_COMPONENT)
+  {
+    glTexImage2D( GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F,
+                tex->width, tex->height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, data);
+  }
+  else
+  {
+    glTexImage2D( GL_TEXTURE_2D, 0, internal_format, 
                 tex->width, tex->height, 0, format, type, data );
+  }
   glBindTexture( GL_TEXTURE_2D, 0 );
 }
 
