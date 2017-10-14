@@ -361,8 +361,9 @@ inline char*
 msh_strdup(char *src)
 {
   size_t len = strlen(src);
-  char* cpy = (char*)malloc(len);
+  char* cpy = (char*)malloc(len+1);
   strncpy(cpy, src, len);
+  cpy[len] = 0;
   return cpy;
 }
 

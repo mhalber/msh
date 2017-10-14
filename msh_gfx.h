@@ -1891,7 +1891,7 @@ mshgfx_texture2d_update( mshgfx_texture2d_t *tex,
   //NOTE(maciej): Nasty workaround. Need to rethink how textures are handled! Workaround!
   if(type == GL_DEPTH_COMPONENT)
   {
-    glTexImage2D( GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F,
+    glTexImage2D( GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32,
                 tex->width, tex->height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, data);
   }
   else

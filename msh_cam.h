@@ -66,16 +66,16 @@
   been used, but no explicit code copying was done. 
 
   ==============================================================================
-
-  TODO: Add quaternions / vectors if no vec math is provided 
-  TODO: Remove dependency on msh_vec_math.h
-  TODO: Add the capability to use a real camera parameters like focal length
-  and center of projection.
-  TODO: What is the interface for generating perspective?
-  TODO: Figure out what is the numerical instability issue. The position seems
-  to be accumulating drift.
-  TODO: Figure out why the rotation r needs to be conjugated...
-
+  TODOS
+  [ ] Revise arcball controls.
+  [ ] Add explicit center of rotation
+  [ ] Add tweening
+  [ ] Add quaternions / vectors if no vec math is provided 
+  [ ] Remove dependency on msh_vec_math.h
+  [ ] Add the capability to use a real camera parameters like focal length
+         and center of projection.
+  [ ] What is the interface for generating perspective?
+  
   ==============================================================================
   REFERENCES:
   [1] nlguillemot/arcball_camera.h    https://github.com/nlguillemot/arcball_camera/blob/master/arcball_camera.h
