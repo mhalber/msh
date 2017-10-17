@@ -683,7 +683,6 @@ mship_img_ui16_bilateral_filter(const msh_img_ui16_t* img,
   float kernel[1024] = {0}; // Big enough for anything reasonable.
   mship__compute_gaussian_kernel( &kernel[0], r, sigma );
 
-  int row_size = img->width * img->n_comp * sizeof(mship_ui16_t);
   for(int y = 0; y < img->height; ++y)
   {
     for(int x = 0; x < img->width; ++x)

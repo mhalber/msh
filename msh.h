@@ -357,7 +357,7 @@ msh__array_reserve( void* array, int32_t capacity, int32_t item_size )
 // Strings
 ////////////////////////////////////////////////////////////////////////////////
 
-inline char* 
+char* 
 msh_strdup(char *src)
 {
   size_t len = strlen(src);
@@ -366,7 +366,6 @@ msh_strdup(char *src)
   cpy[len] = 0;
   return cpy;
 }
-
 inline void
 msh__asprintf(char *str)
 {
