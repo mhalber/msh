@@ -221,15 +221,17 @@ void msh__assert_handler( char const *condition, char const *file,
 // Array
 ////////////////////////////////////////////////////////////////////////////////
 
-// TODO(maciej): Are we messing up alignement?
-// TODO(maciej): Better docs
+// TODO(maciej): Test if we're messing up alignement?
+// TODO(maciej): Test bug with m_back / last
+// TODO(maciej): Small array optimization
+// TODO(maciej): Prepare Better docs
 // msh_array_init(a, n)     // <- Initialize array of size n with unitialized values
 // msh_array_grow(a, n)     // <- Grow array to size n
 // msh_array_push(a, v)     // <- Push value v onto array 
 // msh_array_pop(a)         // <- Pop value from array
-// msh_array_last(a)        // <- Access the last element
+// msh_array_back(a)        // <- Access the last element
 // msh_array_count(a)       // <- Size of an array
-// msh_array_size(a)       // <- Size of an array
+// msh_array_size(a)        // <- Size of an array
 // msh_array_capacity(a)    // <- Capacity of an array
 // msh_array_clear(a)       // <- Clear elements but leave array allocated
 // msh_array_free(a)        // <- Free memory
