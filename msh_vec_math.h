@@ -269,6 +269,14 @@ MSHVMDEF msh_vec2_t msh_vec2_normalize( msh_vec2_t v );
 MSHVMDEF msh_vec3_t msh_vec3_normalize( msh_vec3_t v );
 MSHVMDEF msh_vec4_t msh_vec4_normalize( msh_vec4_t v );
 
+MSHVMDEF msh_scalar_t msh_vec2_inner_product( msh_vec2_t a, msh_vec2_t b );
+MSHVMDEF msh_scalar_t msh_vec3_inner_product( msh_vec3_t a, msh_vec3_t b );
+MSHVMDEF msh_scalar_t msh_vec4_inner_product( msh_vec4_t a, msh_vec4_t b );
+
+MSHVMDEF msh_mat2_t msh_vec2_outer_product( msh_vec2_t a, msh_vec2_t b );
+MSHVMDEF msh_mat3_t msh_vec3_outer_product( msh_vec3_t a, msh_vec3_t b );
+MSHVMDEF msh_mat4_t msh_vec4_outer_product( msh_vec4_t a, msh_vec4_t b );
+
 MSHVMDEF msh_scalar_t msh_vec2_dot( msh_vec2_t a, msh_vec2_t b );
 MSHVMDEF msh_scalar_t msh_vec3_dot( msh_vec3_t a, msh_vec3_t b );
 MSHVMDEF msh_scalar_t msh_vec4_dot( msh_vec4_t a, msh_vec4_t b );
@@ -838,6 +846,78 @@ MSHVMDEF inline msh_scalar_t
 msh_vec4_dot( msh_vec4_t a, msh_vec4_t b )
 {
   return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w; 
+}
+
+// Inner product is just an alias for dot product.
+MSHVMDEF inline msh_scalar_t 
+msh_vec2_inner_product( msh_vec2_t a, msh_vec2_t b )
+{
+  return a.x * b.x + a.y * b.y; 
+}
+
+MSHVMDEF inline msh_scalar_t 
+msh_vec3_inner_product( msh_vec3_t a, msh_vec3_t b )
+{
+  return a.x * b.x + a.y * b.y + a.z * b.z; 
+}
+
+MSHVMDEF inline msh_scalar_t 
+msh_vec4_inner_product( msh_vec4_t a, msh_vec4_t b )
+{
+  return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w; 
+}
+
+MSHVMDEF inline msh_mat2_t
+msh_vec2_outer_product( msh_vec2_t a, msh_vec2_t b )
+{
+  msh_mat2_t m;
+  m.col[0].x = a.x * b.x;
+  m.col[0].y = a.y * b.x;
+  m.col[1].x = a.x * b.y;
+  m.col[1].y = a.y * b.y;
+  return m;
+}
+
+MSHVMDEF inline msh_mat3_t
+msh_vec3_outer_product( msh_vec3_t a, msh_vec3_t b )
+{
+  msh_mat3_t m;
+  m.col[0].x = a.x * b.x;
+  m.col[0].y = a.y * b.x;
+  m.col[0].z = a.z * b.x;
+  m.col[1].x = a.x * b.y;
+  m.col[1].y = a.y * b.y;
+  m.col[1].z = a.z * b.y;
+  m.col[2].x = a.x * b.z;
+  m.col[2].y = a.y * b.z;
+  m.col[2].z = a.z * b.z;
+  return m;
+}
+
+MSHVMDEF inline msh_mat4_t
+msh_vec4_outer_product( msh_vec4_t a, msh_vec4_t b )
+{
+  msh_mat4_t m;
+  m.col[0].x = a.x * b.x;
+  m.col[0].y = a.y * b.x;
+  m.col[0].z = a.z * b.x;
+  m.col[0].w = a.w * b.x;
+  
+  m.col[1].x = a.x * b.y;
+  m.col[1].y = a.y * b.y;
+  m.col[1].z = a.z * b.y;
+  m.col[1].w = a.w * b.y;
+  
+  m.col[2].x = a.x * b.z;
+  m.col[2].y = a.y * b.z;
+  m.col[2].z = a.z * b.z;
+  m.col[2].w = a.w * b.z;
+
+  m.col[3].x = a.x * b.w;
+  m.col[3].y = a.y * b.w;
+  m.col[3].z = a.z * b.w;
+  m.col[3].w = a.w * b.w;
+  return m;
 }
 
 MSHVMDEF inline msh_vec3_t
@@ -2297,6 +2377,57 @@ msh_mat4_to_quat( msh_mat4_t m )
 {
   return msh_mat3_to_quat( msh_mat4_to_mat3( m ) );
 }
+
+MSHVMDEF inline int 
+msh_mat2_equal( msh_mat2_t a, msh_mat2_t b )
+{
+  int result = 1;
+  result = result && (a.data[0] == b.data[0]);
+  result = result && (a.data[1] == b.data[1]);
+  result = result && (a.data[2] == b.data[2]);
+  result = result && (a.data[3] == b.data[3]);
+  return result;
+}
+
+MSHVMDEF inline int 
+msh_mat3_equal( msh_mat3_t a, msh_mat3_t b )
+{
+  int result = 1;
+  result = result && (a.data[0] == b.data[0]);
+  result = result && (a.data[1] == b.data[1]);
+  result = result && (a.data[2] == b.data[2]);
+  result = result && (a.data[3] == b.data[3]);
+  result = result && (a.data[4] == b.data[4]);
+  result = result && (a.data[5] == b.data[5]);
+  result = result && (a.data[6] == b.data[6]);
+  result = result && (a.data[7] == b.data[7]);
+  result = result && (a.data[8] == b.data[8]);
+  return result;
+}
+
+MSHVMDEF inline int 
+msh_mat4_equal( msh_mat4_t a, msh_mat4_t b )
+{
+  int result = 1;
+  result = result && (a.data[0] == b.data[0]);
+  result = result && (a.data[1] == b.data[1]);
+  result = result && (a.data[2] == b.data[2]);
+  result = result && (a.data[3] == b.data[3]);
+  result = result && (a.data[4] == b.data[4]);
+  result = result && (a.data[5] == b.data[5]);
+  result = result && (a.data[6] == b.data[6]);
+  result = result && (a.data[7] == b.data[7]);
+  result = result && (a.data[8] == b.data[8]);
+  result = result && (a.data[9] == b.data[9]);
+  result = result && (a.data[10] == b.data[10]);
+  result = result && (a.data[11] == b.data[11]);
+  result = result && (a.data[12] == b.data[12]);
+  result = result && (a.data[13] == b.data[13]);
+  result = result && (a.data[14] == b.data[14]);
+  result = result && (a.data[15] == b.data[15]);
+  return result;
+}
+
 
 /*
  * =============================================================================
