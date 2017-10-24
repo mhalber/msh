@@ -2017,16 +2017,16 @@ msh_rotate( msh_mat4_t m, msh_scalar_t angle, msh_vec3_t v )
 
   msh_mat4_t result = m;
   result.col[0]=msh_vec4_add(msh_vec4_scalar_mul(m.col[0], rotate.data[0]), 
-                 msh_vec4_add(msh_vec4_scalar_mul(m.col[1], rotate.data[1]), 
-                              msh_vec4_scalar_mul(m.col[2], rotate.data[2])));
+                msh_vec4_add(msh_vec4_scalar_mul(m.col[1], rotate.data[1]), 
+                             msh_vec4_scalar_mul(m.col[2], rotate.data[2])));
   
   result.col[1]=msh_vec4_add(msh_vec4_scalar_mul(m.col[0], rotate.data[4]), 
-                 msh_vec4_add(msh_vec4_scalar_mul(m.col[1], rotate.data[5]), 
+                msh_vec4_add(msh_vec4_scalar_mul(m.col[1], rotate.data[5]), 
                               msh_vec4_scalar_mul(m.col[2], rotate.data[6])));
   
   result.col[2]=msh_vec4_add(msh_vec4_scalar_mul(m.col[0], rotate.data[8]), 
-                 msh_vec4_add(msh_vec4_scalar_mul(m.col[1], rotate.data[9]), 
-                              msh_vec4_scalar_mul(m.col[2], rotate.data[10])));
+                msh_vec4_add(msh_vec4_scalar_mul(m.col[1], rotate.data[9]), 
+                             msh_vec4_scalar_mul(m.col[2], rotate.data[10])));
   result.col[3]=m.col[3];
   return result;
 }
