@@ -66,20 +66,19 @@
        as compared to passing pointers
 
   ==============================================================================
-
-  TODO: Come up with an example when the static definition is necessary and
-        helps.
-  TODO: Simplify lerp
-  TODO: Cpp overloads?
-  TODO: Double check quaternion operations
-  TODO: Add quat from axis-angle
-  TODO: Test performance of matrices... Without optimization it will probably 
-        be slow.
-  TODO: Fix x_equal functions. The epsilon comparison is apparently wrong.
-  TODO: Add quat from euler angles!
-  TODO: Normalize the quaternion after lerping!
-  TODO: Add testing
-  TODO: Typedef the scalar type and add an option
+  TODOs:
+  [ ] Add vector lerp
+  [ ] Add xform lerp
+  [ ] Simplify lerp
+  [ ] Cpp overloads?
+  [ ] Double check quaternion operations
+  [x] Add quat from axis-angle
+  [ ] Fix x_equal functions. The epsilon comparison is apparently wrong.
+  [x] Add quat from euler angles!
+  [ ] Normalize the quaternion after lerping!
+  [ ] Performance benchmark
+  [ ] Correctness testing
+  [x] Typedef the scalar type and add an option
 
   ==============================================================================
   REFERENCES:

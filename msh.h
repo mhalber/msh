@@ -254,7 +254,8 @@ typedef struct msh_array_header
 #define msh_array_capacity(a)    ((a) ? msh__array_header(a)->capacity : 0)
 #define msh_array_empty(a)       ((a) ? (msh__array_header(a)->count > 0) : 0)
 #define msh_array_front(a)       ((a) ? &a[0] : NULL)
-#define msh_array_back(a)        ((a) ? &a[msh__array_header(a)->count - 1] : NULL)
+//NOTE(maciej): debug what this expands to.
+#define msh_array_back(a)        ((a) ? &a[((msh__array_header(a)->count) - 1)] : NULL)
 
 #define msh_array_init(a, n) do                                                \
 {                                                                              \
