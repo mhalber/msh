@@ -385,7 +385,55 @@ msh__path_concat(char* buf, va_list ap)
 
 ////////////////////////////////////////////////////////////////////////////////
 // Time
+// This is heavily inspired by Randy Gaul's tiny_time.h -- all credit for this 
+// goes to him:
+//    https://github.com/RandyGaul/tinyheaders
 ////////////////////////////////////////////////////////////////////////////////
+
+enum msh__time_units
+{
+  MSHT_SECONDS,
+  MSHT_MILLISECONDS,
+  MSHT_MICROSECONDS,
+  MSHT_NANOSECONDS
+};
+
+double msh_get_time(int unit);
+
+#if defined(_WIN32)
+double msh_get_time(int unit)
+{
+  static int first = 1;
+  static double factor = 1.0;
+  LARGE_INTEGER now;
+  QueryPerformanceCounter(&now);
+  if(first)
+  {
+    first = 0;
+    LARGE_INTEGER freq;
+    QueryPerformanceFrequency(&freq);
+    factor = 1.0 / (double)freq.QuadPart;
+  }
+  double cur_time = now.QuadPart * factor;
+  return cur_time;
+}
+#elif __unix__
+#include <time.h>
+double msh_get_time(int unit)
+{
+  struct timespec now;
+  clock_gettime( CLOCK_MONOTONIC, &now );
+  double nano_time = (((double)now.tv_sec * 1.0e+9) + (double)now.tv_nsec);
+  switch(unit)
+  {
+    case MSHT_SECONDS:      return (nano_time * 1e-9);
+    case MSHT_MILLISECONDS: return (nano_time * 1e-6);
+    case MSHT_MICROSECONDS: return (nano_time * 1e-3);
+    case MSHT_NANOSECONDS:  return nano_time;
+  }
+  return nano_time;
+}
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 // Statistics 
@@ -427,11 +475,6 @@ msh_compute_stddev( float mean, float *vals, int n_vals )
   float sq_sum = msh_inner_product( vals, n_vals );
   return sqrtf( sq_sum / (float)n_vals - mean * mean );
 }
-
-////////////////////////////////////////////////////////////////////////////////
-// Simple geometry
-// TODO(maciej): As this grows, create msh_geom.h
-////////////////////////////////////////////////////////////////////////////////
 
 #endif /* MSH */
 

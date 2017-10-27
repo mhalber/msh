@@ -139,6 +139,12 @@ enum msh_geometry_properties_flags_
   MSHGFX_POINTCLOUD    = MSHGFX_POSITION | MSHGFX_NORMAL | MSHGFX_COLOR_A
 };
 
+enum msh_geometry_usage_hint_
+{
+  MSHGFX_STATIC_DRAW,
+  MSHGFX_DYNAMIC_DRAW
+};
+
 enum msh_texture_options_flags_
 {
   MSHGFX_NEAREST               = 1 << 0, 
@@ -1640,7 +1646,8 @@ mshgfx_geometry_update( const mshgfx_geometry_t * geo,
 int32_t 
 mshgfx_geometry_init( mshgfx_geometry_t * geo, 
                       const mshgfx_geometry_data_t * host_data, 
-                      const int32_t flags )
+                      const int32_t flags,
+                      const int32_t usage_hint )
 {
   /* Always use position */
   assert( flags & MSHGFX_POSITION );
@@ -1671,7 +1678,9 @@ mshgfx_geometry_init( mshgfx_geometry_t * geo,
   if ( flags & MSHGFX_USER_DATA_D )   buf_size += 4 * sizeof(float);
   buf_size *= host_data->n_vertices;
   
-  glBufferData( GL_ARRAY_BUFFER, buf_size, NULL, GL_STATIC_DRAW);
+  GLenum gl_usage = GL_STATIC_DRAW;
+  if( usage_hint == MSHGFX_DYNAMIC_DRAW ) gl_usage = GL_DYNAMIC_DRAW;
+  glBufferData( GL_ARRAY_BUFFER, buf_size, NULL, gl_usage);
 
   geo->flags       = flags;
   geo->n_indices   = host_data->n_vertices;
