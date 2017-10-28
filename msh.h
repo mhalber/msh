@@ -401,23 +401,30 @@ enum msh__time_units
 double msh_get_time(int unit);
 
 #if defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN
+
+#include <windows.h>
+
 double msh_get_time(int unit)
 {
   static int first = 1;
-  static double factor = 1.0;
+  static LARGE_INTEGER freq;
   LARGE_INTEGER now;
+  
   QueryPerformanceCounter(&now);
-  if(first)
+  if(first) { first = 0; QueryPerformanceFrequency(&freq);}
+  // printf("%lld %lld %f\n", now.QuadPart, freq.QuadPart, (double)(now.QuadPart) / (double)freq.QuadPart);
+  switch(unit)
   {
-    first = 0;
-    LARGE_INTEGER freq;
-    QueryPerformanceFrequency(&freq);
-    factor = 1.0 / (double)freq.QuadPart;
+    case MSHT_SECONDS:      return ((double)(now.QuadPart) / (double)freq.QuadPart);
+    case MSHT_MILLISECONDS: return ((double)(now.QuadPart * 1e+3) / (double)freq.QuadPart);
+    case MSHT_MICROSECONDS: return ((double)(now.QuadPart * 1e+6) / (double)freq.QuadPart);
+    case MSHT_NANOSECONDS:  return ((double)(now.QuadPart * 1e+9) / (double)freq.QuadPart);
   }
-  double cur_time = now.QuadPart * factor;
-  return cur_time;
+  return (double)((now.QuadPart) / freq.QuadPart);
 }
 #elif __unix__
+
 #include <time.h>
 double msh_get_time(int unit)
 {
