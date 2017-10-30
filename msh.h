@@ -423,7 +423,7 @@ double msh_get_time(int unit)
   }
   return (double)((now.QuadPart) / freq.QuadPart);
 }
-#elif __unix__
+#elif defined(__unix__)
 
 #include <time.h>
 double msh_get_time(int unit)
@@ -440,6 +440,32 @@ double msh_get_time(int unit)
   }
   return nano_time;
 }
+
+#elif defined(__APPLE__)
+
+#include <mach/mach_time.h>
+double msh_get_time(int unit)
+{
+  static double factor = -1.0;
+
+  if(factor < 0.0)
+  {
+    mach_timebase_info_data_t info;
+    mach_timebase_info(&info);
+    factor = ((double)info.numer / (double)info.denom);
+  }
+
+  double nano_time = (double)mach_absolute_time() * factor; 
+  switch(unit)
+  {
+    case MSHT_SECONDS:      return (nano_time * 1e-9);
+    case MSHT_MILLISECONDS: return (nano_time * 1e-6);
+    case MSHT_MICROSECONDS: return (nano_time * 1e-3);
+    case MSHT_NANOSECONDS:  return nano_time;
+  }
+  return nano_time;
+}
+
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
