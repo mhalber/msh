@@ -605,6 +605,21 @@ mshgfx_framebuffer_init( mshgfx_framebuffer_t *fb, int32_t width, int32_t height
 }
 
 int32_t 
+mshgfx_framebuffer_free( mshgfx_framebuffer_t *fb )
+{
+  // It is users job to detach and free textures.
+  fb->width = -1;
+  fb->height = -1;
+  fb->tex_attached = NULL;
+  fb->n_tex = 0;
+  fb->rb_attached = NULL;
+  fb->n_rb = 0;
+
+  glDeleteFramebuffers(1, &fb->id);
+  return 1;
+}
+
+int32_t 
 mshgfx_framebuffer_bind( mshgfx_framebuffer_t *fb )
 {
   if (fb) glBindFramebuffer(GL_FRAMEBUFFER, fb->id);
@@ -1699,7 +1714,7 @@ mshgfx_geometry_init( mshgfx_geometry_t * geo,
     glBufferData( GL_ELEMENT_ARRAY_BUFFER, 
                   geo->n_elements * sizeof( uint32_t ), 
                   &(host_data->indices[0]), 
-                  GL_STATIC_DRAW ); 
+                  gl_usage ); 
   }
 
   glBindVertexArray(0);
