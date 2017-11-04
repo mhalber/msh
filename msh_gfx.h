@@ -622,8 +622,8 @@ mshgfx_framebuffer_free( mshgfx_framebuffer_t *fb )
 int32_t 
 mshgfx_framebuffer_bind( mshgfx_framebuffer_t *fb )
 {
-  if (fb) glBindFramebuffer(GL_FRAMEBUFFER, fb->id);
-  else    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  if (fb) { glBindFramebuffer(GL_FRAMEBUFFER, fb->id); }
+  else    { glBindFramebuffer(GL_FRAMEBUFFER, 0); }
 
   return 1;
 }
@@ -1491,7 +1491,7 @@ msh__gpu_geo_get_offset( const mshgfx_geometry_t * geo,
 int32_t 
 mshgfx_geometry_update( const mshgfx_geometry_t * geo,
                         const mshgfx_geometry_data_t * host_data, 
-                         const int32_t flags )
+                        const int32_t flags )
 {
   
   if( !(flags & geo->flags) )
