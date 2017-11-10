@@ -524,7 +524,8 @@ int32_t mshgfx_geometry_update( const mshgfx_geometry_t * geo,
 
 int32_t mshgfx_geometry_init( mshgfx_geometry_t * geo, 
                           const mshgfx_geometry_data_t * host_data,   
-                          const int32_t flags );
+                          const int32_t flags,
+                          const int32_t usage_hint );
 
 int32_t mshgfx_geometry_free( mshgfx_geometry_t * geo );
 
