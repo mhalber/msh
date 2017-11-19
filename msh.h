@@ -73,6 +73,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <stdalign.h>
 #include <stdbool.h>
 #endif
 
@@ -220,11 +221,10 @@ void msh__assert_handler( char const *condition, char const *file,
 ////////////////////////////////////////////////////////////////////////////////
 // Array
 ////////////////////////////////////////////////////////////////////////////////
-
-// TODO(maciej): Test if we're messing up alignement?
 // TODO(maciej): Test bug with m_back / last
 // TODO(maciej): Small array optimization
 // TODO(maciej): Prepare Better docs
+// TODO(maciej): Test efficiency against std::vector/regular arrays. Decide what might be causing the slowdown. 
 // msh_array_init(a, n)     // <- Initialize array of size n with unitialized values
 // msh_array_grow(a, n)     // <- Grow array to size n
 // msh_array_push(a, v)     // <- Push value v onto array 
@@ -242,7 +242,7 @@ typedef struct msh_array_header
   int32_t capacity;
 } msh_array_header_t;
 
-#define msh_array(T) T *
+#define msh_array(T) T*
 
 #ifndef MSH_ARRAY_GROW_FORMULA
 #define MSH_ARRAY_GROW_FORMULA(x) ( 1.5*(x) + 2 )
