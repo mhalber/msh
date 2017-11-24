@@ -86,6 +86,7 @@ MSHGEODEF msh_vec3_t mshgeo_bbox_centroid(msh_bbox_t *bb);
 MSHGEODEF float mshgeo_bbox_width(msh_bbox_t *bb);
 MSHGEODEF float mshgeo_bbox_height(msh_bbox_t *bb);
 MSHGEODEF float mshgeo_bbox_depth(msh_bbox_t *bb);
+MSHGEODEF msh_vec3_t mshgeo_bbox_diagonal(msh_bbox_t* bb);
 
 #ifdef __cplusplus
 }
@@ -117,6 +118,12 @@ MSHGEODEF msh_vec3_t
 mshgeo_bbox_centroid(msh_bbox_t* bb)
 {
   return msh_vec3_scalar_mul(msh_vec3_add(bb->min_p, bb->max_p), 0.5);
+}
+
+MSHGEODEF msh_vec3_t
+mshgeo_bbox_diagonal(msh_bbox_t* bb)
+{
+  return msh_vec3_sub(bb->max_p, bb->min_p);
 }
 
 MSHGEODEF float
