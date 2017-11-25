@@ -81,7 +81,7 @@ typedef struct mshgeo_bbox
 
 /* SIMPLE BBOX */
 MSHGEODEF msh_bbox_t mshgeo_bbox_init();
-MSHGEODEF msh_bbox_t mshgeo_bbox_reset(msh_bbox_t* bbox);
+MSHGEODEF void mshgeo_bbox_reset(msh_bbox_t* bbox);
 MSHGEODEF void mshgeo_bbox_union(msh_bbox_t* bb, msh_vec3_t p);
 MSHGEODEF msh_vec3_t mshgeo_bbox_centroid(msh_bbox_t *bb);
 MSHGEODEF float mshgeo_bbox_width(msh_bbox_t *bb);
@@ -106,7 +106,7 @@ mshgeo_bbox_init()
   return bb;
 }
 
-MSHGEODEF inline msh_bbox_t
+MSHGEODEF inline void
 mshgeo_bbox_reset(msh_bbox_t* bb)
 {
   bb->min_p = msh_vec3(1e9, 1e9, 1e9);
