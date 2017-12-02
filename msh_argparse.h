@@ -145,13 +145,13 @@
 extern "C" {
 #endif
 
-// #ifdef MSH_ARGPARSE_INCLUDE_HEADERS
+#ifdef MSH_ARGPARSE_INCLUDE_HEADERS
 #include <string.h>
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-// #endif
+#endif
 
 #ifdef MSH_ARGPARSE_STATIC
 #define MSHAPDEF static

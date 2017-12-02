@@ -86,9 +86,11 @@
 #ifndef MSH_GFX_H
 #define MSH_GFX_H
 
+#ifdef MSH_GFX_INCLUDE_HEADES
 #include <stdlib.h>
 #include <assert.h>
 #include <stdint.h>
+#endif
 
 #ifdef __APPLE__
   #include <OpenGL/gl3.h>
