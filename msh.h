@@ -67,9 +67,11 @@
 #ifndef MSH_NO_HEADERS
 
 // c stdlib
+#include <assert.h>
 #include <stdio.h>
 #include <float.h>
 #include <math.h>
+#include <ctype.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
