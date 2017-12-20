@@ -350,6 +350,7 @@ MSHVMDEF msh_mat4_t msh_mat4_scalar_mul( msh_mat4_t m, msh_scalar_t s );
 
 MSHVMDEF msh_vec2_t msh_mat2_vec2_mul( msh_mat2_t m, msh_vec2_t v );
 MSHVMDEF msh_vec3_t msh_mat3_vec3_mul( msh_mat3_t m, msh_vec3_t v );
+MSHVMDEF msh_vec3_t msh_mat4_vec3_mul( msh_mat4_t m, msh_vec3_t v );
 MSHVMDEF msh_vec4_t msh_mat4_vec4_mul( msh_mat4_t m, msh_vec4_t v );
 
 MSHVMDEF msh_mat2_t msh_mat2_scalar_div( msh_mat2_t m, msh_scalar_t s );
@@ -1469,6 +1470,17 @@ msh_mat3_vec3_mul ( msh_mat3_t m, msh_vec3_t v )
   o.z = m.data[2]*v.x + m.data[5]*v.y + m.data[8]*v.z;
   return o;
 }
+
+MSHVMDEF inline msh_vec3_t
+msh_mat4_vec3_mul ( msh_mat4_t m, msh_vec3_t v )
+{
+  msh_vec3_t o;
+  o.x = m.data[0]*v.x + m.data[4]*v.y + m.data[ 8]*v.z + m.data[12];
+  o.y = m.data[1]*v.x + m.data[5]*v.y + m.data[ 9]*v.z + m.data[13];
+  o.z = m.data[2]*v.x + m.data[6]*v.y + m.data[10]*v.z + m.data[14];
+  return o;
+}
+
 
 MSHVMDEF inline msh_vec4_t
 msh_mat4_vec4_mul ( msh_mat4_t m, msh_vec4_t v )

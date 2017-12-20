@@ -522,6 +522,14 @@ msh_compute_stddev( float mean, float *vals, int n_vals )
   return sqrtf( sq_sum / (float)n_vals - mean * mean );
 }
 
+float 
+msh_gauss1d( float x, float mu, float sigma )
+{
+  float scale = 1.0f * sigma * sqrtf(2.0f*MSH_PI);
+  float exponential = expf(-0.5f * msh_sqf((x-mu)/sigma));
+  return scale*exponential;
+}
+
 #endif /* MSH */
 
 #ifdef MSH_IMPLEMENTATION
