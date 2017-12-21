@@ -525,6 +525,13 @@ msh_compute_stddev( float mean, float *vals, int n_vals )
 float 
 msh_gauss1d( float x, float mu, float sigma )
 {
+  float exponential = expf(-0.5f * msh_sqf((x-mu)/sigma));
+  return exponential;
+}
+
+float 
+msh_gauss_pdf1d( float x, float mu, float sigma )
+{
   float scale = 1.0f * sigma * sqrtf(2.0f*MSH_PI);
   float exponential = expf(-0.5f * msh_sqf((x-mu)/sigma));
   return scale*exponential;
