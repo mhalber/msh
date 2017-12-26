@@ -681,15 +681,15 @@ msh_invert_cdf( const float* cdf, float* invcdf, int n_vals)
 
 
 float
-msh_pdfsample2( const float* pdf, float prob, int n_vals)
+msh_pdfsample( const float* pdf, float prob, int n_vals)
 {
-  int sample = 0;
-  while ( sample < n_vals && prob >pdf[sample])
+  int sample_idx = 0;
+  while ( sample_idx < n_vals && prob > pdf[sample_idx])
   {
-    prob -= pdf[sample];
-    sample++;
+    prob -= pdf[sample_idx];
+    sample_idx++;
   }
-  return (float)sample;
+  return (float)sample_idx;
 }
 
 float 
