@@ -1,12 +1,11 @@
 /*
   ==============================================================================
   
-  MSH.H 
+  MSH_STB.H 
   
-  A single header library for some standard library functionality, sadly not
-  present in C. This file is very strongly based on Sean T. Barrets stb.h and
-  Ginger's Bill gb.h files. I simply wanted to create mine for educational
-  purposes and to have something that meshes well with the rest of my code.
+  A single header library for some standard library functionality, that is not
+  present in C. This file is partially written by myself, but also includes a lot
+  of code copied/modified from other libraries. Please see credits for details.
 
   To use the library you simply add:
   
@@ -27,38 +26,44 @@
   ==============================================================================
   DEPENDENCIES
 
-  ==============================================================================
-  AUTHORS
+    This file includes some c stdlib headers.
 
-    Maciej Halber (macikuh@gmail.com)
   ==============================================================================
-  LICENSE
+  AUTHORS:
+    Maciej Halber
 
-  This software is in the public domain. Where that dedication is not
-  recognized, you are granted a perpetual, irrevocable license to copy,
-  distribute, and modify this file as you see fit.
+  CREDITS:
+    Dynamic array based on                   stb.h      by Sean T. Barrett
+    Random number generation based on        rnd.h      by Mattias Gustavsson
+    Time measurements based on               tinytime.h by Randy Gaul
+    Assert handling based on                 gb.h       by Ginger Bill
 
   ==============================================================================
   TODOs:
   [x] Dynamic array (std::vector replacement)
+  [ ] Separate into header / implementation
+  [ ] Add switch flags
   [ ] Hashtable
   [x] Static keyword disentanglement
   [x] Macros
+  [ ] Change some macros to inline functions (force inline trickery is required)
   [ ] Bit operations
   [ ] Queue / Stack
   [ ] Custom prints
   [x] Asserts
-     [ ] Enable turning assertions of
+     [ ] Enable turning assertions at compile time
   [ ] Memory allocation
   [ ] Sorting and Searching
   [ ] Math constants? (Maybe should create msh_math.h)
-  [ ] Multithreading
+  [ ] Multithreading / Scheduling
 
   ==============================================================================
   REFERENCES:
   [1] stb.h           https://github.com/nothings/stb/blob/master/stb.h
   [2] gb.h            https://github.com/gingerBill/gb/blob/master/gb.h
   [3] stretchy_buffer https://github.com/nothings/stb/blob/master/stretchy_buffer.h
+  [4] tinyheaders     https://github.com/RandyGaul/tinyheaders
+  [5] gb.h            https://github.com/gingerBill/gb
 */
 
 #ifndef MSH
@@ -87,9 +92,9 @@
 #endif
 
 
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // Useful constants and macros
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
 #ifndef MSH_PI
 #define MSH_PI          3.1415926535897932384626433832
 #define MSH_TWO_PI      6.2831853072
@@ -97,6 +102,11 @@
 #define MSH_PI_OVER_TWO 1.5707963268
 #endif
 
+#ifdef MSH_STATIC
+#define MSHDEF static
+#else
+#define MSHDEF extern
+#endif
 
 #ifndef msh_rad2deg
 #define msh_rad2deg(x) ((x) * 180.0 * MSH_INV_PI)
@@ -154,35 +164,53 @@ inline int    msh_sqi(int a)    { return a*a;}
 inline float  msh_sqf(float a)  { return a*a;}
 inline double msh_sqd(double a) { return a*a;}
 
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // Static keyword
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
 #ifndef msh_local_persist
 #define msh_local_persitent static // Local variables with persisting values
 #define msh_global          static // Global variables
 #define msh_internal        static // Internal linkage
 #endif
 
-#ifdef MSH_STATIC
-#define MSHDEF static
-#else
-#define MSHDEF extern
-#endif
 
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // Printing
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define msh_cprintf(cond, fmt, ...) do { if(cond){ printf (fmt, ##__VA_ARGS__);} } while (0)
-#define msh_eprintf(fmt, ...) do { fprintf(stderr, fmt, ##__VA_ARGS__); } while (0)
-#define msh_panic_eprintf(fmt, ...) do { fprintf(stderr, fmt, ##__VA_ARGS__); exit(EXIT_FAILURE); } while (0)
-#define msh_panic_ceprintf(cond, fmt, ...) do { if(cond){ fprintf(stderr, fmt, ##__VA_ARGS__); exit(EXIT_FAILURE);} } while (0)
+#define msh_cprintf(cond, fmt, ...) do {                      \
+    if(cond)                                                  \
+    {                                                         \
+      printf (fmt, ##__VA_ARGS__);                            \
+    }                                                         \
+  }                                                           \
+  while (0)
 
-////////////////////////////////////////////////////////////////////////////////
+#define msh_eprintf(fmt, ...) do {                            \
+    fprintf(stderr, fmt, ##__VA_ARGS__);                      \
+  }                                                           \
+  while (0)
+#define msh_panic_eprintf(fmt, ...) do {                      \
+    fprintf(stderr, fmt, ##__VA_ARGS__);                      \
+    exit(EXIT_FAILURE);                                       \
+  }                                                           \
+  while (0)
+#define msh_panic_ceprintf(cond, fmt, ...) do {               \
+    if(cond)                                                  \
+    {                                                         \
+      fprintf(stderr, fmt, ##__VA_ARGS__);                    \
+      exit(EXIT_FAILURE);                                     \
+    }                                                         \
+  }                                                           \
+  while (0)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // Debug
-////////////////////////////////////////////////////////////////////////////////
+//
+// Credit
+//  This is taken from gb.h by Ginger Bill.
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// NOTE(maciej): This is shameslessly ripped out from gb.h
 #ifndef MSH_DEBUG_TRAP
   #if defined(_MSC_VER)
     #if _MSC_VER < 1300
@@ -231,13 +259,16 @@ void msh__assert_handler( char const *condition, char const *file,
   fprintf(stderr, "\n");
 }
 
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // Array
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // TODO(maciej): Test bug with m_back / last
+// TODO(maciej): Should these be changed to functions instead of macros?
 // TODO(maciej): Small array optimization
 // TODO(maciej): Prepare Better docs
-// TODO(maciej): Test efficiency against std::vector/regular arrays. Decide what might be causing the slowdown. 
+// TODO(maciej): Test efficiency against std::vector/regular arrays. Investigate what might be 
+//               causing the slowdown. 
+
 // msh_array_init(a, n)     // <- Initialize array of size n with unitialized values
 // msh_array_grow(a, n)     // <- Grow array to size n
 // msh_array_push(a, v)     // <- Push value v onto array 
@@ -267,7 +298,6 @@ typedef struct msh_array_header
 #define msh_array_capacity(a)    ((a) ? msh__array_header(a)->capacity : 0)
 #define msh_array_empty(a)       ((a) ? (msh__array_header(a)->count <= 0) : 0)
 #define msh_array_front(a)       ((a) ? &a[0] : NULL)
-//NOTE(maciej): debug what this expands to.
 #define msh_array_back(a)        ((a) ? &a[((msh__array_header(a)->count) - 1)] : NULL)
 
 #define msh_array_init(a, n) do                                                \
@@ -353,25 +383,9 @@ msh__array_reserve( void* array, int32_t capacity, int32_t item_size )
   return (void*)(ah + 1);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Hash Functions
-////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////
-// Hash Table
-////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////
-// Octree
-////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////
-// KD-Tree
-////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////
-// Strings
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// String and path manipulation
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 char* 
 msh_strdup(const char *src)
@@ -382,25 +396,26 @@ msh_strdup(const char *src)
   cpy[len] = 0;
   return cpy;
 }
-inline void
-msh__asprintf(char *str)
-{
-  // TODO(check book for that)
-  return;
-}
 
-inline void
-msh__path_concat(char* buf, va_list ap)
-{
-  // TODO(do cross platform path concatenation using variable arguments)
-  return ;
-}
+// inline void
+// msh__asprintf(char *str)
+// {
+//   // TODO(check book for that)
+//   return;
+// }
+
+// inline void
+// msh__path_concat(char* buf, va_list ap)
+// {
+//   // TODO(do cross platform path concatenation using variable arguments)
+//   return ;
+// }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Time
-// This is heavily inspired by Randy Gaul's tiny_time.h -- all credit for this 
-// goes to him:
-//    https://github.com/RandyGaul/tinyheaders
+// 
+// Credits
+//   Based on Randy Gauls tinyheaders https://github.com/RandyGaul/tinyheaders
 ////////////////////////////////////////////////////////////////////////////////
 
 enum msh__time_units
@@ -481,10 +496,123 @@ double msh_get_time(int unit)
 
 #endif
 
-////////////////////////////////////////////////////////////////////////////////
-// Statistics 
-// TODO(maciej): As this grows, create msh_ml.h
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// PCG-based random number generation 
+//
+// Credits:
+//   Mattias Gustavsson(internals of pcg seed generator)
+//   Jonatan Hedborg: unsigned int to normalized float conversion
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#ifndef MSH_RND_U32
+    #define MSH_RND_U32 unsigned int
+#endif
+#ifndef MSH_RND_U64
+    #define MSH_RND_U64 unsigned long long
+#endif
+
+typedef struct msh_rand_ctx { 
+  MSH_RND_U64 state[ 2 ]; 
+} msh_rand_ctx_t;
+
+void        msh_rand_seed( msh_rand_ctx_t* pcg, MSH_RND_U32 seed );
+MSH_RND_U32 msh_rand_next( msh_rand_ctx_t* pcg );
+float       msh_rand_nextf( msh_rand_ctx_t* pcg );
+int         msh_rand_range( msh_rand_ctx_t* pcg, int min, int max );
+
+// Convert a randomized MSH_RND_U32 value to a float value x in the range 0.0f <= x < 1.0f. Contributed by Jonatan Hedborg
+static float msh_rand__float_normalized_from_u32( MSH_RND_U32 value )
+{
+  MSH_RND_U32 exponent = 127;
+  MSH_RND_U32 mantissa = value >> 9;
+  MSH_RND_U32 result = ( exponent << 23 ) | mantissa;
+  float fresult = *(float*)( &result );
+  return fresult - 1.0f;
+}
+
+
+static MSH_RND_U32 msh_rand__murmur3_avalanche32( MSH_RND_U32 h )
+{
+  h ^= h >> 16;
+  h *= 0x85ebca6b;
+  h ^= h >> 13;
+  h *= 0xc2b2ae35;
+  h ^= h >> 16;
+  return h;
+}
+
+
+static MSH_RND_U64 msh_rand__murmur3_avalanche64( MSH_RND_U64 h )
+{
+  h ^= h >> 33;
+  h *= 0xff51afd7ed558ccd;
+  h ^= h >> 33;
+  h *= 0xc4ceb9fe1a85ec53;
+  h ^= h >> 33;
+  return h;
+}
+
+void msh_rand_seed( msh_rand_ctx_t* pcg, MSH_RND_U32 seed )
+{
+  MSH_RND_U64 value = ( ( (MSH_RND_U64) seed ) << 1ULL ) | 1ULL;
+  value = msh_rand__murmur3_avalanche64( value );
+  pcg->state[ 0 ] = 0U;
+  pcg->state[ 1 ] = ( value << 1ULL ) | 1ULL;
+  msh_rand_next( pcg );
+  pcg->state[ 0 ] += msh_rand__murmur3_avalanche64( value );
+  msh_rand_next( pcg );
+}
+
+
+MSH_RND_U32 msh_rand_next( msh_rand_ctx_t* pcg )
+{
+  MSH_RND_U64 oldstate = pcg->state[ 0 ];
+  pcg->state[ 0 ] = oldstate * 0x5851f42d4c957f2dULL + pcg->state[ 1 ];
+  MSH_RND_U32 xorshifted = (MSH_RND_U32)( ( ( oldstate >> 18ULL)  ^ oldstate ) >> 27ULL );
+  MSH_RND_U32 rot = (MSH_RND_U32)( oldstate >> 59ULL );
+  return ( xorshifted >> rot ) | ( xorshifted << ( ( -(int) rot ) & 31 ) );
+}
+
+
+float msh_rand_nextf( msh_rand_ctx_t* pcg )
+{
+  return msh_rand__float_normalized_from_u32( msh_rand_next( pcg ) );
+}
+
+
+int msh_rand_range( msh_rand_ctx_t* pcg, int min, int max )
+{
+  int const range = ( max - min ) + 1;
+  if( range <= 0 ) return min;
+  int const value = (int) ( msh_rand_nextf( pcg ) * range );
+  return min + value; 
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Maths & Stats 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+inline int32_t
+msh_accumulatei( const int32_t* vals, const int32_t n_vals )
+{
+  int32_t accum = 0;
+  for( int32_t i = 0; i < n_vals; ++i )
+  {
+    accum += vals[i];
+  }
+  return accum;
+}
+
+float 
+msh_accumulatef( const float *vals, const int32_t n_vals )
+{
+  float accum = 0;
+  for ( int32_t i = 0 ; i < n_vals ; ++i )
+  {
+    accum += vals[i];
+  }
+  return accum;
+}
 
 float 
 msh_inner_product( const float *vals, const int n_vals )
@@ -498,20 +626,9 @@ msh_inner_product( const float *vals, const int n_vals )
 }
 
 float 
-msh_compute_sum( const float *vals, const int n_vals )
-{
-  float sum = 0;
-  for ( int i = 0 ; i < n_vals ; ++i )
-  {
-    sum += vals[i];
-  }
-  return sum;
-}
-
-float 
 msh_compute_mean( const float *vals, const int n_vals )
 {
-  float sum = msh_compute_sum( vals, n_vals );
+  float sum = msh_accumulatef( vals, n_vals );
   return sum / (float) n_vals;
 }
 
@@ -529,13 +646,60 @@ msh_gauss1d( float x, float mu, float sigma )
   return exponential;
 }
 
+
+void 
+msh_distrib2pdf( const float* dist, float* pdf, int n_vals )
+{ 
+  float sum = msh_accumulatef(dist, n_vals);
+  if( sum <= 0.00000001f ) return;
+  float inv_sum = 1.0f / sum;
+  for( int32_t i = 0 ; i < n_vals; ++i ) { pdf[i] = (dist[i] * inv_sum); }
+}
+
+void
+msh_pdf2cdf( const float* pdf, float* cdf, int n_vals )
+{
+  float accum = 0.0;
+  for( int32_t i = 0; i < n_vals; ++i ) { accum += pdf[i]; cdf[i] = accum;  };
+}
+
+void
+msh_invert_cdf( const float* cdf, float* invcdf, int n_vals)
+{
+  // int prev_idx = 0;
+  // for(int i = 0 ; i < n_vals; ++i)
+  // {
+  //   float likelihood = cdf[i];
+  //   int idx = (int)floorf(likelihood*(n_vals)); 
+  //   for( int j = prev_idx; j < idx; j++ )
+  //   {
+  //     invcdf[j] = (float)floorf(i);
+  //   }
+  //   prev_idx = idx;
+  // }
+}
+
+
+float
+msh_pdfsample2( const float* pdf, float prob, int n_vals)
+{
+  int sample = 0;
+  while ( sample < n_vals && prob >pdf[sample])
+  {
+    prob -= pdf[sample];
+    sample++;
+  }
+  return (float)sample;
+}
+
 float 
-msh_gauss_pdf1d( float x, float mu, float sigma )
+msh_gausspdf1d( float x, float mu, float sigma )
 {
   float scale = 1.0f * sigma * sqrtf(2.0f*MSH_PI);
   float exponential = expf(-0.5f * msh_sqf((x-mu)/sigma));
   return scale*exponential;
 }
+
 
 #endif /* MSH */
 
