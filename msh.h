@@ -223,28 +223,33 @@ inline double msh_sqd(double a) { return a*a;}
   #endif
 #endif
 
-// NOTE(maciej): Extend this when we get custom printfs.
 #ifndef MSH_ASSERT_MSG
-#define MSH_ASSERT_MSG(cond, msg) do {                                         \
-  if (!(cond)) {                                                               \
-    msh__assert_handler(#cond, __FILE__, (int64_t)__LINE__, msg );             \
-    MSH_DEBUG_TRAP();                                                          \
-  }                                                                            \
-} while (0)
-#endif
+
+#ifndef MSH_NDEBUG
+  #define MSH_ASSERT_MSG(cond, msg) do {                                         \
+    if (!(cond)) {                                                               \
+      msh__assert_handler(#cond, __FILE__, (int64_t)__LINE__, msg );             \
+      MSH_DEBUG_TRAP();                                                          \
+    }                                                                            \
+  } while (0)
+#else
+  #define MSH_ASSERT_MSG(cond, msg) /* Expands to nothing */
+#endif /*MSH_NDEBUG*/
+
+#endif /* MSH_ASSERT_MSG */
 
 #ifndef MSH_ASSERT
-#define MSH_ASSERT(cond) MSH_ASSERT_MSG(cond, NULL)
+  #define MSH_ASSERT(cond) MSH_ASSERT_MSG(cond, NULL)
 #endif
 
 #ifndef MSH_ASSERT_NOT_NULL
-#define MSH_ASSERT_NOT_NULL(ptr) MSH_ASSERT_MSG((ptr) != NULL,                   \
+  #define MSH_ASSERT_NOT_NULL(ptr) MSH_ASSERT_MSG((ptr) != NULL,                   \
                                                        #ptr " must not be NULL")
 #endif
 
 // NOTE(bill): Things that shouldn't happen with a message!
 #ifndef MSH_PANIC
-#define MSH_PANIC(msg, ...) MSH_ASSERT_MSG(0, msg, ##__VA_ARGS__)
+  #define MSH_PANIC(msg, ...) MSH_ASSERT_MSG(0, msg, ##__VA_ARGS__)
 #endif
 
 
@@ -313,7 +318,7 @@ typedef struct msh_array_header
 
 #define msh_array_free(a) do                                                   \
 {                                                                              \
-  MSH_ASSERT( a!=NULL ); \
+  MSH_ASSERT( a!=NULL );                                                       \
   msh_array_header_t *msh__ah = msh__array_header(a);                          \
   free( msh__ah );                                                             \
   a = NULL;                                                                    \
@@ -525,8 +530,9 @@ static float msh_rand__float_normalized_from_u32( MSH_RND_U32 value )
 {
   MSH_RND_U32 exponent = 127;
   MSH_RND_U32 mantissa = value >> 9;
-  MSH_RND_U32 result = ( exponent << 23 ) | mantissa;
-  float fresult = *(float*)( &result );
+  MSH_RND_U32 result   = ( exponent << 23 ) | mantissa;
+  float fresult        = 0.0f;
+  memcpy(&fresult, &result, sizeof(float));
   return fresult - 1.0f;
 }
 
