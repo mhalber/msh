@@ -520,7 +520,7 @@ typedef struct msh_rand_ctx {
   MSH_RND_U64 state[ 2 ]; 
 } msh_rand_ctx_t;
 
-void        msh_rand_seed( msh_rand_ctx_t* pcg, MSH_RND_U32 seed );
+void        msh_rand_init( msh_rand_ctx_t* pcg, MSH_RND_U32 seed );
 MSH_RND_U32 msh_rand_next( msh_rand_ctx_t* pcg );
 float       msh_rand_nextf( msh_rand_ctx_t* pcg );
 int         msh_rand_range( msh_rand_ctx_t* pcg, int min, int max );
@@ -558,7 +558,7 @@ static MSH_RND_U64 msh_rand__murmur3_avalanche64( MSH_RND_U64 h )
   return h;
 }
 
-void msh_rand_seed( msh_rand_ctx_t* pcg, MSH_RND_U32 seed )
+void msh_rand_init( msh_rand_ctx_t* pcg, MSH_RND_U32 seed )
 {
   MSH_RND_U64 value = ( ( (MSH_RND_U64) seed ) << 1ULL ) | 1ULL;
   value = msh_rand__murmur3_avalanche64( value );
