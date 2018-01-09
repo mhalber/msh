@@ -307,7 +307,7 @@ typedef struct msh_array_header
 
 #define msh_array_init(a, n) do                                                \
 {                                                                              \
-  MSH_ASSERT(!a);                                                              \
+  MSH_ASSERT(a == NULL);                                                       \
   msh_array_header_t *msh__ah =                                                \
    (msh_array_header_t *)malloc(sizeof(msh_array_header_t) + sizeof(*(a)) * n);\
   msh__ah->capacity = n;                                                       \
@@ -328,19 +328,14 @@ typedef struct msh_array_header
 {                                                                              \
   int32_t new_capacity=(int32_t)MSH_ARRAY_GROW_FORMULA(msh_array_capacity(a)); \
   void** msh__array = (void**)&(a);                                            \
-  *msh__array = msh__array_reserve( (void*)a, new_capacity, sizeof(*(a)) );    \
+  (*msh__array) = msh__array_reserve( (void*)a, new_capacity, sizeof(*(a)) );    \
 } while( 0 )
 
-#define msh_array_reserve( a, n ) do \
-{ \
-  (a) = msh__array_reserve( (void*)a, n, sizeof(*(a)) ); \
-} while( 0 )
-
-#define msh_array_resize( a, n ) do                                            \
-{                                                                              \
-  void** msh__array = (void**)&(a);                                            \
-  *msh_array = msh__array_reserve( (void*)a, n, sizeof(*(a)) );                \
-  msh__array_header(a)->count = n; \
+#define msh_array_reserve( a, n ) do                              \
+{                                                                 \
+  if( msh__array_header(a)->capacity >= n ) return 0;              \
+  void** msh__array = (void**)&(a);                                \
+  (*msh__array) = msh__array_reserve( (void*)a, n, sizeof(*(a)) );   \
 } while( 0 )
 
 #define msh_array_push( a, v ) do \
@@ -363,6 +358,22 @@ typedef struct msh_array_header
 {\
   msh__array_header(a)->count = 0; \
 } while (0)
+
+#define msh_array_copy( dest, src, n ) do \
+{ \
+  if( !dest || msh__array_header(dest)->capacity < n ) \
+  { \
+    void** msh__array = (void**)&(dest);                                \
+    (*msh__array) = msh__array_reserve( (void*)dest, n, sizeof(*(dest)) );   \
+  } \
+  memcpy( (void*)dest, (void*)src, n*sizeof(*(dest)) ); \
+  msh__array_header(dest)->count = n; \
+} while(0)
+// } while(0)
+
+  // memcpy( dest, src, n*sizeof(*(dest)) ); \
+  msh__array_header(dest)->count = n; \
+} while(0)
 
 MSHDEF void*
 msh__array_reserve( void* array, int32_t capacity, int32_t item_size )
