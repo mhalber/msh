@@ -369,11 +369,6 @@ typedef struct msh_array_header
   memcpy( (void*)dest, (void*)src, n*sizeof(*(dest)) ); \
   msh__array_header(dest)->count = n; \
 } while(0)
-// } while(0)
-
-  // memcpy( dest, src, n*sizeof(*(dest)) ); \
-  msh__array_header(dest)->count = n; \
-} while(0)
 
 MSHDEF void*
 msh__array_reserve( void* array, int32_t capacity, int32_t item_size )
