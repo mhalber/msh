@@ -154,4 +154,12 @@ mshgeo_bbox_depth(msh_bbox_t* bb)
   return bb->max_p.z - bb->min_p.z;
 }
 
+MSHGEODEF float
+mshgeo_bbox_volume(msh_bbox_t* bb)
+{
+  return (bb->max_p.x - bb->min_p.x)*
+         (bb->max_p.y - bb->min_p.y)*
+         (bb->max_p.z - bb->min_p.z);
+}
+
 #endif
