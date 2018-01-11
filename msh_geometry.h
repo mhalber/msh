@@ -88,6 +88,7 @@ MSHGEODEF float mshgeo_bbox_width(msh_bbox_t *bb);
 MSHGEODEF float mshgeo_bbox_height(msh_bbox_t *bb);
 MSHGEODEF float mshgeo_bbox_depth(msh_bbox_t *bb);
 MSHGEODEF msh_vec3_t mshgeo_bbox_diagonal(msh_bbox_t* bb);
+MSHGEODEF float mshgeo_bbox_volume(msh_bbox_t* bb);
 
 #ifdef __cplusplus
 }
