@@ -205,6 +205,26 @@ typedef msh_vec3_t msh_point4_t;
 #define msh_vec3(x,y,z)   MSHVM_INIT_CAST(msh_vec3_t){{x, y, z}}
 #define msh_vec4(x,y,z,w) MSHVM_INIT_CAST(msh_vec4_t){{x, y, z, w}}
 
+#define msh_vec2_posx() MSHVM_INIT_CAST(msh_vec2_t){{1, 0}}
+#define msh_vec3_posx() MSHVM_INIT_CAST(msh_vec3_t){{1, 0, 0}}
+#define msh_vec4_posx() MSHVM_INIT_CAST(msh_vec4_t){{1, 0, 0, 0}}
+#define msh_vec2_posy() MSHVM_INIT_CAST(msh_vec2_t){{0, 1}}
+#define msh_vec3_posy() MSHVM_INIT_CAST(msh_vec3_t){{0, 1, 0}}
+#define msh_vec4_posy() MSHVM_INIT_CAST(msh_vec4_t){{0, 1, 0, 0}}
+#define msh_vec3_posz() MSHVM_INIT_CAST(msh_vec3_t){{0, 0, 1}}
+#define msh_vec4_posz() MSHVM_INIT_CAST(msh_vec4_t){{0, 0, 1, 0}}
+#define msh_vec4_posw() MSHVM_INIT_CAST(msh_vec4_t){{0, 0, 0, 1}}
+
+#define msh_vec2_negx() MSHVM_INIT_CAST(msh_vec2_t){{-1,  0}}
+#define msh_vec3_negx() MSHVM_INIT_CAST(msh_vec3_t){{-1,  0,  0}}
+#define msh_vec4_negx() MSHVM_INIT_CAST(msh_vec4_t){{-1,  0,  0,  0}}
+#define msh_vec2_negy() MSHVM_INIT_CAST(msh_vec2_t){{ 0, -1}}
+#define msh_vec3_negy() MSHVM_INIT_CAST(msh_vec3_t){{ 0, -1,  0}}
+#define msh_vec4_negy() MSHVM_INIT_CAST(msh_vec4_t){{ 0, -1,  0,  0}}
+#define msh_vec3_negz() MSHVM_INIT_CAST(msh_vec3_t){{ 0,  0, -1}}
+#define msh_vec4_negz() MSHVM_INIT_CAST(msh_vec4_t){{ 0,  0, -1,  0}}
+#define msh_vec4_negw() MSHVM_INIT_CAST(msh_vec4_t){{ 0,  0,  0, -1}}
+
 MSHVMDEF msh_vec2_t msh_vec3_to_vec2( msh_vec3_t v );
 MSHVMDEF msh_vec2_t msh_vec4_to_vec2( msh_vec4_t v );
 MSHVMDEF msh_vec3_t msh_vec2_to_vec3( msh_vec2_t v );
