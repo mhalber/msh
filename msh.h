@@ -331,11 +331,13 @@ typedef struct msh_array_header
   (*msh__array) = msh__array_reserve( (void*)a, new_capacity, sizeof(*(a)) );    \
 } while( 0 )
 
-#define msh_array_reserve( a, n ) do                              \
-{                                                                 \
-  if( msh__array_header(a)->capacity >= n ) return 0;              \
-  void** msh__array = (void**)&(a);                                \
-  (*msh__array) = msh__array_reserve( (void*)a, n, sizeof(*(a)) );   \
+#define msh_array_reserve( a, n ) do                                  \
+{                                                                     \
+  if( msh__array_header(a)->capacity < n )                            \
+  {                                                                   \
+  void** msh__array = (void**)&(a);                                   \
+  (*msh__array) = msh__array_reserve( (void*)a, n, sizeof(*(a)) );    \
+  }                                                                   \
 } while( 0 )
 
 #define msh_array_push( a, v ) do \
