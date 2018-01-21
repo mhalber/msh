@@ -93,14 +93,11 @@
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// Useful constants and macros
+// Useful macros
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef MSH_PI
-#define MSH_PI          3.1415926535897932384626433832
-#define MSH_TWO_PI      6.2831853072
-#define MSH_INV_PI      0.3183098862
-#define MSH_PI_OVER_TWO 1.5707963268
-#endif
+#define MSH_SIZE_OF(x) (int64_t)(sizeof(x))
+#define MSH_COUNT_OF(x) ( ( MSH_SIZE_OF(x) / MSH_SIZE_OF( *x ) ) )
+#define MSH_OFFSET_OF(Type, element) ((int64_t)&(((Type *)NULL)->element))
 
 #ifdef MSH_STATIC
 #define MSHDEF static
@@ -108,70 +105,46 @@
 #define MSHDEF extern
 #endif
 
-#ifndef msh_rad2deg
-#define msh_rad2deg(x) ((x) * 180.0 * MSH_INV_PI)
-#endif
-
-#ifndef msh_deg2rad
-#define msh_deg2rad(x) ((x) * 0.005555555556 * MSH_PI)
-#endif
-
-#ifndef msh_size_of
-#define msh_size_of(x) (int64_t)(sizeof(x))
-#endif
-
-#ifndef msh_count_of
-#define msh_count_of(x) ( ( msh_size_of(x) / msh_size_of( *x ) ) )
-#endif
-
-#ifndef msh_offset_of
-#define msh_offset_of(Type, element) ((int64_t)&(((Type *)NULL)->element))
-#endif
-
-#ifndef msh_max 
-#define msh_max(a, b) ((a) > (b) ? (a) : (b))
-#endif
-
-#ifndef msh_min 
-#define msh_min(a, b) ((a) < (b) ? (a) : (b))
-#endif
-
-#ifndef msh_max3
-#define msh_max3(a, b, c) msh_max(msh_max(a, b), c)
-#endif
-
-#ifndef msh_min3
-#define msh_min3(a, b, c) msh_min(msh_min(a,b), c)
-#endif
-
-#ifndef msh_clamp
-#define msh_clamp(x, lower, upper) msh_min( msh_max((x), (lower)), (upper))
-#endif
-
-#ifndef msh_clamp01
-#define msh_clamp01(x) msh_clamp((x), 0, 1)
-#endif
-
-#ifndef msh_within
-#define msh_within(x, lower, upper) ( ((x) >= (lower)) && ((x) <= (upper)) )
-#endif
-
-#ifndef msh_abs
-#define msh_abs(x) ((x) < 0 ? -(x) : (x))
-#endif
-
-inline int    msh_sqi(int a)    { return a*a;}
-inline float  msh_sqf(float a)  { return a*a;}
-inline double msh_sqd(double a) { return a*a;}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Static keyword
-////////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef msh_local_persist
 #define msh_local_persitent static // Local variables with persisting values
 #define msh_global          static // Global variables
 #define msh_internal        static // Internal linkage
-#endif
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Maths & stats helpers
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define MSH_PI          3.1415926535897932384626433832
+#define MSH_TWO_PI      6.2831853072
+#define MSH_INV_PI      0.3183098862
+#define MSH_PI_OVER_TWO 1.5707963268
+
+#define msh_rad2deg(x) ((x) * 180.0 * MSH_INV_PI)
+#define msh_deg2rad(x) ((x) * 0.005555555556 * MSH_PI)
+#define msh_max(a, b) ((a) > (b) ? (a) : (b))
+#define msh_min(a, b) ((a) < (b) ? (a) : (b))
+#define msh_max3(a, b, c) msh_max(msh_max(a, b), c)
+#define msh_min3(a, b, c) msh_min(msh_min(a,b), c)
+#define msh_clamp(x, lower, upper) msh_min( msh_max((x), (lower)), (upper))
+#define msh_clamp01(x) msh_clamp((x), 0, 1)
+#define msh_within(x, lower, upper) ( ((x) >= (lower)) && ((x) <= (upper)) )
+#define msh_abs(x) ((x) < 0 ? -(x) : (x))
+
+inline int    msh_sqi(int a);
+inline float  msh_sqf(float a);
+inline double msh_sqd(double a);
+
+int32_t msh_accumulatei( const int32_t* vals, const int32_t n_vals );
+float msh_accumulatef( const float *vals, const int32_t n_vals );
+float msh_inner_product( const float *vals, const int n_vals );
+float msh_compute_mean( const float *vals, const int n_vals );
+float msh_compute_stddev( float mean, float *vals, int n_vals );
+float msh_gauss1d( float x, float mu, float sigma );
+void  msh_distrib2pdf( const float* dist, float* pdf, int n_vals );
+void  msh_pdf2cdf( const float* pdf, float* cdf, int n_vals );
+void  msh_invert_cdf( const float* cdf, float* invcdf, int n_vals);
+float msh_pdfsample( const float* pdf, float prob, int n_vals);
+float msh_gausspdf1d( float x, float mu, float sigma );
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -204,6 +177,7 @@ inline double msh_sqd(double a) { return a*a;}
   }                                                           \
   while (0)
 
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Debug
 //
@@ -211,19 +185,15 @@ inline double msh_sqd(double a) { return a*a;}
 //  This is taken from gb.h by Ginger Bill.
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef MSH_DEBUG_TRAP
-  #if defined(_MSC_VER)
-    #if _MSC_VER < 1300
-      #define MSH_DEBUG_TRAP() __asm int 3 /* Trap to debugger! */
-    #else
-      #define MSH_DEBUG_TRAP() __debugbreak()
-    #endif
+#if defined(_MSC_VER)
+  #if _MSC_VER < 1300
+    #define MSH_DEBUG_TRAP() __asm int 3 /* Trap to debugger! */
   #else
-    #define MSH_DEBUG_TRAP() __builtin_trap()
+    #define MSH_DEBUG_TRAP() __debugbreak()
   #endif
+#else
+  #define MSH_DEBUG_TRAP() __builtin_trap()
 #endif
-
-#ifndef MSH_ASSERT_MSG
 
 #ifndef MSH_NDEBUG
   #define MSH_ASSERT_MSG(cond, msg) do {                                         \
@@ -236,33 +206,14 @@ inline double msh_sqd(double a) { return a*a;}
   #define MSH_ASSERT_MSG(cond, msg) /* Expands to nothing */
 #endif /*MSH_NDEBUG*/
 
-#endif /* MSH_ASSERT_MSG */
 
-#ifndef MSH_ASSERT
-  #define MSH_ASSERT(cond) MSH_ASSERT_MSG(cond, NULL)
-#endif
+#define MSH_ASSERT(cond) MSH_ASSERT_MSG(cond, NULL)
 
-#ifndef MSH_ASSERT_NOT_NULL
-  #define MSH_ASSERT_NOT_NULL(ptr) MSH_ASSERT_MSG((ptr) != NULL,                   \
-                                                       #ptr " must not be NULL")
-#endif
+#define MSH_ASSERT_NOT_NULL(ptr) MSH_ASSERT_MSG((ptr) != NULL, #ptr " must not be NULL")
 
-// NOTE(bill): Things that shouldn't happen with a message!
-#ifndef MSH_PANIC
-  #define MSH_PANIC(msg, ...) MSH_ASSERT_MSG(0, msg, ##__VA_ARGS__)
-#endif
+#define MSH_PANIC(msg, ...) MSH_ASSERT_MSG(0, msg, ##__VA_ARGS__)
 
-
-void msh__assert_handler( char const *condition, char const *file, 
-                         int32_t line, char const *msg ) {
-  fprintf( stderr, "%s:%4d: Assert Failure: ", file, line );
-  if( condition ) fprintf( stderr, "`%s` ", condition);
-  if( msg ) 
-  {
-    fprintf( stderr, "-> %s", msg );
-  }
-  fprintf(stderr, "\n");
-}
+void msh__assert_handler( char const *condition, char const *file, int32_t line, char const *msg );
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Array
@@ -293,9 +244,7 @@ typedef struct msh_array_header
 
 #define msh_array(T) T*
 
-#ifndef MSH_ARRAY_GROW_FORMULA
 #define MSH_ARRAY_GROW_FORMULA(x) ( 1.5*(x) + 2 )
-#endif
 
 #define msh__array_header(a)     ((msh_array_header_t*)(a) - 1)
 #define msh_array_count(a)       ((a) ? msh__array_header(a)->count : 0)
@@ -328,7 +277,7 @@ typedef struct msh_array_header
 {                                                                              \
   int32_t new_capacity=(int32_t)MSH_ARRAY_GROW_FORMULA(msh_array_capacity(a)); \
   void** msh__array = (void**)&(a);                                            \
-  (*msh__array) = msh__array_reserve( (void*)a, new_capacity, sizeof(*(a)) );    \
+  (*msh__array) = msh__array_reserve( (void*)a, new_capacity, sizeof(*(a)) );  \
 } while( 0 )
 
 #define msh_array_reserve( a, n ) do                                  \
@@ -372,43 +321,14 @@ typedef struct msh_array_header
   msh__array_header(dest)->count = n; \
 } while(0)
 
-MSHDEF void*
-msh__array_reserve( void* array, int32_t capacity, int32_t item_size )
-{
-  MSH_ASSERT( item_size > 0 );
+MSHDEF void* msh__array_reserve( void* array, int32_t capacity, int32_t item_size );
 
-  msh_array_header_t * ah = msh__array_header( array );
-  if( array && capacity == ah->capacity ) 
-  { 
-    return array;
-  }
-
-  int32_t prev_count = array ? ah->count : 0;
-  int32_t new_size = item_size * capacity + sizeof(msh_array_header_t);
-  void *p = (void*)realloc( (array ? ah : 0), new_size );
-  MSH_ASSERT(p);
-
-  ah = (msh_array_header_t*)p;
-  ah->capacity = capacity;
-  ah->count    = prev_count;
-  if( ah->capacity < ah->count ) ah->count = ah->capacity;
-  
-  return (void*)(ah + 1);
-}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // String and path manipulation
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-char* 
-msh_strdup(const char *src)
-{
-  size_t len = strlen(src);
-  char* cpy = (char*)malloc(len+1);
-  strncpy(cpy, src, len);
-  cpy[len] = 0;
-  return cpy;
-}
+char* msh_strdup(const char *src);
 
 // inline void
 // msh__asprintf(char *str)
@@ -440,6 +360,184 @@ enum msh__time_units
 };
 
 double msh_get_time(int unit);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// PCG-based random number generation 
+//
+// Credits:
+//   Mattias Gustavsson(internals of pcg seed generator)
+//   Jonatan Hedborg: unsigned int to normalized float conversion
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#ifndef MSH_RND_U32
+    #define MSH_RND_U32 unsigned int
+#endif
+#ifndef MSH_RND_U64
+    #define MSH_RND_U64 unsigned long long
+#endif
+
+typedef struct msh_rand_ctx { 
+  MSH_RND_U64 state[ 2 ]; 
+} msh_rand_ctx_t;
+
+void        msh_rand_init( msh_rand_ctx_t* pcg, MSH_RND_U32 seed );
+MSH_RND_U32 msh_rand_next( msh_rand_ctx_t* pcg );
+float       msh_rand_nextf( msh_rand_ctx_t* pcg );
+int         msh_rand_range( msh_rand_ctx_t* pcg, int min, int max );
+
+#endif /* MSH */
+
+
+
+
+
+
+
+
+
+#ifdef MSH_IMPLEMENTATION
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// ARRAY
+////////////////////////////////////////////////////////////////////////////////////////////////////
+MSHDEF void*
+msh__array_reserve( void* array, int32_t capacity, int32_t item_size )
+{
+  MSH_ASSERT( item_size > 0 );
+
+  msh_array_header_t * ah = msh__array_header( array );
+  if( array && capacity == ah->capacity ) 
+  { 
+    return array;
+  }
+
+  int32_t prev_count = array ? ah->count : 0;
+  int32_t new_size = item_size * capacity + sizeof(msh_array_header_t);
+  void *p = (void*)realloc( (array ? ah : 0), new_size );
+  MSH_ASSERT(p);
+
+  ah = (msh_array_header_t*)p;
+  ah->capacity = capacity;
+  ah->count    = prev_count;
+  if( ah->capacity < ah->count ) ah->count = ah->capacity;
+  
+  return (void*)(ah + 1);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// ASSERT
+////////////////////////////////////////////////////////////////////////////////////////////////////
+void msh__assert_handler( char const *condition, char const *file, 
+                         int32_t line, char const *msg ) {
+  fprintf( stderr, "%s:%4d: Assert Failure: ", file, line );
+  if( condition ) fprintf( stderr, "`%s` ", condition);
+  if( msg ) 
+  {
+    fprintf( stderr, "-> %s", msg );
+  }
+  fprintf(stderr, "\n");
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// STRINGS
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+char* 
+msh_strdup(const char *src)
+{
+  size_t len = strlen(src);
+  char* cpy = (char*)malloc(len+1);
+  strncpy(cpy, src, len);
+  cpy[len] = 0;
+  return cpy;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// TIME
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Convert a randomized MSH_RND_U32 value to a float value x in the range 0.0f <= x < 1.0f. Contributed by Jonatan Hedborg
+MSHDEF float 
+msh_rand__float_normalized_from_u32( MSH_RND_U32 value )
+{
+  MSH_RND_U32 exponent = 127;
+  MSH_RND_U32 mantissa = value >> 9;
+  MSH_RND_U32 result   = ( exponent << 23 ) | mantissa;
+  float fresult        = 0.0f;
+  memcpy(&fresult, &result, sizeof(float));
+  return fresult - 1.0f;
+}
+
+
+MSHDEF MSH_RND_U32 
+msh_rand__murmur3_avalanche32( MSH_RND_U32 h )
+{
+  h ^= h >> 16;
+  h *= 0x85ebca6b;
+  h ^= h >> 13;
+  h *= 0xc2b2ae35;
+  h ^= h >> 16;
+  return h;
+}
+
+
+MSHDEF MSH_RND_U64 
+msh_rand__murmur3_avalanche64( MSH_RND_U64 h )
+{
+  h ^= h >> 33;
+  h *= 0xff51afd7ed558ccd;
+  h ^= h >> 33;
+  h *= 0xc4ceb9fe1a85ec53;
+  h ^= h >> 33;
+  return h;
+}
+
+void 
+msh_rand_init( msh_rand_ctx_t* pcg, MSH_RND_U32 seed )
+{
+  MSH_RND_U64 value = ( ( (MSH_RND_U64) seed ) << 1ULL ) | 1ULL;
+  value = msh_rand__murmur3_avalanche64( value );
+  pcg->state[ 0 ] = 0U;
+  pcg->state[ 1 ] = ( value << 1ULL ) | 1ULL;
+  msh_rand_next( pcg );
+  pcg->state[ 0 ] += msh_rand__murmur3_avalanche64( value );
+  msh_rand_next( pcg );
+}
+
+
+MSH_RND_U32 
+msh_rand_next( msh_rand_ctx_t* pcg )
+{
+  MSH_RND_U64 oldstate = pcg->state[ 0 ];
+  pcg->state[ 0 ] = oldstate * 0x5851f42d4c957f2dULL + pcg->state[ 1 ];
+  MSH_RND_U32 xorshifted = (MSH_RND_U32)( ( ( oldstate >> 18ULL)  ^ oldstate ) >> 27ULL );
+  MSH_RND_U32 rot = (MSH_RND_U32)( oldstate >> 59ULL );
+  return ( xorshifted >> rot ) | ( xorshifted << ( ( -(int) rot ) & 31 ) );
+}
+
+
+float 
+msh_rand_nextf( msh_rand_ctx_t* pcg )
+{
+  return msh_rand__float_normalized_from_u32( msh_rand_next( pcg ) );
+}
+
+
+int 
+msh_rand_range( msh_rand_ctx_t* pcg, int min, int max )
+{
+  int const range = ( max - min ) + 1;
+  if( range <= 0 ) return min;
+  int const value = (int) ( msh_rand_nextf( pcg ) * range );
+  return min + value; 
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// TIME
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
@@ -509,102 +607,14 @@ double msh_get_time(int unit)
 
 #endif
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// PCG-based random number generation 
-//
-// Credits:
-//   Mattias Gustavsson(internals of pcg seed generator)
-//   Jonatan Hedborg: unsigned int to normalized float conversion
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#ifndef MSH_RND_U32
-    #define MSH_RND_U32 unsigned int
-#endif
-#ifndef MSH_RND_U64
-    #define MSH_RND_U64 unsigned long long
-#endif
-
-typedef struct msh_rand_ctx { 
-  MSH_RND_U64 state[ 2 ]; 
-} msh_rand_ctx_t;
-
-void        msh_rand_init( msh_rand_ctx_t* pcg, MSH_RND_U32 seed );
-MSH_RND_U32 msh_rand_next( msh_rand_ctx_t* pcg );
-float       msh_rand_nextf( msh_rand_ctx_t* pcg );
-int         msh_rand_range( msh_rand_ctx_t* pcg, int min, int max );
-
-// Convert a randomized MSH_RND_U32 value to a float value x in the range 0.0f <= x < 1.0f. Contributed by Jonatan Hedborg
-static float msh_rand__float_normalized_from_u32( MSH_RND_U32 value )
-{
-  MSH_RND_U32 exponent = 127;
-  MSH_RND_U32 mantissa = value >> 9;
-  MSH_RND_U32 result   = ( exponent << 23 ) | mantissa;
-  float fresult        = 0.0f;
-  memcpy(&fresult, &result, sizeof(float));
-  return fresult - 1.0f;
-}
-
-
-static MSH_RND_U32 msh_rand__murmur3_avalanche32( MSH_RND_U32 h )
-{
-  h ^= h >> 16;
-  h *= 0x85ebca6b;
-  h ^= h >> 13;
-  h *= 0xc2b2ae35;
-  h ^= h >> 16;
-  return h;
-}
-
-
-static MSH_RND_U64 msh_rand__murmur3_avalanche64( MSH_RND_U64 h )
-{
-  h ^= h >> 33;
-  h *= 0xff51afd7ed558ccd;
-  h ^= h >> 33;
-  h *= 0xc4ceb9fe1a85ec53;
-  h ^= h >> 33;
-  return h;
-}
-
-void msh_rand_init( msh_rand_ctx_t* pcg, MSH_RND_U32 seed )
-{
-  MSH_RND_U64 value = ( ( (MSH_RND_U64) seed ) << 1ULL ) | 1ULL;
-  value = msh_rand__murmur3_avalanche64( value );
-  pcg->state[ 0 ] = 0U;
-  pcg->state[ 1 ] = ( value << 1ULL ) | 1ULL;
-  msh_rand_next( pcg );
-  pcg->state[ 0 ] += msh_rand__murmur3_avalanche64( value );
-  msh_rand_next( pcg );
-}
-
-
-MSH_RND_U32 msh_rand_next( msh_rand_ctx_t* pcg )
-{
-  MSH_RND_U64 oldstate = pcg->state[ 0 ];
-  pcg->state[ 0 ] = oldstate * 0x5851f42d4c957f2dULL + pcg->state[ 1 ];
-  MSH_RND_U32 xorshifted = (MSH_RND_U32)( ( ( oldstate >> 18ULL)  ^ oldstate ) >> 27ULL );
-  MSH_RND_U32 rot = (MSH_RND_U32)( oldstate >> 59ULL );
-  return ( xorshifted >> rot ) | ( xorshifted << ( ( -(int) rot ) & 31 ) );
-}
-
-
-float msh_rand_nextf( msh_rand_ctx_t* pcg )
-{
-  return msh_rand__float_normalized_from_u32( msh_rand_next( pcg ) );
-}
-
-
-int msh_rand_range( msh_rand_ctx_t* pcg, int min, int max )
-{
-  int const range = ( max - min ) + 1;
-  if( range <= 0 ) return min;
-  int const value = (int) ( msh_rand_nextf( pcg ) * range );
-  return min + value; 
-}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// Maths & Stats 
+// MATHS
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+inline int    msh_sqi(int a)    { return a*a; }
+inline float  msh_sqf(float a)  { return a*a; }
+inline double msh_sqd(double a) { return a*a; }
 
 inline int32_t
 msh_accumulatei( const int32_t* vals, const int32_t n_vals )
@@ -714,9 +724,5 @@ msh_gausspdf1d( float x, float mu, float sigma )
   return scale*exponential;
 }
 
-
-#endif /* MSH */
-
-#ifdef MSH_IMPLEMENTATION
 
 #endif
