@@ -131,6 +131,39 @@ typedef struct msh_camera
 
 } msh_camera_t;
 
+MSHCAMDEF void
+msh_camera_init( msh_camera_t * camera,
+                         const msh_vec3_t eye,
+                         const msh_vec3_t center, 
+                         const msh_vec3_t up,
+                         const msh_scalar_t fovy,
+                         const msh_scalar_t aspect_ratio,
+                         const msh_scalar_t znear,
+                         const msh_scalar_t zfar );
+
+MSHCAMDEF void
+msh_camera_update_perspective( msh_camera_t *camera,
+                               const msh_scalar_t fovy, 
+                               const msh_scalar_t aspect_ratio,
+                               const msh_scalar_t znear, 
+                               const msh_scalar_t zfar );
+MSHCAMDEF void
+msh_camera_update_ortho( msh_camera_t *camera,
+                         const msh_scalar_t left,  const msh_scalar_t right, 
+                         const  msh_scalar_t bottom, const msh_scalar_t top, 
+                         const msh_scalar_t znear, const msh_scalar_t zfar );
+
+MSHCAMDEF void 
+msh_arcball_camera_update( msh_camera_t *camera, 
+                           const msh_vec2_t scrn_p0,  
+                           const msh_vec2_t scrn_p1,
+                           const int lmb_state,
+                           const int rmb_state,
+                           const msh_scalar_t scroll_state, 
+                           const msh_vec4_t viewport );
+
+
+
 /* TODO: Design better simple api for basic version of the camera
  A) Use of msh_camera_t should be optional 
  B) Implement simple camera for flythrough.

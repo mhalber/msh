@@ -69,6 +69,10 @@
 #ifndef MSH
 #define MSH
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef MSH_NO_HEADERS
 
 // c stdlib
@@ -130,9 +134,9 @@
 #define msh_within(x, lower, upper) ( ((x) >= (lower)) && ((x) <= (upper)) )
 #define msh_abs(x) ((x) < 0 ? -(x) : (x))
 
-inline int    msh_sqi(int a);
-inline float  msh_sqf(float a);
-inline double msh_sqd(double a);
+static inline int    msh_sqi(int a)    { return a*a; }
+static inline float  msh_sqf(float a)  { return a*a; }
+static inline double msh_sqd(double a) { return a*a; }
 
 int32_t msh_accumulatei( const int32_t* vals, const int32_t n_vals );
 float msh_accumulatef( const float *vals, const int32_t n_vals );
@@ -385,6 +389,10 @@ MSH_RND_U32 msh_rand_next( msh_rand_ctx_t* pcg );
 float       msh_rand_nextf( msh_rand_ctx_t* pcg );
 int         msh_rand_range( msh_rand_ctx_t* pcg, int min, int max );
 
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* MSH */
 
 
@@ -611,10 +619,6 @@ double msh_get_time(int unit)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // MATHS
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-inline int    msh_sqi(int a)    { return a*a; }
-inline float  msh_sqf(float a)  { return a*a; }
-inline double msh_sqd(double a) { return a*a; }
 
 inline int32_t
 msh_accumulatei( const int32_t* vals, const int32_t n_vals )

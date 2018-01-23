@@ -67,9 +67,7 @@
 
   ==============================================================================
   TODOs:
-  [ ] Add vector lerp
-  [ ] Add xform lerp
-  [ ] Simplify lerp
+  [ ] Determine the effect of static inline on performance.
   [ ] Cpp overloads?
   [ ] Double check quaternion operations
   [x] Add quat from axis-angle
@@ -117,7 +115,7 @@ extern "C" {
 #endif
 
 #ifdef MSH_VEC_MATH_STATIC
-#define MSHVMDEF static
+#define MSHVMDEF static inline
 #else
 #define MSHVMDEF extern
 #endif
@@ -531,216 +529,216 @@ MSHVMDEF msh_vec4_t &operator+=( msh_vec4_t &a, msh_vec4_t &b );
  * =============================================================================
  */
 
-MSHVMDEF inline msh_vec2_t 
+MSHVMDEF msh_vec2_t 
 msh_vec3_to_vec2( msh_vec3_t v )
 {
   return MSHVM_INIT_CAST(msh_vec2_t){{ v.x, v.y }};
 }
 
-MSHVMDEF inline msh_vec2_t 
+MSHVMDEF msh_vec2_t 
 msh_vec4_to_vec2( msh_vec4_t v )
 {
   return MSHVM_INIT_CAST(msh_vec2_t){{ v.x, v.y }};
 }
 
-MSHVMDEF inline msh_vec3_t 
+MSHVMDEF msh_vec3_t 
 msh_vec2_to_vec3( msh_vec2_t v )
 {
   return MSHVM_INIT_CAST(msh_vec3_t){{ v.x, v.y, 0.0f }};
 }
 
-MSHVMDEF inline msh_vec3_t 
+MSHVMDEF msh_vec3_t 
 msh_vec2_scalar_to_vec3( msh_vec2_t v, msh_scalar_t s )
 {
   return MSHVM_INIT_CAST(msh_vec3_t){{ v.x, v.y, s }};
 }
 
-MSHVMDEF inline msh_vec4_t 
+MSHVMDEF msh_vec4_t 
 msh_vec2_scalar_to_vec4( msh_vec2_t v, msh_scalar_t s0, msh_scalar_t s1 )
 {
   return MSHVM_INIT_CAST(msh_vec4_t){{ v.x, v.y, s0, s1 }};
 }
 
-MSHVMDEF inline msh_vec3_t 
+MSHVMDEF msh_vec3_t 
 msh_vec4_to_vec3( msh_vec4_t v )
 {
   return MSHVM_INIT_CAST(msh_vec3_t){{ v.x, v.y, v.z }};
 }
 
-MSHVMDEF inline msh_vec4_t 
+MSHVMDEF msh_vec4_t 
 msh_vec2_to_vec4( msh_vec2_t v )
 {
   return MSHVM_INIT_CAST(msh_vec4_t){{ v.x, v.y, 0.0f, 0.0f }};
 }
 
-MSHVMDEF inline msh_vec4_t 
+MSHVMDEF msh_vec4_t 
 msh_vec3_to_vec4( msh_vec3_t v )
 {
   return MSHVM_INIT_CAST(msh_vec4_t){{ v.x, v.y, v.z, 0.0f }};
 }
 
-MSHVMDEF inline msh_vec4_t 
+MSHVMDEF msh_vec4_t 
 msh_vec3_scalar_to_vec4( msh_vec3_t v, msh_scalar_t s )
 {
   return MSHVM_INIT_CAST(msh_vec4_t){{ v.x, v.y, v.z, s }};
 }
 
-MSHVMDEF inline msh_vec2_t 
+MSHVMDEF msh_vec2_t 
 msh_vec2_add( msh_vec2_t a, msh_vec2_t b )
 {
   return MSHVM_INIT_CAST(msh_vec2_t){{ a.x + b.x, a.y + b.y }};
 }
 
-MSHVMDEF inline msh_vec3_t 
+MSHVMDEF msh_vec3_t 
 msh_vec3_add( msh_vec3_t a, msh_vec3_t b )
 {
   return MSHVM_INIT_CAST(msh_vec3_t){{ a.x + b.x, a.y + b.y, a.z + b.z }};
 }
 
-MSHVMDEF inline msh_vec4_t 
+MSHVMDEF msh_vec4_t 
 msh_vec4_add( msh_vec4_t a, msh_vec4_t b )
 {
   return MSHVM_INIT_CAST(msh_vec4_t){{ a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w }};
 }
 
-MSHVMDEF inline msh_vec2_t 
+MSHVMDEF msh_vec2_t 
 msh_vec2_scalar_add( msh_vec2_t v, msh_scalar_t s )
 {
   return MSHVM_INIT_CAST(msh_vec2_t){{ v.x + s, v.y + s }};
 }
 
-MSHVMDEF inline msh_vec3_t 
+MSHVMDEF msh_vec3_t 
 msh_vec3_scalar_add( msh_vec3_t v, msh_scalar_t s )
 {
   return MSHVM_INIT_CAST(msh_vec3_t){{ v.x + s, v.y + s, v.z + s }};
 }
 
-MSHVMDEF inline msh_vec4_t 
+MSHVMDEF msh_vec4_t 
 msh_vec4_scalar_add( msh_vec4_t v, msh_scalar_t s )
 {
   return MSHVM_INIT_CAST(msh_vec4_t){{ v.x + s, v.y + s, v.z + s, v.w + s }};
 }
 
-MSHVMDEF inline msh_vec2_t 
+MSHVMDEF msh_vec2_t 
 msh_vec2_sub( msh_vec2_t a, msh_vec2_t b )
 {
   return MSHVM_INIT_CAST(msh_vec2_t){{ a.x - b.x, a.y - b.y }};
 }
 
-MSHVMDEF inline msh_vec3_t 
+MSHVMDEF msh_vec3_t 
 msh_vec3_sub( msh_vec3_t a, msh_vec3_t b )
 {
   return MSHVM_INIT_CAST(msh_vec3_t){{ a.x - b.x, a.y - b.y, a.z - b.z }};
 }
 
-MSHVMDEF inline msh_vec4_t 
+MSHVMDEF msh_vec4_t 
 msh_vec4_sub( msh_vec4_t a, msh_vec4_t b )
 {
   return MSHVM_INIT_CAST(msh_vec4_t){{ a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w }};
 }
 
-MSHVMDEF inline msh_vec2_t 
+MSHVMDEF msh_vec2_t 
 msh_vec2_scalar_sub( msh_vec2_t v, msh_scalar_t s )
 {
   return MSHVM_INIT_CAST(msh_vec2_t){{ v.x - s, v.y - s }};
 }
 
-MSHVMDEF inline msh_vec3_t 
+MSHVMDEF msh_vec3_t 
 msh_vec3_scalar_sub( msh_vec3_t v, msh_scalar_t s )
 {
   return MSHVM_INIT_CAST(msh_vec3_t){{ v.x - s, v.y - s, v.z - s }};
 }
 
-MSHVMDEF inline msh_vec4_t 
+MSHVMDEF msh_vec4_t 
 msh_vec4_scalar_sub( msh_vec4_t v, msh_scalar_t s )
 {
   return MSHVM_INIT_CAST(msh_vec4_t){{ v.x - s, v.y - s, v.z - s, v.w - s }};
 }
 
 
-MSHVMDEF inline msh_vec2_t 
+MSHVMDEF msh_vec2_t 
 msh_vec2_mul( msh_vec2_t a, msh_vec2_t b )
 {
   return MSHVM_INIT_CAST(msh_vec2_t){{ a.x * b.x, a.y * b.y }};
 }
 
-MSHVMDEF inline msh_vec3_t 
+MSHVMDEF msh_vec3_t 
 msh_vec3_mul( msh_vec3_t a, msh_vec3_t b )
 {
   return MSHVM_INIT_CAST(msh_vec3_t){{ a.x * b.x, a.y * b.y, a.z * b.z }};
 }
 
-MSHVMDEF inline msh_vec4_t 
+MSHVMDEF msh_vec4_t 
 msh_vec4_mul( msh_vec4_t a, msh_vec4_t b )
 {
   return MSHVM_INIT_CAST(msh_vec4_t){{ a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w }};
 }
 
-MSHVMDEF inline msh_vec2_t 
+MSHVMDEF msh_vec2_t 
 msh_vec2_scalar_mul( msh_vec2_t v, msh_scalar_t s )
 {
   return MSHVM_INIT_CAST(msh_vec2_t){{ v.x * s, v.y * s }};
 }
 
-MSHVMDEF inline msh_vec3_t 
+MSHVMDEF msh_vec3_t 
 msh_vec3_scalar_mul( msh_vec3_t v, msh_scalar_t s )
 {
   return MSHVM_INIT_CAST(msh_vec3_t){{ v.x * s, v.y * s, v.z * s }};
 }
 
-MSHVMDEF inline msh_vec4_t 
+MSHVMDEF msh_vec4_t 
 msh_vec4_scalar_mul( msh_vec4_t v, msh_scalar_t s )
 {
   return MSHVM_INIT_CAST(msh_vec4_t){{ v.x * s, v.y * s, v.z * s, v.w * s }};
 }
 
 
-MSHVMDEF inline msh_vec2_t 
+MSHVMDEF msh_vec2_t 
 msh_vec2_div( msh_vec2_t a, msh_vec2_t b )
 {
   return MSHVM_INIT_CAST(msh_vec2_t){{ a.x / b.x, a.y / b.y }};
 }
 
-MSHVMDEF inline msh_vec3_t 
+MSHVMDEF msh_vec3_t 
 msh_vec3_div( msh_vec3_t a, msh_vec3_t b )
 {
   return MSHVM_INIT_CAST(msh_vec3_t){{ a.x / b.x, a.y / b.y, a.z / b.z }};
 }
 
-MSHVMDEF inline msh_vec4_t 
+MSHVMDEF msh_vec4_t 
 msh_vec4_div( msh_vec4_t a, msh_vec4_t b )
 {
   return MSHVM_INIT_CAST(msh_vec4_t){{ a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w }};
 }
 
-MSHVMDEF inline msh_vec2_t 
+MSHVMDEF msh_vec2_t 
 msh_vec2_scalar_div( msh_vec2_t v, msh_scalar_t s )
 {
   msh_scalar_t denom = 1.0f / s;
   return MSHVM_INIT_CAST(msh_vec2_t){{ v.x * denom, v.y * denom }};
 }
 
-MSHVMDEF inline msh_vec3_t 
+MSHVMDEF msh_vec3_t 
 msh_vec3_scalar_div( msh_vec3_t v, msh_scalar_t s )
 {
   msh_scalar_t denom = 1.0f / s;
   return MSHVM_INIT_CAST(msh_vec3_t){{ v.x * denom, v.y * denom, v.z * denom }};
 }
 
-MSHVMDEF inline msh_vec4_t 
+MSHVMDEF msh_vec4_t 
 msh_vec4_scalar_div( msh_vec4_t v, msh_scalar_t s )
 {
   msh_scalar_t denom = 1.0f / s;
   return MSHVM_INIT_CAST(msh_vec4_t){{ v.x * denom, v.y * denom, v.z * denom, v.w * denom }};
 }
 
-MSHVMDEF inline msh_vec2_t 
+MSHVMDEF msh_vec2_t 
 msh_vec2_abs( msh_vec2_t v )
 {
   return MSHVM_INIT_CAST(msh_vec2_t){{ (msh_scalar_t)fabs(v.x), (msh_scalar_t)fabs(v.y) }};
 }
 
-MSHVMDEF inline msh_vec3_t 
+MSHVMDEF msh_vec3_t 
 msh_vec3_abs( msh_vec3_t v )
 {
   return MSHVM_INIT_CAST(msh_vec3_t){{ (msh_scalar_t)fabs(v.x), 
@@ -748,7 +746,7 @@ msh_vec3_abs( msh_vec3_t v )
                                        (msh_scalar_t)fabs(v.z) }};
 }
 
-MSHVMDEF inline msh_vec4_t 
+MSHVMDEF msh_vec4_t 
 msh_vec4_abs( msh_vec4_t v )
 {
   return MSHVM_INIT_CAST(msh_vec4_t){{ (msh_scalar_t)fabs(v.x),
@@ -757,14 +755,14 @@ msh_vec4_abs( msh_vec4_t v )
                                        (msh_scalar_t)fabs(v.w) }};
 }
 
-MSHVMDEF inline msh_vec2_t 
+MSHVMDEF msh_vec2_t 
 msh_vec2_sqrt( msh_vec2_t v )
 {
   return MSHVM_INIT_CAST(msh_vec2_t){{ (msh_scalar_t)sqrt(v.x),
                                        (msh_scalar_t)sqrt(v.y) }};
 }
 
-MSHVMDEF inline msh_vec3_t 
+MSHVMDEF msh_vec3_t 
 msh_vec3_sqrt( msh_vec3_t v )
 {
   return MSHVM_INIT_CAST(msh_vec3_t){{ (msh_scalar_t)sqrt(v.x), 
@@ -772,7 +770,7 @@ msh_vec3_sqrt( msh_vec3_t v )
                                        (msh_scalar_t)sqrt(v.z) }};
 }
 
-MSHVMDEF inline msh_vec4_t 
+MSHVMDEF msh_vec4_t 
 msh_vec4_sqrt( msh_vec4_t v )
 {
   return MSHVM_INIT_CAST(msh_vec4_t){{ (msh_scalar_t)sqrt(v.x), 
@@ -781,7 +779,7 @@ msh_vec4_sqrt( msh_vec4_t v )
                                        (msh_scalar_t)sqrt(v.w) }};
 }
 
-MSHVMDEF inline msh_vec2_t 
+MSHVMDEF msh_vec2_t 
 msh_vec2_clamp( msh_vec2_t v, msh_scalar_t min, msh_scalar_t max )
 {
   if ( min > max ){ return v; }
@@ -789,7 +787,7 @@ msh_vec2_clamp( msh_vec2_t v, msh_scalar_t min, msh_scalar_t max )
                                        fminf( fmaxf( v.y, min ), max ) }};
 }
 
-MSHVMDEF inline msh_vec3_t 
+MSHVMDEF msh_vec3_t 
 msh_vec3_clamp( msh_vec3_t v, msh_scalar_t min, msh_scalar_t max )
 {
   if ( min > max ) { return v; }
@@ -798,7 +796,7 @@ msh_vec3_clamp( msh_vec3_t v, msh_scalar_t min, msh_scalar_t max )
                                         fminf( fmaxf( v.z, min ), max ) }};
 }
 
-MSHVMDEF inline msh_vec4_t 
+MSHVMDEF msh_vec4_t 
 msh_vec4_clamp( msh_vec4_t v, msh_scalar_t min, msh_scalar_t max )
 {
   if ( min > max ){ return v; }
@@ -808,40 +806,40 @@ msh_vec4_clamp( msh_vec4_t v, msh_scalar_t min, msh_scalar_t max )
                                        fminf( fmaxf( v.w, min ), max ) }};
 }
 
-MSHVMDEF inline msh_vec2_t 
+MSHVMDEF msh_vec2_t 
 msh_vec2_invert( msh_vec2_t v )
 {
   return MSHVM_INIT_CAST(msh_vec2_t){{ -v.x, -v.y }};
 }
 
-MSHVMDEF inline msh_vec3_t 
+MSHVMDEF msh_vec3_t 
 msh_vec3_invert( msh_vec3_t v )
 {
   return MSHVM_INIT_CAST(msh_vec3_t){{ -v.x, -v.y, -v.z }};
 }
 
-MSHVMDEF inline msh_vec4_t 
+MSHVMDEF msh_vec4_t 
 msh_vec4_invert( msh_vec4_t v )
 {
   return MSHVM_INIT_CAST(msh_vec4_t){{ -v.x, -v.y, -v.z, -v.w }};
 }
 
 // Should i do it with fast_inverse_square root?
-MSHVMDEF inline msh_vec2_t 
+MSHVMDEF msh_vec2_t 
 msh_vec2_normalize( msh_vec2_t v )
 {
   msh_scalar_t denom = 1.0f / sqrtf( v.x * v.x + v.y * v.y );
   return MSHVM_INIT_CAST(msh_vec2_t){{ v.x * denom, v.y * denom }};
 }
 
-MSHVMDEF inline msh_vec3_t 
+MSHVMDEF msh_vec3_t 
 msh_vec3_normalize( msh_vec3_t v )
 {
   msh_scalar_t denom = 1.0f / sqrtf( v.x * v.x + v.y * v.y + v.z * v.z );
   return MSHVM_INIT_CAST(msh_vec3_t){{ v.x * denom, v.y * denom, v.z * denom }};
 }
 
-MSHVMDEF inline msh_vec4_t 
+MSHVMDEF msh_vec4_t 
 msh_vec4_normalize( msh_vec4_t v )
 {
   msh_scalar_t denom = 1.0f / sqrtf( v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w );
@@ -850,44 +848,44 @@ msh_vec4_normalize( msh_vec4_t v )
 }
 
 
-MSHVMDEF inline msh_scalar_t 
+MSHVMDEF msh_scalar_t 
 msh_vec2_dot( msh_vec2_t a, msh_vec2_t b )
 {
   return a.x * b.x + a.y * b.y; 
 }
 
-MSHVMDEF inline msh_scalar_t 
+MSHVMDEF msh_scalar_t 
 msh_vec3_dot( msh_vec3_t a, msh_vec3_t b )
 {
   return a.x * b.x + a.y * b.y + a.z * b.z; 
 }
 
-MSHVMDEF inline msh_scalar_t 
+MSHVMDEF msh_scalar_t 
 msh_vec4_dot( msh_vec4_t a, msh_vec4_t b )
 {
   return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w; 
 }
 
 // Inner product is just an alias for dot product.
-MSHVMDEF inline msh_scalar_t 
+MSHVMDEF msh_scalar_t 
 msh_vec2_inner_product( msh_vec2_t a, msh_vec2_t b )
 {
   return a.x * b.x + a.y * b.y; 
 }
 
-MSHVMDEF inline msh_scalar_t 
+MSHVMDEF msh_scalar_t 
 msh_vec3_inner_product( msh_vec3_t a, msh_vec3_t b )
 {
   return a.x * b.x + a.y * b.y + a.z * b.z; 
 }
 
-MSHVMDEF inline msh_scalar_t 
+MSHVMDEF msh_scalar_t 
 msh_vec4_inner_product( msh_vec4_t a, msh_vec4_t b )
 {
   return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w; 
 }
 
-MSHVMDEF inline msh_mat2_t
+MSHVMDEF msh_mat2_t
 msh_vec2_outer_product( msh_vec2_t a, msh_vec2_t b )
 {
   msh_mat2_t m;
@@ -898,7 +896,7 @@ msh_vec2_outer_product( msh_vec2_t a, msh_vec2_t b )
   return m;
 }
 
-MSHVMDEF inline msh_mat3_t
+MSHVMDEF msh_mat3_t
 msh_vec3_outer_product( msh_vec3_t a, msh_vec3_t b )
 {
   msh_mat3_t m;
@@ -914,7 +912,7 @@ msh_vec3_outer_product( msh_vec3_t a, msh_vec3_t b )
   return m;
 }
 
-MSHVMDEF inline msh_mat4_t
+MSHVMDEF msh_mat4_t
 msh_vec4_outer_product( msh_vec4_t a, msh_vec4_t b )
 {
   msh_mat4_t m;
@@ -940,7 +938,7 @@ msh_vec4_outer_product( msh_vec4_t a, msh_vec4_t b )
   return m;
 }
 
-MSHVMDEF inline msh_vec3_t
+MSHVMDEF msh_vec3_t
 msh_vec3_cross( msh_vec3_t a, msh_vec3_t b )
 {
   return MSHVM_INIT_CAST(msh_vec3_t){{ ( a.y * b.z - a.z * b.y ),
@@ -948,50 +946,50 @@ msh_vec3_cross( msh_vec3_t a, msh_vec3_t b )
                         ( a.x * b.y - a.y * b.x ) }};
 }
 
-MSHVMDEF inline msh_scalar_t 
+MSHVMDEF msh_scalar_t 
 msh_vec2_norm( msh_vec2_t v )
 {
   return (msh_scalar_t)sqrt( v.x * v.x + v.y * v.y ); 
 }
 
-MSHVMDEF inline msh_scalar_t 
+MSHVMDEF msh_scalar_t 
 msh_vec3_norm( msh_vec3_t v )
 {
   return (msh_scalar_t)sqrt( v.x * v.x + v.y * v.y + v.z * v.z ); 
 }
 
-MSHVMDEF inline msh_scalar_t 
+MSHVMDEF msh_scalar_t 
 msh_vec4_norm( msh_vec4_t v )
 {
   return (msh_scalar_t)sqrt( v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w ); 
 }
 
-MSHVMDEF inline msh_scalar_t 
+MSHVMDEF msh_scalar_t 
 msh_vec2_norm_sq( msh_vec2_t v )
 {
   return v.x * v.x + v.y * v.y; 
 }
 
-MSHVMDEF inline msh_scalar_t 
+MSHVMDEF msh_scalar_t 
 msh_vec3_norm_sq( msh_vec3_t v )
 {
   return v.x * v.x + v.y * v.y + v.z * v.z; 
 }
 
-MSHVMDEF inline msh_scalar_t 
+MSHVMDEF msh_scalar_t 
 msh_vec4_norm_sq( msh_vec4_t v )
 {
   return v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w; 
 }
 
-MSHVMDEF inline int 
+MSHVMDEF int 
 msh_vec2_equal( msh_vec2_t a, msh_vec2_t b )
 {
   return (fabs(a.x - b.x) <= MSH_FLT_EPSILON) && 
          (fabs(a.y - b.y) <= MSH_FLT_EPSILON);
 }
 
-MSHVMDEF inline int 
+MSHVMDEF int 
 msh_vec3_equal( msh_vec3_t a, msh_vec3_t b )
 {
   return (fabs(a.x - b.x) <= MSH_FLT_EPSILON) && 
@@ -999,7 +997,7 @@ msh_vec3_equal( msh_vec3_t a, msh_vec3_t b )
          (fabs(a.z - b.z) <= MSH_FLT_EPSILON);
 }
 
-MSHVMDEF inline int 
+MSHVMDEF int 
 msh_vec4_equal( msh_vec4_t a, msh_vec4_t b )
 {
   return (fabs(a.x - b.x) <= MSH_FLT_EPSILON) && 
@@ -1048,7 +1046,7 @@ msh_vec4_t &operator+=( msh_vec4_t &a, msh_vec4_t &b )
  * =============================================================================
  */
 
-MSHVMDEF inline msh_mat2_t 
+MSHVMDEF msh_mat2_t 
 msh_mat3_to_mat2( msh_mat3_t m )
 {
   msh_mat2_t o;
@@ -1059,7 +1057,7 @@ msh_mat3_to_mat2( msh_mat3_t m )
   return o;
 }
 
-MSHVMDEF inline msh_mat2_t 
+MSHVMDEF msh_mat2_t 
 msh_mat4_to_mat2( msh_mat4_t m )
 {
   msh_mat2_t o;
@@ -1070,7 +1068,7 @@ msh_mat4_to_mat2( msh_mat4_t m )
   return o;
 }
 
-MSHVMDEF inline msh_mat3_t 
+MSHVMDEF msh_mat3_t 
 msh_mat2_to_mat3( msh_mat2_t m )
 {
   msh_mat3_t o;
@@ -1086,7 +1084,7 @@ msh_mat2_to_mat3( msh_mat2_t m )
   return o;
 }
 
-MSHVMDEF inline msh_mat3_t 
+MSHVMDEF msh_mat3_t 
 msh_mat4_to_mat3( msh_mat4_t m )
 {
   msh_mat3_t o;
@@ -1102,7 +1100,7 @@ msh_mat4_to_mat3( msh_mat4_t m )
   return o;
 }
 
-MSHVMDEF inline msh_mat4_t 
+MSHVMDEF msh_mat4_t 
 msh_mat2_to_mat4( msh_mat2_t m )
 {
   msh_mat4_t o;
@@ -1125,7 +1123,7 @@ msh_mat2_to_mat4( msh_mat2_t m )
   return o;
 }
 
-MSHVMDEF inline msh_mat4_t 
+MSHVMDEF msh_mat4_t 
 msh_mat3_to_mat4( msh_mat3_t m )
 {
   msh_mat4_t o;
@@ -1148,7 +1146,7 @@ msh_mat3_to_mat4( msh_mat3_t m )
   return o;
 }
 
-MSHVMDEF inline msh_mat2_t
+MSHVMDEF msh_mat2_t
 msh_mat2_add( msh_mat2_t a, msh_mat2_t b )
 {
   msh_mat2_t o;
@@ -1159,7 +1157,7 @@ msh_mat2_add( msh_mat2_t a, msh_mat2_t b )
   return o;
 }
 
-MSHVMDEF inline msh_mat3_t
+MSHVMDEF msh_mat3_t
 msh_mat3_add( msh_mat3_t a, msh_mat3_t b )
 {
   msh_mat3_t o;
@@ -1175,7 +1173,7 @@ msh_mat3_add( msh_mat3_t a, msh_mat3_t b )
   return o;
 }
 
-MSHVMDEF inline msh_mat4_t
+MSHVMDEF msh_mat4_t
 msh_mat4_add( msh_mat4_t a, msh_mat4_t b )
 {
   msh_mat4_t o;
@@ -1198,7 +1196,7 @@ msh_mat4_add( msh_mat4_t a, msh_mat4_t b )
   return o;
 }
 
-MSHVMDEF inline msh_mat2_t
+MSHVMDEF msh_mat2_t
 msh_mat2_scalar_add( msh_mat2_t m, msh_scalar_t s )
 {
   msh_mat2_t o;
@@ -1209,7 +1207,7 @@ msh_mat2_scalar_add( msh_mat2_t m, msh_scalar_t s )
   return o;
 }
 
-MSHVMDEF inline msh_mat3_t
+MSHVMDEF msh_mat3_t
 msh_mat3_scalar_add( msh_mat3_t m, msh_scalar_t s )
 {
   msh_mat3_t o;
@@ -1225,7 +1223,7 @@ msh_mat3_scalar_add( msh_mat3_t m, msh_scalar_t s )
   return o;
 }
 
-MSHVMDEF inline msh_mat4_t
+MSHVMDEF msh_mat4_t
 msh_mat4_scalar_add( msh_mat4_t m, msh_scalar_t s )
 {
   msh_mat4_t o;
@@ -1249,7 +1247,7 @@ msh_mat4_scalar_add( msh_mat4_t m, msh_scalar_t s )
 }
 
 
-MSHVMDEF inline msh_mat2_t
+MSHVMDEF msh_mat2_t
 msh_mat2_sub( msh_mat2_t a, msh_mat2_t b )
 {
   msh_mat2_t o;
@@ -1260,7 +1258,7 @@ msh_mat2_sub( msh_mat2_t a, msh_mat2_t b )
   return o;
 }
 
-MSHVMDEF inline msh_mat3_t
+MSHVMDEF msh_mat3_t
 msh_mat3_sub( msh_mat3_t a, msh_mat3_t b )
 {
   msh_mat3_t o;
@@ -1276,7 +1274,7 @@ msh_mat3_sub( msh_mat3_t a, msh_mat3_t b )
   return o;
 }
 
-MSHVMDEF inline msh_mat4_t
+MSHVMDEF msh_mat4_t
 msh_mat4_sub( msh_mat4_t a, msh_mat4_t b )
 {
   msh_mat4_t o;
@@ -1299,7 +1297,7 @@ msh_mat4_sub( msh_mat4_t a, msh_mat4_t b )
   return o;
 }
 
-MSHVMDEF inline msh_mat2_t
+MSHVMDEF msh_mat2_t
 msh_mat2_scalar_sub( msh_mat2_t m, msh_scalar_t s )
 {
   msh_mat2_t o;
@@ -1310,7 +1308,7 @@ msh_mat2_scalar_sub( msh_mat2_t m, msh_scalar_t s )
   return o;
 }
 
-MSHVMDEF inline msh_mat3_t
+MSHVMDEF msh_mat3_t
 msh_mat3_scalar_sub( msh_mat3_t m, msh_scalar_t s )
 {
   msh_mat3_t o;
@@ -1326,7 +1324,7 @@ msh_mat3_scalar_sub( msh_mat3_t m, msh_scalar_t s )
   return o;
 }
 
-MSHVMDEF inline msh_mat4_t
+MSHVMDEF msh_mat4_t
 msh_mat4_scalar_sub( msh_mat4_t m, msh_scalar_t s )
 {
   msh_mat4_t o;
@@ -1349,7 +1347,7 @@ msh_mat4_scalar_sub( msh_mat4_t m, msh_scalar_t s )
   return o;
 }
 
-MSHVMDEF inline msh_mat2_t
+MSHVMDEF msh_mat2_t
 msh_mat2_mul( msh_mat2_t a, msh_mat2_t b )
 {
   msh_mat2_t o;
@@ -1361,7 +1359,7 @@ msh_mat2_mul( msh_mat2_t a, msh_mat2_t b )
   return o;
 }
 
-MSHVMDEF inline msh_mat3_t
+MSHVMDEF msh_mat3_t
 msh_mat3_mul( msh_mat3_t a, msh_mat3_t b )
 {
   msh_mat3_t o;
@@ -1379,7 +1377,7 @@ msh_mat3_mul( msh_mat3_t a, msh_mat3_t b )
   return o;
 }
 
-MSHVMDEF inline msh_mat4_t
+MSHVMDEF msh_mat4_t
 msh_mat4_mul( msh_mat4_t a, msh_mat4_t b )
 {
   msh_mat4_t o;
@@ -1422,7 +1420,7 @@ msh_mat4_mul( msh_mat4_t a, msh_mat4_t b )
 }
 
 
-MSHVMDEF inline msh_mat2_t
+MSHVMDEF msh_mat2_t
 msh_mat2_scalar_mul( msh_mat2_t m, msh_scalar_t s )
 {
   msh_mat2_t o;
@@ -1433,7 +1431,7 @@ msh_mat2_scalar_mul( msh_mat2_t m, msh_scalar_t s )
   return o;
 }
 
-MSHVMDEF inline msh_mat3_t
+MSHVMDEF msh_mat3_t
 msh_mat3_scalar_mul( msh_mat3_t m, msh_scalar_t s )
 {
   msh_mat3_t o;
@@ -1449,7 +1447,7 @@ msh_mat3_scalar_mul( msh_mat3_t m, msh_scalar_t s )
   return o;
 }
 
-MSHVMDEF inline msh_mat4_t
+MSHVMDEF msh_mat4_t
 msh_mat4_scalar_mul( msh_mat4_t m, msh_scalar_t s )
 {
   msh_mat4_t o;
@@ -1472,7 +1470,7 @@ msh_mat4_scalar_mul( msh_mat4_t m, msh_scalar_t s )
   return o;
 }
 
-MSHVMDEF inline msh_vec2_t
+MSHVMDEF msh_vec2_t
 msh_mat2_vec2_mul ( msh_mat2_t m, msh_vec2_t v )
 {
   msh_vec2_t o;
@@ -1481,7 +1479,7 @@ msh_mat2_vec2_mul ( msh_mat2_t m, msh_vec2_t v )
   return o;
 }
 
-MSHVMDEF inline msh_vec3_t
+MSHVMDEF msh_vec3_t
 msh_mat3_vec3_mul ( msh_mat3_t m, msh_vec3_t v )
 {
   msh_vec3_t o;
@@ -1491,7 +1489,7 @@ msh_mat3_vec3_mul ( msh_mat3_t m, msh_vec3_t v )
   return o;
 }
 
-MSHVMDEF inline msh_vec3_t
+MSHVMDEF msh_vec3_t
 msh_mat4_vec3_mul ( msh_mat4_t m, msh_vec3_t v, int32_t is_point )
 {
   msh_vec3_t o;
@@ -1502,7 +1500,7 @@ msh_mat4_vec3_mul ( msh_mat4_t m, msh_vec3_t v, int32_t is_point )
 }
 
 
-MSHVMDEF inline msh_vec4_t
+MSHVMDEF msh_vec4_t
 msh_mat4_vec4_mul ( msh_mat4_t m, msh_vec4_t v )
 {
   msh_vec4_t o;
@@ -1513,7 +1511,7 @@ msh_mat4_vec4_mul ( msh_mat4_t m, msh_vec4_t v )
   return o;
 }
 
-MSHVMDEF inline msh_mat2_t
+MSHVMDEF msh_mat2_t
 msh_mat2_scalar_div( msh_mat2_t m, msh_scalar_t s )
 {
   msh_mat2_t o;
@@ -1525,7 +1523,7 @@ msh_mat2_scalar_div( msh_mat2_t m, msh_scalar_t s )
   return o;
 }
 
-MSHVMDEF inline msh_mat3_t
+MSHVMDEF msh_mat3_t
 msh_mat3_scalar_div( msh_mat3_t m, msh_scalar_t s )
 {
   msh_mat3_t o;
@@ -1542,7 +1540,7 @@ msh_mat3_scalar_div( msh_mat3_t m, msh_scalar_t s )
   return o;
 }
 
-MSHVMDEF inline msh_mat4_t
+MSHVMDEF msh_mat4_t
 msh_mat4_scalar_div( msh_mat4_t m, msh_scalar_t s )
 {
   msh_mat4_t o;
@@ -1566,31 +1564,31 @@ msh_mat4_scalar_div( msh_mat4_t m, msh_scalar_t s )
   return o;
 }
 
-MSHVMDEF inline msh_scalar_t
+MSHVMDEF msh_scalar_t
 msh_mat2_trace( msh_mat2_t m )
 {
   return m.data[0] + m.data[2];
 }
 
-MSHVMDEF inline msh_scalar_t
+MSHVMDEF msh_scalar_t
 msh_mat3_trace( msh_mat3_t m )
 {
   return m.data[0] + m.data[4] + m.data[8];
 }
 
-MSHVMDEF inline msh_scalar_t
+MSHVMDEF msh_scalar_t
 msh_mat4_trace( msh_mat4_t m )
 {
   return m.data[0] + m.data[5] + m.data[10] + m.data[15];
 }
 
-MSHVMDEF inline msh_scalar_t
+MSHVMDEF msh_scalar_t
 msh_mat2_determinant( msh_mat2_t m )
 {
   return m.data[0] * m.data[3] - m.data[2] * m.data[1];
 }
 
-MSHVMDEF inline msh_scalar_t
+MSHVMDEF msh_scalar_t
 msh_mat3_determinant( msh_mat3_t m )
 {
   /* get required cofactors */
@@ -1602,7 +1600,7 @@ msh_mat3_determinant( msh_mat3_t m )
   return m.data[0] * C[0] + m.data[1] * C[1] + m.data[2] * C[2];
 }
 
-MSHVMDEF inline msh_scalar_t
+MSHVMDEF msh_scalar_t
 msh_mat4_determinant( msh_mat4_t m )
 {
   msh_scalar_t C[4];
@@ -1636,7 +1634,7 @@ msh_mat4_determinant( msh_mat4_t m )
   return det;
 }
 
-MSHVMDEF inline msh_scalar_t 
+MSHVMDEF msh_scalar_t 
 msh_mat2_frobenius_norm( msh_mat2_t m )
 {
   return sqrtf( m.data[0] * m.data[0] +
@@ -1645,7 +1643,7 @@ msh_mat2_frobenius_norm( msh_mat2_t m )
                 m.data[3] * m.data[3] );
 }
 
-MSHVMDEF inline msh_scalar_t 
+MSHVMDEF msh_scalar_t 
 msh_mat3_frobenius_norm( msh_mat3_t m )
 {
   return sqrtf( m.data[0] * m.data[0] +
@@ -1659,7 +1657,7 @@ msh_mat3_frobenius_norm( msh_mat3_t m )
                 m.data[8] * m.data[8] );
 }
 
-MSHVMDEF inline msh_scalar_t 
+MSHVMDEF msh_scalar_t 
 msh_mat4_frobenius_norm( msh_mat4_t m )
 {
   return sqrtf( m.data[ 0] * m.data[ 0] +
@@ -1680,7 +1678,7 @@ msh_mat4_frobenius_norm( msh_mat4_t m )
                 m.data[15] * m.data[15] );
 }
 
-MSHVMDEF inline msh_mat2_t 
+MSHVMDEF msh_mat2_t 
 msh_mat2_inverse( msh_mat2_t m )
 {
   msh_scalar_t denom = 1.0f / (m.data[0] * m.data[3] - m.data[2] * m.data[1]);
@@ -1692,7 +1690,7 @@ msh_mat2_inverse( msh_mat2_t m )
   return mi;
 }
 
-MSHVMDEF inline msh_mat3_t 
+MSHVMDEF msh_mat3_t 
 msh_mat3_inverse( msh_mat3_t m )
 {
   /* To calculate inverse :
@@ -1743,7 +1741,7 @@ msh_mat3_inverse( msh_mat3_t m )
   return mi;
 }
 
-MSHVMDEF inline msh_mat4_t 
+MSHVMDEF msh_mat4_t 
 msh_mat4_inverse( msh_mat4_t m )
 {
   /* Inverse using cramers rule
@@ -1836,7 +1834,7 @@ msh_mat4_inverse( msh_mat4_t m )
   return mi;
 }
 
-MSHVMDEF inline msh_mat2_t 
+MSHVMDEF msh_mat2_t 
 msh_mat2_transpose( msh_mat2_t m )
 {
   msh_mat2_t mt;
@@ -1847,7 +1845,7 @@ msh_mat2_transpose( msh_mat2_t m )
   return mt;
 }
 
-MSHVMDEF inline msh_mat3_t 
+MSHVMDEF msh_mat3_t 
 msh_mat3_transpose( msh_mat3_t m )
 {
   msh_mat3_t mt;
@@ -1863,7 +1861,7 @@ msh_mat3_transpose( msh_mat3_t m )
   return mt;
 }
 
-MSHVMDEF inline msh_mat4_t 
+MSHVMDEF msh_mat4_t 
 msh_mat4_transpose( msh_mat4_t m )
 {
   msh_mat4_t mt;
@@ -1886,7 +1884,7 @@ msh_mat4_transpose( msh_mat4_t m )
   return mt;
 }
 
-MSHVMDEF inline msh_mat4_t 
+MSHVMDEF msh_mat4_t 
 msh_look_at( msh_vec3_t eye, 
              msh_vec3_t center, 
              msh_vec3_t up )
@@ -1902,7 +1900,7 @@ msh_look_at( msh_vec3_t eye,
   return o;
 }
 
-MSHVMDEF inline msh_mat4_t 
+MSHVMDEF msh_mat4_t 
 msh_frustum( msh_scalar_t left,   msh_scalar_t right, 
              msh_scalar_t bottom, msh_scalar_t top, 
              msh_scalar_t z_near, msh_scalar_t z_far )
@@ -1922,7 +1920,7 @@ msh_frustum( msh_scalar_t left,   msh_scalar_t right,
   return o;
 }
 
-MSHVMDEF inline msh_mat4_t  
+MSHVMDEF msh_mat4_t  
 msh_perspective( msh_scalar_t fovy, 
                  msh_scalar_t aspect, 
                  msh_scalar_t z_near, 
@@ -1939,7 +1937,7 @@ msh_perspective( msh_scalar_t fovy,
   return msh_frustum( xmin, xmax, ymin, ymax, z_near, z_far );
 }
 
-MSHVMDEF inline msh_mat4_t 
+MSHVMDEF msh_mat4_t 
 msh_ortho( msh_scalar_t left,   msh_scalar_t right, 
            msh_scalar_t bottom, msh_scalar_t top, 
            msh_scalar_t z_near, msh_scalar_t z_far )
@@ -1958,7 +1956,7 @@ msh_ortho( msh_scalar_t left,   msh_scalar_t right,
   return o;
 }
 
-MSHVMDEF inline msh_vec3_t
+MSHVMDEF msh_vec3_t
 msh_project ( msh_vec4_t obj,     msh_mat4_t modelview,
               msh_mat4_t project, msh_vec4_t viewport )
 {
@@ -1973,7 +1971,7 @@ msh_project ( msh_vec4_t obj,     msh_mat4_t modelview,
   return win;
 }
 
-MSHVMDEF inline msh_vec4_t
+MSHVMDEF msh_vec4_t
 msh_unproject ( msh_vec3_t win,     msh_mat4_t modelview,
             msh_mat4_t project, msh_vec4_t viewport )
 {
@@ -1989,7 +1987,7 @@ msh_unproject ( msh_vec3_t win,     msh_mat4_t modelview,
   return obj;
 }
 
-MSHVMDEF inline msh_mat4_t
+MSHVMDEF msh_mat4_t
 msh_translate( msh_mat4_t m, msh_vec3_t t )
 {
   msh_mat4_t result = m;
@@ -2001,7 +1999,7 @@ msh_translate( msh_mat4_t m, msh_vec3_t t )
   return result;
 }
 
-MSHVMDEF inline msh_mat4_t
+MSHVMDEF msh_mat4_t
 msh_scale( msh_mat4_t m, msh_vec3_t s )
 {
   msh_mat4_t result = m;
@@ -2014,7 +2012,7 @@ msh_scale( msh_mat4_t m, msh_vec3_t s )
 /* derivation : 
  * http://www.euclideanspace.com/matrixhs/geometry/rotations/conversions/angleToMatrix/ 
  */
-MSHVMDEF inline msh_mat4_t
+MSHVMDEF msh_mat4_t
 msh_rotate( msh_mat4_t m, msh_scalar_t angle, msh_vec3_t v )
 {
   msh_scalar_t c = cosf( angle );
@@ -2064,7 +2062,7 @@ msh_rotate( msh_mat4_t m, msh_scalar_t angle, msh_vec3_t v )
 
 // Euler angles decoded as yaw, pitch, roll
 // from https://www.geometrictools.com/Documentation/EulerAngles.pdf
-MSHVMDEF inline msh_vec3_t 
+MSHVMDEF msh_vec3_t 
 msh_mat3_to_euler( msh_mat3_t m )
 {
   msh_scalar_t pi = (msh_scalar_t)3.14159265359;
@@ -2095,7 +2093,7 @@ msh_mat3_to_euler( msh_mat3_t m )
 
 
 // Euler angles decoded as yaw, pitch, roll
-MSHVMDEF inline msh_mat3_t 
+MSHVMDEF msh_mat3_t 
 msh_mat3_from_euler( msh_vec3_t euler_angles )
 {
   msh_scalar_t sx = (msh_scalar_t)sin( euler_angles.x );
@@ -2115,7 +2113,7 @@ msh_mat3_from_euler( msh_vec3_t euler_angles )
  * =============================================================================
  */
 
-MSHVMDEF inline msh_quat_t
+MSHVMDEF msh_quat_t
 msh_quat_from_axis_angle( msh_vec3_t axis, msh_scalar_t angle )
 {
   msh_scalar_t a = (msh_scalar_t)(angle * 0.5);
@@ -2123,7 +2121,7 @@ msh_quat_from_axis_angle( msh_vec3_t axis, msh_scalar_t angle )
   return MSHVM_INIT_CAST(msh_quat_t){{ axis.x * s, axis.y * s, axis.z * s, cosf(a)}};
 }
 
-MSHVMDEF inline msh_quat_t 
+MSHVMDEF msh_quat_t 
 msh_quat_from_euler_angles( msh_scalar_t pitch, msh_scalar_t yaw, msh_scalar_t roll )
 {
   msh_scalar_t c1 = (msh_scalar_t)cos(pitch * 0.5 );
@@ -2140,7 +2138,7 @@ msh_quat_from_euler_angles( msh_scalar_t pitch, msh_scalar_t yaw, msh_scalar_t r
 }
 
 /* NOTE: Directly adapted from [9] */
-MSHVMDEF inline msh_quat_t 
+MSHVMDEF msh_quat_t 
 msh_quat_from_vectors( msh_vec3_t v1, msh_vec3_t v2 )
 {
     msh_scalar_t norm_v1_norm_v2 = (msh_scalar_t)sqrt(msh_vec3_dot(v1, v1) * msh_vec3_dot(v2, v2));
@@ -2166,13 +2164,13 @@ msh_quat_from_vectors( msh_vec3_t v1, msh_vec3_t v2 )
 }
 
 
-MSHVMDEF inline msh_quat_t 
+MSHVMDEF msh_quat_t 
 msh_quat_add( msh_quat_t a, msh_quat_t b )
 {
   return MSHVM_INIT_CAST(msh_quat_t){{ a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w }};
 }
 
-MSHVMDEF inline msh_quat_t 
+MSHVMDEF msh_quat_t 
 msh_quat_scalar_add( msh_quat_t v, msh_scalar_t s )
 {
   msh_quat_t o = v;
@@ -2180,13 +2178,13 @@ msh_quat_scalar_add( msh_quat_t v, msh_scalar_t s )
   return o;
 }
 
-MSHVMDEF inline msh_quat_t 
+MSHVMDEF msh_quat_t 
 msh_quat_sub( msh_quat_t a, msh_quat_t b )
 {
   return MSHVM_INIT_CAST(msh_quat_t){{ a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w }};
 }
 
-MSHVMDEF inline msh_quat_t 
+MSHVMDEF msh_quat_t 
 msh_quat_scalar_sub( msh_quat_t v, msh_scalar_t s )
 {
   msh_quat_t o = v;
@@ -2194,7 +2192,7 @@ msh_quat_scalar_sub( msh_quat_t v, msh_scalar_t s )
   return o;
 }
 
-MSHVMDEF inline msh_quat_t 
+MSHVMDEF msh_quat_t 
 msh_quat_mul( msh_quat_t a, msh_quat_t b )
 {
   
@@ -2215,7 +2213,7 @@ msh_quat_mul( msh_quat_t a, msh_quat_t b )
                                        a.w*b.w - a.x*b.x - a.y*b.y - a.z*b.z }};
 }
 
-MSHVMDEF inline msh_quat_t 
+MSHVMDEF msh_quat_t 
 msh_quat_scalar_mul( msh_quat_t v, msh_scalar_t s )
 {
   msh_quat_t o;
@@ -2224,38 +2222,38 @@ msh_quat_scalar_mul( msh_quat_t v, msh_scalar_t s )
   return o;
 }
 
-MSHVMDEF inline msh_quat_t 
+MSHVMDEF msh_quat_t 
 msh_quat_div( msh_quat_t a, msh_quat_t b )
 {
   return msh_quat_mul( a, msh_quat_inverse(b) );
 }
 
-MSHVMDEF inline msh_quat_t 
+MSHVMDEF msh_quat_t 
 msh_quat_scalar_div( msh_quat_t v, msh_scalar_t s )
 {
   msh_scalar_t denom = 1.0f / s;
   return MSHVM_INIT_CAST(msh_quat_t){{ v.x * denom, v.y * denom, v.z * denom, v.w * denom }};
 }
 
-msh_scalar_t 
+MSHVMDEF msh_scalar_t 
 msh_quat_dot( msh_quat_t a,  msh_quat_t b )
 {
   return ( a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w );
 }
 
-msh_scalar_t 
+MSHVMDEF msh_scalar_t 
 msh_quat_norm( msh_quat_t q )
 {
   return (msh_scalar_t)sqrt( q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w );
 }
 
-msh_scalar_t 
+MSHVMDEF msh_scalar_t 
 msh_quat_norm_sq( msh_quat_t q )
 {
   return ( q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w );
 }
 
-MSHVMDEF inline msh_quat_t 
+MSHVMDEF msh_quat_t 
 msh_quat_normalize( msh_quat_t q )
 {
   msh_scalar_t denom = 1.0f / msh_quat_norm( q );
@@ -2265,7 +2263,7 @@ msh_quat_normalize( msh_quat_t q )
   return o;
 }
 
-MSHVMDEF inline msh_quat_t 
+MSHVMDEF msh_quat_t 
 msh_quat_conjugate( msh_quat_t q )
 {
   msh_quat_t o;
@@ -2274,7 +2272,7 @@ msh_quat_conjugate( msh_quat_t q )
   return o;
 }
 
-MSHVMDEF inline msh_quat_t 
+MSHVMDEF msh_quat_t 
 msh_quat_inverse( msh_quat_t q )
 {
   msh_quat_t o = MSHVM_INIT_CAST(msh_quat_t){{0.0, 0.0, 0.0, 0.0}};
@@ -2286,7 +2284,7 @@ msh_quat_inverse( msh_quat_t q )
   return o;
 }
 
-MSHVMDEF inline msh_quat_t 
+MSHVMDEF msh_quat_t 
 msh_quat_lerp( msh_quat_t q, 
                msh_quat_t r, 
                msh_scalar_t t )
@@ -2299,7 +2297,7 @@ msh_quat_lerp( msh_quat_t q,
   return o;
 }
 
-MSHVMDEF inline msh_quat_t 
+MSHVMDEF msh_quat_t 
 msh_quat_slerp( msh_quat_t q, 
                 msh_quat_t r, 
                 msh_scalar_t t )
@@ -2318,7 +2316,7 @@ msh_quat_slerp( msh_quat_t q,
   return o;
 }
 
-MSHVMDEF inline msh_quat_t
+MSHVMDEF msh_quat_t
 msh_quat_from_angle_axis( msh_vec3_t axis, msh_scalar_t angle )
 {
     msh_scalar_t a = angle * 0.5f;
@@ -2326,7 +2324,7 @@ msh_quat_from_angle_axis( msh_vec3_t axis, msh_scalar_t angle )
     return MSHVM_INIT_CAST(msh_quat_t){{ axis.x * s, axis.y * s, axis.z * s, cosf(a) }};
 }
 
-MSHVMDEF inline msh_mat3_t 
+MSHVMDEF msh_mat3_t 
 msh_quat_to_mat3( msh_quat_t q )
 {
   msh_mat3_t o;
@@ -2356,14 +2354,14 @@ msh_quat_to_mat3( msh_quat_t q )
   return o;
 }
 
-MSHVMDEF inline msh_mat4_t 
+MSHVMDEF msh_mat4_t 
 msh_quat_to_mat4( msh_quat_t q )
 {
   return msh_mat3_to_mat4( msh_quat_to_mat3(q) );
 }
  
 
-MSHVMDEF inline msh_quat_t
+MSHVMDEF msh_quat_t
 msh_mat3_to_quat( msh_mat3_t m )
 {
   msh_scalar_t tr = m.data[0] + m.data[4] + m.data[8];
@@ -2403,13 +2401,13 @@ msh_mat3_to_quat( msh_mat3_t m )
   return q;
 }
 
-MSHVMDEF inline msh_quat_t 
+MSHVMDEF msh_quat_t 
 msh_mat4_to_quat( msh_mat4_t m )
 {
   return msh_mat3_to_quat( msh_mat4_to_mat3( m ) );
 }
 
-MSHVMDEF inline int 
+MSHVMDEF int 
 msh_mat2_equal( msh_mat2_t a, msh_mat2_t b )
 {
   int result = 1;
@@ -2420,7 +2418,7 @@ msh_mat2_equal( msh_mat2_t a, msh_mat2_t b )
   return result;
 }
 
-MSHVMDEF inline int 
+MSHVMDEF int 
 msh_mat3_equal( msh_mat3_t a, msh_mat3_t b )
 {
   int result = 1;
@@ -2436,7 +2434,7 @@ msh_mat3_equal( msh_mat3_t a, msh_mat3_t b )
   return result;
 }
 
-MSHVMDEF inline int 
+MSHVMDEF int 
 msh_mat4_equal( msh_mat4_t a, msh_mat4_t b )
 {
   int result = 1;
@@ -2466,33 +2464,33 @@ msh_mat4_equal( msh_mat4_t a, msh_mat4_t b )
  * =============================================================================
  */
 
-MSHVMDEF inline void
+MSHVMDEF void
 msh_vec2_fprint( msh_vec2_t v, FILE *stream )
 {
   fprintf( stream, "%12.7f %12.7f\n", v.x, v.y );
 }
 
-MSHVMDEF inline void
+MSHVMDEF void
 msh_vec3_fprint( msh_vec3_t v, FILE *stream )
 {
   fprintf( stream, "%12.7f %12.7f %12.7f\n", v.x, v.y, v.z );
 }
 
-MSHVMDEF inline void
+MSHVMDEF void
 msh_vec4_fprint( msh_vec4_t v, FILE *stream )
 {
   fprintf( stream, "%12.7f %12.7f %12.7f %12.7f\n", 
                    v.x, v.y, v.z, v.w );
 }
 
-MSHVMDEF inline void
+MSHVMDEF void
 msh_quat_fprint( msh_quat_t v, FILE *stream )
 {
   fprintf( stream, "%12.7f %12.7f %12.7f %12.7f\n", 
                    v.w, v.x, v.y, v.z );
 }
 
-MSHVMDEF inline void
+MSHVMDEF void
 msh_mat2_fprint( msh_mat2_t m, FILE *stream )
 {
   fprintf( stream, "%12.7f %12.7f\n%12.7f %12.7f\n\n", 
@@ -2500,7 +2498,7 @@ msh_mat2_fprint( msh_mat2_t m, FILE *stream )
                     m.data[1], m.data[3] );
 }
 
-MSHVMDEF inline void
+MSHVMDEF void
 msh_mat3_fprint( msh_mat3_t m, FILE *stream )
 {
   fprintf( stream, "%12.7f %12.7f %12.7f\n"
@@ -2511,7 +2509,7 @@ msh_mat3_fprint( msh_mat3_t m, FILE *stream )
                    m.data[2], m.data[5], m.data[8] );
 }
 
-MSHVMDEF inline void
+MSHVMDEF void
 msh_mat4_fprint( msh_mat4_t m, FILE *stream )
 {
   fprintf( stream, "%12.7f %12.7f %12.7f %12.7f\n"
@@ -2524,43 +2522,43 @@ msh_mat4_fprint( msh_mat4_t m, FILE *stream )
                    m.data[3], m.data[7], m.data[11], m.data[15] );
 }
 
-MSHVMDEF inline void
+MSHVMDEF void
 msh_vec2_print( msh_vec2_t v )
 {
   msh_vec2_fprint( v, stdout );
 }
 
-MSHVMDEF inline void
+MSHVMDEF void
 msh_vec3_print( msh_vec3_t v )
 {
   msh_vec3_fprint( v, stdout );
 }
 
-MSHVMDEF inline void
+MSHVMDEF void
 msh_vec4_print( msh_vec4_t v )
 {
   msh_vec4_fprint( v, stdout );
 }
 
-MSHVMDEF inline void
+MSHVMDEF void
 msh_quat_print( msh_quat_t v )
 {
   msh_quat_fprint( v, stdout );
 }
 
-MSHVMDEF inline void
+MSHVMDEF void
 msh_mat2_print( msh_mat2_t m )
 {
   msh_mat2_fprint( m, stdout );
 }
 
-MSHVMDEF inline void
+MSHVMDEF void
 msh_mat3_print( msh_mat3_t m )
 {
   msh_mat3_fprint( m, stdout );
 }
 
-MSHVMDEF inline void
+MSHVMDEF void
 msh_mat4_print( msh_mat4_t m )
 {
   msh_mat4_fprint( m, stdout );

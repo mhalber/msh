@@ -86,6 +86,10 @@
 #ifndef MSH_GFX_H
 #define MSH_GFX_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef MSH_GFX_INCLUDE_HEADES
 #include <stdlib.h>
 #include <assert.h>
@@ -533,7 +537,9 @@ int32_t mshgfx_geometry_free( mshgfx_geometry_t * geo );
 
 void mshgfx_geometry_draw( mshgfx_geometry_t * geo, uint32_t draw_mode );
 
-
+#ifdef __cplusplus
+}
+#endif
 #endif /* MSH_GFX_H */
 
 
