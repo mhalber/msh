@@ -189,7 +189,6 @@ typedef msh_vec3_t msh_point4_t;
 #define MSHVM_INIT_CAST(x) (x)
 #endif
 
-
 #define msh_vec2_zeros()  MSHVM_INIT_CAST(msh_vec2_t){{0, 0}}
 #define msh_vec3_zeros()  MSHVM_INIT_CAST(msh_vec3_t){{0, 0, 0}}
 #define msh_vec4_zeros()  MSHVM_INIT_CAST(msh_vec4_t){{0, 0, 0, 0}}
@@ -307,6 +306,10 @@ MSHVMDEF msh_scalar_t msh_vec4_norm( msh_vec4_t v );
 MSHVMDEF msh_scalar_t msh_vec2_norm_sq( msh_vec2_t v );
 MSHVMDEF msh_scalar_t msh_vec3_norm_sq( msh_vec3_t v );
 MSHVMDEF msh_scalar_t msh_vec4_norm_sq( msh_vec4_t v );
+
+MSHVMDEF msh_vec2_t msh_vec2_lerp( msh_vec2_t a, msh_vec2_t b, msh_scalar_t t );
+MSHVMDEF msh_vec3_t msh_vec3_lerp( msh_vec3_t a, msh_vec3_t b, msh_scalar_t t );
+MSHVMDEF msh_vec4_t msh_vec4_lerp( msh_vec4_t a, msh_vec4_t b, msh_scalar_t t );
 
 MSHVMDEF int msh_vec2_equal( msh_vec2_t a, msh_vec2_t b );
 MSHVMDEF int msh_vec3_equal( msh_vec3_t a, msh_vec3_t b );
@@ -980,6 +983,27 @@ MSHVMDEF msh_scalar_t
 msh_vec4_norm_sq( msh_vec4_t v )
 {
   return v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w; 
+}
+
+MSHVMDEF msh_vec2_t 
+msh_vec2_lerp( msh_vec2_t a, msh_vec2_t b, msh_scalar_t t )
+{
+  msh_scalar_t u = (msh_scalar_t)1.0-t;
+  return msh_vec2(t*b.x + u*a.x, t*b.y + u*a.y);
+}
+
+MSHVMDEF msh_vec3_t 
+msh_vec3_lerp( msh_vec3_t a, msh_vec3_t b, msh_scalar_t t )
+{
+  msh_scalar_t u = (msh_scalar_t)1.0-t;
+  return msh_vec3(t*b.x + u*a.x, t*b.y + u*a.y, t*b.z + u*a.z);
+}
+
+MSHVMDEF msh_vec4_t 
+msh_vec4_lerp( msh_vec4_t a, msh_vec4_t b, msh_scalar_t t )
+{
+  msh_scalar_t u = (msh_scalar_t)1.0-t;
+  return msh_vec4(t*b.x + u*a.x, t*b.y + u*a.y, t*b.z + u*a.z, t*b.w + u*a.w);
 }
 
 MSHVMDEF int 
