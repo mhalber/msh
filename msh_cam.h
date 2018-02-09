@@ -244,7 +244,9 @@ msh_camera_init( msh_camera_t * camera,
 {
   camera->view = msh_look_at( eye, center, up );
   camera->proj = msh_perspective( fovy, aspect_ratio, znear, zfar );
-  
+  camera->fovy = fovy;
+  camera->aspect_ratio = aspect_ratio;
+
   msh_mat4_t view_inverse = msh_mat4_inverse( camera->view );
 
   camera->orientation     = msh_mat4_to_quat( view_inverse );
@@ -259,7 +261,8 @@ msh_camera_update_perspective( msh_camera_t *camera,
                                const msh_scalar_t zfar )
 {
   camera->proj = msh_perspective( fovy, aspect_ratio, znear, zfar );
-
+  camera->fovy = fovy;
+  camera->aspect_ratio = aspect_ratio;
 }
 
 MSHCAMDEF void

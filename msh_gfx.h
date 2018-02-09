@@ -432,6 +432,7 @@ int32_t mshgfx_shader_prog_link_vgf( mshgfx_shader_prog_t *p,
 
 int32_t mshgfx_shader_prog_use( const mshgfx_shader_prog_t *p );
 
+void mshgfx_shader_prog_delete( mshgfx_shader_prog_t *p );
 
 void mshgfx_shader_prog_set_uniform_1f( const mshgfx_shader_prog_t *p, 
                                      const char *attrib_name, 
@@ -1107,6 +1108,12 @@ mshgfx_shader_prog_use( const mshgfx_shader_prog_t *p )
     return 1;
   }
   return 0;
+}
+
+void
+mshgfx_shader_prog_delete( mshgfx_shader_prog_t *p )
+{
+  glDeleteProgram( p->id );
 }
 
 int32_t
