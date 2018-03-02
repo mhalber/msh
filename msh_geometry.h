@@ -81,15 +81,15 @@ typedef struct mshgeo_bbox
 
 /* SIMPLE BBOX */
 MSHGEODEF msh_bbox_t mshgeo_bbox_init();
-MSHGEODEF void mshgeo_bbox_reset(msh_bbox_t* bbox);
-MSHGEODEF void mshgeo_bbox_union(msh_bbox_t* bb, msh_vec3_t p);
+MSHGEODEF void       mshgeo_bbox_reset(msh_bbox_t* bbox);
+MSHGEODEF void       mshgeo_bbox_union(msh_bbox_t* bb, msh_vec3_t p);
 MSHGEODEF msh_vec3_t mshgeo_bbox_centroid(msh_bbox_t *bb);
-MSHGEODEF float mshgeo_bbox_width(msh_bbox_t *bb);
-MSHGEODEF float mshgeo_bbox_height(msh_bbox_t *bb);
-MSHGEODEF float mshgeo_bbox_depth(msh_bbox_t *bb);
+MSHGEODEF float      mshgeo_bbox_width(msh_bbox_t *bb);
+MSHGEODEF float      mshgeo_bbox_height(msh_bbox_t *bb);
+MSHGEODEF float      mshgeo_bbox_depth(msh_bbox_t *bb);
 MSHGEODEF msh_vec3_t mshgeo_bbox_diagonal(msh_bbox_t* bb);
-MSHGEODEF float mshgeo_bbox_volume(msh_bbox_t* bb);
-
+MSHGEODEF float      mshgeo_bbox_volume(msh_bbox_t* bb);
+MSHGEODEF bool       mshgeo_bbox_intersect(msh_bbox_t* ba, msh_bbox_t* bb);
 #ifdef __cplusplus
 }
 #endif
@@ -161,6 +161,14 @@ mshgeo_bbox_volume(msh_bbox_t* bb)
   return (bb->max_p.x - bb->min_p.x)*
          (bb->max_p.y - bb->min_p.y)*
          (bb->max_p.z - bb->min_p.z);
+}
+
+MSHGEODEF bool
+mshgeo_bbox_intersect( msh_bbox_t* ba, msh_bbox_t* bb )
+{
+  return ((ba->max_p.x >= bb->min_p.x && bb->max_p.x >= ba->min_p.x) && 
+          (ba->max_p.y >= bb->min_p.y && bb->max_p.y >= ba->min_p.y) &&
+          (ba->max_p.z >= bb->min_p.z && bb->max_p.z >= ba->min_p.z) );
 }
 
 #endif
