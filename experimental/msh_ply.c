@@ -141,16 +141,15 @@ typedef enum ply_err
   PLY_FORMAT_CMD_ERR,
   PLY_ELEMENT_CMD_ERR,
   PLY_PROPERTY_CMD_ERR,
-  PLY_FORMAT_UNRECOGNIZED_ERR,
   PLY_ELEMENT_NOT_FOUND_ERR,
   PLY_PROPERTY_NOT_FOUND_ERR,
   PLY_REQUESTED_PROPERTY_NOT_A_LIST_ERR,
   PLY_PARSE_ERROR,
   PLY_BIG_ENDIAN_ERR,
   PLY_BINARY_FILE_READ_ERR,
+  PLY_FORMAT_UNRECOGNIZED_ERR,
   PLY_UNRECOGNIZED_CMD_ERR,
-  PLY_UNRECOGNIZED_FORMAT_ERR,
-  PLY_UNSUPPORTED_FORMAT_ERR
+  PLY_UNSUPPORTED_FORMAT_ERR 
 } ply_err_t;
 
 typedef enum ply_format
@@ -937,12 +936,29 @@ ply_file__find_element( const ply_file_t* pf, const char* element_name )
 int  
 ply_file__add_element(ply_file_t* pf, const char* element_name, const int element_count)
 {
-	ply_element_t el;
-	strncpy( &el.name[0], element_name, 64 );
-	el.count = element_count;
-	el.properties = NULL;
-	msh_array_push( pf->elements, el );
-	return PLY_NO_ERRORS;
+  ply_element_t el;
+  strncpy( &el.name[0], element_name, 64 );
+  el.count = element_count;
+  el.properties = NULL;
+  msh_array_push( pf->elements, el );
+  return PLY_NO_ERRORS;
+}
+
+void
+ply_file__type_to_string( ply_type_id_t type, char** string )
+{
+  switch( type )
+  {
+    case PLY_INT8:   { *string = "char"; break; }
+    case PLY_INT16:  { *string = "short"; break; }
+    case PLY_INT32:  { *string = "int"; break; }
+    case PLY_UINT8:  { *string = "uchar"; break; }
+    case PLY_UINT16: { *string = "ushort"; break; }
+    case PLY_UINT32: { *string = "uint"; break; }
+    case PLY_FLOAT:  { *string = "float"; break; }
+    case PLY_DOUBLE: { *string = "double"; break; }
+    default: { break; }
+  }
 }
 
 int  
@@ -986,7 +1002,8 @@ ply_file_add_property_to_element(ply_file_t* pf, const char* element_name,
   return PLY_NO_ERRORS;
 }
 
-int  ply_file_write_header(ply_file_t* pf)
+int
+ply_file__write_header( const ply_file_t* pf )
 {
   if( !pf->_fp ) { return PLY_INVALID_FILE_ERR; }
   else
@@ -994,10 +1011,10 @@ int  ply_file_write_header(ply_file_t* pf)
     char* format_string = NULL;
     switch(pf->format)
     {
-    case PLY_ASCII: { format_string="ascii"; break; }
-    case PLY_LITTLE_ENDIAN: { format_string = "little_endian"; break; }
-    case PLY_BIG_ENDIAN: {return PLY_UNSUPPORTED_FORMAT_ERR; }
-    default: { return PLY_UNRECOGNIZED_FORMAT_ERR; }
+      case PLY_ASCII: { format_string="ascii"; break; }
+      case PLY_LITTLE_ENDIAN: { format_string = "little_endian"; break; }
+      case PLY_BIG_ENDIAN: {return PLY_UNSUPPORTED_FORMAT_ERR; }
+      default: { return PLY_FORMAT_UNRECOGNIZED_ERR; }
     }
 
     fprintf(pf->_fp, "ply\nformat %s %2.1f\n", 
@@ -1008,13 +1025,47 @@ int  ply_file_write_header(ply_file_t* pf)
       fprintf(pf->_fp, "element %s %d\n", el->name, el->count);
       for( int j = 0; j < msh_array_size(el->properties); j++)
       {
-        //TODO
+        ply_property_t* pr = &el->properties[j];
+        char* pr_type_str = NULL;
+        ply_file__type_to_string( pr->type, &pr_type_str );
+        
+        if( pr->list_type == PLY_INVALID )
+        {
+          fprintf(pf->_fp, "property %s %s\n", pr_type_str, pr->name );
+        }
+        else
+        {
+          char* pr_list_type_str = NULL;
+          ply_file__type_to_string( pr->list_type, &pr_list_type_str );
+          fprintf(pf->_fp, "property list %s %s %s\n", pr_list_type_str, 
+                                                       pr_type_str, 
+                                                       pr->name );
+        }
       }
     }
+    fprintf( pf->_fp, "end_header\n");
   }
   return PLY_NO_ERRORS;
 }
-// int  ply_file_write_element_data( ply_file_t* pf, const char* element_name, void* data );
+
+int
+ply_file__write_data( const ply_file_t* pf )
+{
+  int error = PLY_NO_ERRORS;
+  if( pf->format == PLY_ASCII ) { return PLY_UNSUPPORTED_FORMAT_ERR; }
+  if( pf->format == PLY_BIG_ENDIAN ) { return PLY_UNSUPPORTED_FORMAT_ERR;}
+  return error;
+}
+
+int 
+ply_file_write( const ply_file_t* pf )
+{
+  int error = PLY_NO_ERRORS;
+  error = ply_file__write_header( pf );
+  if( error ) { return error; }
+  error = ply_file__write_data( pf );
+  return error;
+}
 
 /// IO
 
@@ -1087,7 +1138,7 @@ int main(int argc, char** argv)
   ply_file_add_property_to_element(pf, "vertex", "z", PLY_FLOAT );
   
   ply_file_print_header(pf);
-  ply_file_write_header(pf);
+  ply_file_write(pf);
   ply_file_close(pf);
   printf("Done\n");
 #if 0
