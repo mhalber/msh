@@ -7,11 +7,12 @@ TODOs:
 [x] Ply creation API
   [x] Add multiple properties add command
   [x] Add actual writing of files
-     [ ] Add ascii output.
-[ ] Add function for decoding the contents of a file.
+[ ] Add ascii output
+[ ] Add big-endian support
 [ ] Prepare different data layouts people might have.
-[ ] Add hints and timings
+[ ] Add hints 
 
+[ ] Simplify read api - symmetrize it with wrtie api.
 [ ] Encoder/decorder split
 [ ] Double vs. float
 [ ] Error reporting
@@ -19,9 +20,8 @@ TODOs:
 [ ] Code cleanup
   [ ] Replace duplicated code
   [ ] Decide what to do with malloc(ie. Should we alloc memory? We are using FILE* anyway..)
-[ ] Simplify API
 [ ] Fix the header names to be mply
-[ ] Replace msh_array
+[ ] Replace msh_array with buf.c or with pervogsen buf (https://gist.github.com/vurtun/5144bbcc2db73d51e36bf327ac19b604)
 [ ] Extensive testing
 [ ] Optimize
 */
@@ -124,19 +124,10 @@ int  ply_file_get_properties_size(ply_file_t* pf, const char* element_name,
 int ply_file_get_properties_from_element(ply_file_t* pf, const char* element_name,  void* element_data,
                                           const char** req_properties, void** req_data );
 int  ply_file_get_list_property_from_element(ply_file_t* pf,  const char* element_name, 
-    	                                      void* element_data, const char* property_name, 
-       		                                  void** list_lengths, void** list_data);
+                                            void* element_data, const char* property_name, 
+                                             void** list_lengths, void** list_data);
 
 // ENCODER : Writing API - getting data to ply
-// int  ply_file_add_element(ply_file_t* pf, const char* element_name, const int element_count);
-// NOTE(maciej): Should make this to be closer to  encoder part.
-// int  ply_file_add_property_to_element(ply_file_t* pf, 
-                          //  const char* element_name, const char* property_name, int property_type,
-                          //  void** data, int element_count );
-// int  ply_file_add_list_property(ply_file_t* pf, 
-//              const char* element_name, const char* property_name, int list_type, int property_type);
-// int  1_header(ply_file_t* pf);
-// int  ply_file_write_element_data( ply_file_t* pf, const char* element_name, void* data );
 
 
 
@@ -844,9 +835,17 @@ int _ply_file_get_properties_from_element(ply_file_t* pf, const char* element_na
   return 1;
 }
 
+#define ply_file_get_list_property_from_element(PF, EN, ED, PN, LL, LD) do{\
+void* LL_ptr = *LL;\
+void* LD_ptr = *LD;\
+_ply_file_get_list_property_from_element(PF, EN, ED, PN, &LL_ptr, &LD_ptr);\
+*LL = LL_ptr;\
+*LD = LD_ptr;\
+}while(0)\
+
 int 
-ply_file_get_list_property_from_element(ply_file_t* pf, const char* element_name, void* element_data, 
-																				const char* property_name,  
+_ply_file_get_list_property_from_element(ply_file_t* pf, const char* element_name, void* element_data, 
+                                        const char* property_name,  
                                         void** list_lengths, void** list_data)
 {
   //TODO(maciej): Add internal parameter searching
@@ -1017,6 +1016,57 @@ ply_file__get_ith_element_as_int( void* data, int type, int i )
   return retval;
 }
 
+
+void
+ply_file__print_data_at_offset(void* data, int offset, int type)
+{
+  switch(type)
+  {
+    case PLY_UINT8:  printf("%zd\n", *(uint8_t*)(data+offset)); break;
+    case PLY_UINT16: printf("%zd\n", *(uint16_t*)(data+offset)); break;
+    case PLY_UINT32: printf("%zd\n", *(uint32_t*)(data+offset)); break;
+    case PLY_INT8:   printf("%d\n",  *(int8_t*)(data+offset)); break;
+    case PLY_INT16:  printf("%d\n",  *(int16_t*)(data+offset)); break;
+    case PLY_INT32:  printf("%d\n",  *(int32_t*)(data+offset)); break;
+    case PLY_FLOAT:  printf("%f\n",  *(float*)(data+offset)); break;
+    case PLY_DOUBLE: printf("%f\n",  *(double*)(data+offset)); break;
+  }
+}
+
+void
+ply_file__print_data( const ply_file_t *pf, void* data )
+{
+  int offset = 0;
+  for( int i = 0; i < msh_array_size(pf->elements); ++i )
+  {
+    ply_element_t* el = &pf->elements[i];
+    for( int k = 0 ; k < el->count; ++k )
+    {
+      for( int j = 0; j < msh_array_size(el->properties); ++j )
+      {
+        ply_property_t* pr = &el->properties[j];
+        if( pr->list_type == PLY_INVALID )
+        {
+          ply_file__print_data_at_offset( data, offset, pr->type );
+          offset += pr->byte_size;
+        }
+        else
+        {
+          int list_count = ply_file__get_ith_element_as_int(data+offset, pr->list_type, 0 );
+          ply_file__print_data_at_offset( data, offset, pr->list_type);
+          offset += pr->list_byte_size;
+          for( int l = 0; l < list_count; l++ )
+          {
+            ply_file__print_data_at_offset(data, offset, pr->type);
+            offset += pr->byte_size;
+          }
+        }
+      }
+    }
+  }
+}
+
+
 int  
 ply_file_add_property_to_element(ply_file_t* pf, const char* element_name, 
                   const char** property_names, int property_count,
@@ -1164,12 +1214,6 @@ ply_file__write_header( const ply_file_t* pf )
   return PLY_NO_ERRORS;
 }
 
-void
-ply_file__print_data( const ply_file_t *pf, void* data )
-{
-  //TODO
-}
-
 int
 ply_file__write_data_le( const ply_file_t* pf )
 {
@@ -1226,7 +1270,7 @@ ply_file__write_data_le( const ply_file_t* pf )
         }
       }
     }
-    printf("%d %d\n", dst_offset, buffer_size);
+    printf("%d %d\n\n", dst_offset, buffer_size);
     fwrite( dst, buffer_size, 1, pf->_fp );
   }
   return PLY_NO_ERRORS;
@@ -1307,17 +1351,13 @@ ply_file_close(ply_file_t* pf)
   return 1;
 }
 
-
-
-int main(int argc, char** argv)
+////////////////////////////////////////////////////////////////////////////////
+void write_ply_file( const char* filename )
 {
-	if(argc < 2) {printf("Please provide .ply filename\n"); return 0;} 
-	char* filename = argv[1];
-
-
+  double t1 = msh_get_time(MSHT_MILLISECONDS);
   const char* positions_names[] = {"x", "y", "z"};
-  const char* normals_names[] = {"nx", "ny", "nz"};
-  const char* colors_names[] = {"red", "green", "blue", "alpha"};
+  const char* normals_names[]   = {"nx", "ny", "nz"};
+  const char* colors_names[]    = {"red", "green", "blue", "alpha"};
   float positions[] = { 1.0f, 0.0f, 1.0f, 
                         0.0f, 0.0f, 1.0f,
                         1.0f, 0.0f, 0.0f };
@@ -1328,45 +1368,45 @@ int main(int argc, char** argv)
                      0, 255, 0, 255,
                      0, 0, 255, 255 };
   const char* face_names[] = {"vertex_indices"};
-  int face_ind[] = {0,1,2,
-                    3,4,5,
-                    7,8,9,10,
-                    12,13,
-                    1, 2, 3 };
-  unsigned char counts[] = {3,3,4,2,3};
+  int face_ind[] = {0,1,2};
+  unsigned char counts[] = {3};
 
   ply_file_t* pf = ply_file_open(filename, "wb");
   ply_file_add_property_to_element(pf, "vertex", positions_names, 3, PLY_FLOAT, PLY_INVALID, positions, NULL, 3 );
   ply_file_add_property_to_element(pf, "vertex", normals_names, 3, PLY_FLOAT, PLY_INVALID, normals, NULL, 3 );
   ply_file_add_property_to_element(pf, "vertex", colors_names, 4, PLY_UINT8, PLY_INVALID, colors, NULL, 3 );
-  ply_file_add_property_to_element(pf, "face", face_names, 1, PLY_INT32, PLY_UINT8, face_ind, counts, 5 );
+  ply_file_add_property_to_element(pf, "face", face_names, 1, PLY_INT32, PLY_UINT8, face_ind, counts, 1 );
   ply_file_write(pf);
   ply_file_close(pf);
-  printf("Done\n");
+  double t2 = msh_get_time(MSHT_MILLISECONDS);
+  printf("Done in %f milliseconds\n", t2-t1);
+}
 
+void read_ply_file( const char* filename )
+{
+  printf("Reading file : %s\n", filename);
+  ply_file_t* pf = ply_file_open(filename, "rb");
+  // ply_hint_t indices_size_hint = {.property_name="vertex_indices", .expected_size=3};
+  // ply_file_add_hint(pf, indices_size_hint);
+  if( pf )
+  {
+    double ht1 = msh_get_time(MSHT_MICROSECONDS);
+    ply_file_parse_header(pf);
+    double ht2 = msh_get_time(MSHT_MICROSECONDS);
+    printf("Header read in %fus\n", ht2-ht1);
+    ply_file_print_header(pf);
 
+    double pt1 = msh_get_time(MSHT_MILLISECONDS);
+    ply_file_parse_contents(pf);
+    double pt2 = msh_get_time(MSHT_MILLISECONDS);
+    printf("Parsing took %f ms\n", pt2-pt1);
 
+    int vertex_count = -1;
+    int face_count = -1;
+    ply_file_get_element_count(pf, "vertex", &vertex_count);
+    ply_file_get_element_count(pf, "face", &face_count);
 
-#if 0
-	printf("Reading file : %s\n", filename);
-	ply_file_t *pf = ply_file_open(filename, "rb");
-	ply_hint_t indices_size_hint = {.property_name="vertex_indices", .expected_size=3};
-  ply_file_add_hint(pf, indices_size_hint);
-	if( pf )
-	{
-		double ht1 = msh_get_time(MSHT_MICROSECONDS);
-		ply_file_parse_header(pf);
-		double ht2 = msh_get_time(MSHT_MICROSECONDS);
-		printf("Header read in %fus\n", ht2-ht1);
-		ply_file_print_header(pf);
-
-		double pt1 = msh_get_time(MSHT_MILLISECONDS);
-	  ply_file_parse_contents(pf);
-		double pt2 = msh_get_time(MSHT_MILLISECONDS);
-		printf("Parsing took %f ms\n", pt2-pt1);
-
-
-		double t1 = msh_get_time(MSHT_MILLISECONDS);
+    double t1 = msh_get_time(MSHT_MILLISECONDS);
     int vertices_size = -1;
     int faces_size = -1;
     ply_file_get_element_size(pf, "vertex", &vertices_size);
@@ -1375,19 +1415,14 @@ int main(int argc, char** argv)
     printf("faces_size : %d\n", faces_size );
     void *vertices_data = malloc(vertices_size);
     void *faces_data    = malloc(faces_size);
-		t1 = msh_get_time(MSHT_MILLISECONDS);
-    ply_file_get_element_data(pf, "vertex", &vertices_data);
-		double t2 = msh_get_time(MSHT_MILLISECONDS);
-		printf("data request : %fms\n", t2-t1);
     t1 = msh_get_time(MSHT_MILLISECONDS);
-		ply_file_get_element_data(pf, "face", &faces_data);
+    ply_file_get_element_data(pf, "vertex", &vertices_data);
+    double t2 = msh_get_time(MSHT_MILLISECONDS);
+    printf("data request : %fms\n", t2-t1);
+    t1 = msh_get_time(MSHT_MILLISECONDS);
+    ply_file_get_element_data(pf, "face", &faces_data);
     t2 = msh_get_time(MSHT_MILLISECONDS);
     printf("data request : %fms\n", t2-t1);
-
-		int vertex_count = -1;
-    int face_count = -1;
-    ply_file_get_element_count(pf, "vertex", &vertex_count);
-    ply_file_get_element_count(pf, "face", &face_count);
 
     t1 = msh_get_time(MSHT_MILLISECONDS);   
     int pos_size = -1;
@@ -1398,8 +1433,6 @@ int main(int argc, char** argv)
     t2 = msh_get_time(MSHT_MILLISECONDS);
     printf("pos data copy : %fms\n", t2-t1);
 
-	//TODO(maciej): Ply file property call is confusing - should be cnaged. We need api calls to
-	// give use correct size
     t1 = msh_get_time(MSHT_MILLISECONDS);
     ply_property_t* ind_prop = NULL;
     ply_file_get_property(pf, "face", "vertex_indices", &ind_prop);
@@ -1409,9 +1442,28 @@ int main(int argc, char** argv)
     t2 = msh_get_time(MSHT_MILLISECONDS);
     printf("ind data copy : %fms\n", t2-t1);
 
-	}
-	ply_file_close(pf);
-#endif
+    int offset = 0;
+    for( int i = 0; i < face_count; ++i )
+    {
+      printf( "%d ", ind_count[i] );
+      for( int j = 0 ; j < ind_count[i]; ++j )
+      {
+        printf("%d ", *(indices+offset) );
+        offset+=1;
+      }
+      printf("\n");
+    }
+  }
+  ply_file_close(pf);
+}
+
+int main(int argc, char** argv)
+{
+  if(argc < 2) {printf("Please provide .ply filename\n"); return 0;} 
+  char* filename = argv[1];
+
+  write_ply_file(filename);
+  read_ply_file(filename);
 
   return 1;
 }
