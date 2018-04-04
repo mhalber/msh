@@ -91,14 +91,10 @@ write_ply( const char* filename )
     };
     
     ind = { 
-        0, 1, 2,  
-        3, 4, 5, 
-        6, 7, 8, 
-        9, 10, 11,
-        0, 1, 2, 
-        3, 4, 5, 
-        6, 7, 8, 
-        9, 10, 11 
+        0, 1, 2, 0, 1, 2, 
+        3, 4, 5,  3, 4, 5,
+        6, 7, 8,  6, 7, 8, 
+        9, 10, 11, 9, 10, 11 
     };
 
     // Tinyply does not perform any file i/o internally
@@ -134,10 +130,28 @@ read_ply( const char* filename )
   pos = file.request_properties_from_element("vertex", {"x", "y", "z"});
   nor = file.request_properties_from_element("vertex", {"nx", "ny", "nz"});
   col = file.request_properties_from_element("vertex", {"red", "green", "blue", "alpha"});
-  ind = file.request_properties_from_element("face", { "vertex_indices" });
+  ind = file.request_properties_from_element("face", { "face_indices" });
 
   file.read(ss);
-
+  {
+    const size_t num_pos_bytes = pos->buffer.size_bytes();
+    struct float3 { float x, y, z; };
+    std::vector<float3> pos_vec(pos->count);
+    std::memcpy(pos_vec.data(), pos->buffer.get(), num_pos_bytes);
+    for( int i = 0; i < pos->count; ++i )
+    {
+      printf("%f %f %f\n", pos_vec[i].x,pos_vec[i].y,pos_vec[i].z);
+    }
+    const size_t num_indices_bytes = ind->buffer.size_bytes();
+    struct int3 { int x, y, z; };
+    std::vector<int3> ind_vec(ind->count);
+    printf("Count : %zu | %zu\n", ind->count, num_indices_bytes );
+    std::memcpy(ind_vec.data(), ind->buffer.get(), num_indices_bytes);
+    for( int i = 0; i < ind->count; ++i )
+    {
+      printf("%d %d %d\n", ind_vec[i].x, ind_vec[i].y, ind_vec[i].z);
+    }
+  }
 }
 int
 main( int argc, char** argv )
@@ -151,7 +165,7 @@ main( int argc, char** argv )
   printf("Ply file written in %lf milliseconds\n", t2-t1);
 
   t1 = msh_get_time(MSHT_MILLISECONDS);
-  read_ply("test.ply");
+  read_ply("dummy.ply");
   t2 = msh_get_time(MSHT_MILLISECONDS);
   printf("Ply file read in %lf milliseconds\n", t2-t1);
 }
