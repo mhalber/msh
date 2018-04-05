@@ -7,12 +7,13 @@ TODOs:
 [x] Ply creation API
   [x] Add multiple properties add command
   [x] Add actual writing of files
-[ ] Add ascii output
-[ ] Add big-endian support
-[ ] Prepare different data layouts people might have.
-[ ] Add hints 
-
+[x] Add ascii output
+[x] Add big-endian output support
 [ ] Simplify read api - symmetrize it with wrtie api.
+[ ] Add big-endian input support
+[ ] Prepare different data layouts people might have.
+[ ] Add hints to output
+
 [ ] Encoder/decorder split
 [ ] Double vs. float
 [ ] Error reporting
@@ -23,6 +24,7 @@ TODOs:
 [ ] Fix the header names to be mply
 [ ] Replace msh_array with buf.c or with pervogsen buf (https://gist.github.com/vurtun/5144bbcc2db73d51e36bf327ac19b604)
 [ ] Extensive testing
+[ ] Asserts!
 [ ] Optimize
 */
 
@@ -36,6 +38,7 @@ TODOs:
 // This ply library only provides set of functionalities to read/write your own specific ply file.
 // pf_file_t does not actually store any mesh data. You need to provide buffers to which such data
 // can be written.
+// This code assumes that your computer is little endian
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // All i am doing here is jumping through hoops if data is not interleaved.
 // Maybe I should assume it is, and if it is not, create separate interlevard buffers and write them...
@@ -62,9 +65,11 @@ typedef struct ply_property
 
   // data storage -> maybe we will put that into some write helper
   void* data;
+  void* list_data;
+
   int offset;
   int stride;
-  void* list_data;
+  
   int list_offset;
   int list_stride;
 } ply_property_t;
@@ -74,8 +79,12 @@ typedef struct ply_element
   char name[64];
   int count;
   msh_array(ply_property_t) properties;
+  
   int file_anchor;
+  void* data;
+  uint64_t data_size;
 } ply_element_t;
+
 
 typedef struct ply_hint
 {
@@ -112,7 +121,7 @@ int  ply_file_parse_contents(ply_file_t* pf);
 // DECODER : Reading API - getting data from ply
 int  ply_file_get_element(ply_file_t* pf, const char* element_name, ply_element_t** el);
 int  ply_file_get_element_count(ply_file_t* pf, const char* element_name, int* count);
-int  ply_file_get_element_size(ply_file_t* pf, const char* element_name, int* size);
+int  ply_file_get_element_size(ply_file_t* pf, const char* element_name, uint64_t* size);
 int  ply_file_get_element_data(ply_file_t* pf, const char* element_name, void** data);
 
 int  ply_file_get_property(ply_file_t* pf, const char* element_name, const char* property_name, 
@@ -146,6 +155,7 @@ typedef enum ply_err
   PLY_INVALID_FILE_ERR,
   PLY_INVALID_FORMAT_ERR,
   PLY_FILE_OPEN_ERR,
+  PLY_FILE_NOT_OPEN_ERR,
   PLY_LINE_PARSE_ERR,
   PLY_FORMAT_CMD_ERR,
   PLY_ELEMENT_CMD_ERR,
@@ -184,12 +194,78 @@ typedef enum ply_type_id
   PLY_N_TYPES
 } ply_type_id_t;
 
+// Endian swaps from tinyply by Dimitri Diakopoulos
+inline uint16_t ply_file__swap_uint16(uint16_t v)
+{ 
+  return (v << 8) | (v >> 8); 
+}
+
+inline uint32_t ply_file__swap_uint32(uint32_t v)
+{ 
+  return  (v << 24) | ((v << 8) & 0x00ff0000) | 
+          ((v >> 8) & 0x0000ff00) | (v >> 24); 
+}
+
+inline uint64_t ply_file__swap_uint64(uint64_t v)
+{
+  return (((v & 0x00000000000000ffLL) << 56) |
+          ((v & 0x000000000000ff00LL) << 40) |
+          ((v & 0x0000000000ff0000LL) << 24) |
+          ((v & 0x00000000ff000000LL) << 8) |
+          ((v & 0x000000ff00000000LL) >> 8) |
+          ((v & 0x0000ff0000000000LL) >> 24) |
+          ((v & 0x00ff000000000000LL) >> 40) |
+          ((v & 0xff00000000000000LL) >> 56));
+}
+
+inline int16_t ply_file__swap_int16(int16_t v)
+{ 
+  return (v << 8) | (v >> 8); 
+}
+
+inline int32_t ply_file__swap_int32(int32_t v) 
+{ 
+  return  (v << 24) | ((v << 8) & 0x00ff0000) | 
+          ((v >> 8) & 0x0000ff00) | (v >> 24); 
+}
+
+inline float swap_float(float v) 
+{ 
+  union { float f; uint32_t i; } u; 
+  u.f = v; 
+  u.i = ply_file__swap_uint32(u.i); 
+  return u.f; 
+}
+
+inline double swap_double(double v) 
+{ 
+  union { double d; uint64_t i; } u; 
+  u.d = v; 
+  u.i = ply_file__swap_uint64(v); 
+  return u.d; 
+}
+
+
 static char* ply_type_str[PLY_N_TYPES] = {"%s","%c","%uc","%s","%us","%d","%ud","%f","%g"};
 
 
+ply_element_t*
+ply_file__find_element( const ply_file_t* pf, const char* element_name )
+{
+  ply_element_t* el = NULL;
+  for(int i = 0; i < msh_array_size(pf->elements); ++i)
+  {
+    if(!strcmp(element_name, pf->elements[i].name))
+    {
+      el = &pf->elements[i];
+      break;
+    }
+  }
+  return el;
+}
 
 int
-ply__ply_parse_cmd(char* line, ply_file_t* pf)
+ply_file__parse_ply_cmd(char* line, ply_file_t* pf)
 {
   char cmd_str[PLY_MAX_STR_LEN];
   if(sscanf(line, "%s", cmd_str))
@@ -204,7 +280,7 @@ ply__ply_parse_cmd(char* line, ply_file_t* pf)
 }
 
 int
-ply__parse_format_cmd(char* line, ply_file_t* pf)
+ply_file__parse_format_cmd(char* line, ply_file_t* pf)
 {
   char cmd[PLY_MAX_STR_LEN];
   char frmt_str[PLY_MAX_STR_LEN];
@@ -219,10 +295,10 @@ ply__parse_format_cmd(char* line, ply_file_t* pf)
 }
 
 int
-ply__parse_element_cmd(char* line, ply_file_t* pf)
+ply_file__parse_element_cmd(char* line, ply_file_t* pf)
 {
   char cmd[PLY_MAX_STR_LEN];
-  ply_element_t el;
+  ply_element_t el = {0};
   el.properties = NULL;
   if(sscanf(line, "%s %s %d", &cmd[0], &el.name[0], &el.count) != 3) { return PLY_ELEMENT_CMD_ERR; }
   msh_array_push(pf->elements, el);
@@ -245,7 +321,7 @@ ply__string_to_property_type(char* type_str, int* pr_type, int* pr_size)
 }
 
 int
-ply__parse_property_cmd(char* line, ply_file_t* pf)
+ply_file__parse_property_cmd(char* line, ply_file_t* pf)
 {
   char cmd[PLY_MAX_STR_LEN];
   char type_str[PLY_MAX_STR_LEN];
@@ -289,12 +365,12 @@ ply__parse_property_cmd(char* line, ply_file_t* pf)
 }
 
 int 
-ply__parse_command(char* cmd, char* line, ply_file_t* pf)
+ply_file__parse_command(char* cmd, char* line, ply_file_t* pf)
 {
-  if(!strcmp(cmd, "ply"))      { return ply__ply_parse_cmd(line, pf); }
-  if(!strcmp(cmd, "format"))   { return ply__parse_format_cmd(line, pf); }
-  if(!strcmp(cmd, "element"))  { return ply__parse_element_cmd(line, pf); }
-  if(!strcmp(cmd, "property")) { return ply__parse_property_cmd(line, pf); }
+  if(!strcmp(cmd, "ply"))      { return ply_file__parse_ply_cmd(line, pf); }
+  if(!strcmp(cmd, "format"))   { return ply_file__parse_format_cmd(line, pf); }
+  if(!strcmp(cmd, "element"))  { return ply_file__parse_element_cmd(line, pf); }
+  if(!strcmp(cmd, "property")) { return ply_file__parse_property_cmd(line, pf); }
   return PLY_UNRECOGNIZED_CMD_ERR;
 }
 
@@ -312,7 +388,7 @@ ply_file_parse_header(ply_file_t* pf)
     if(line_no == 1 && strcmp(cmd,"ply") !=0 ) { return PLY_INVALID_FILE_ERR; }
     if(!strcmp(cmd,"end_header")) break;
     if(!strcmp(cmd,"comment")) continue;
-    err_code = ply__parse_command(cmd, line, pf);
+    err_code = ply_file__parse_command(cmd, line, pf);
   }
   pf->_header_size = ftell(pf->_fp);
   return err_code;
@@ -468,7 +544,6 @@ ply_file_parse_contents(ply_file_t* pf)
     }
   }
 
-  
   return err_code;
 }
 
@@ -598,7 +673,7 @@ ply_file_get_element_count(ply_file_t* pf, const char* element_name, int* count)
 }
 
 int
-ply_file_get_element_size(ply_file_t* pf, const char* element_name, int* size)
+ply_file_get_element_size(ply_file_t* pf, const char* element_name, uint64_t* size)
 {
   int err_code = PLY_NO_ERRORS;
   // find requested element
@@ -782,6 +857,14 @@ ply_file_get_properties_size(ply_file_t* pf, const char* element_name,
   return err_code;
 }
 
+
+//NOTE(maciej): void** is not generic : http://c-faq.com/ptrs/genericpp.html
+#define ply_file_get_properties_from_element(PF, EN, ED, RP, RD) do{\
+void* RD_ptr = *RD;\
+_ply_file_get_properties_from_element(PF, EN, ED, RP, sizeof(RP)/sizeof(*RP), &RD_ptr);\
+*RD = RD_ptr;\
+}while(0)\
+
 int _ply_file_get_properties_from_element(ply_file_t* pf, const char* element_name,  void* element_data,
                                           const char** req_properties, int n_req_properties,
                                           void** req_data )
@@ -927,30 +1010,125 @@ _ply_file_get_list_property_from_element(ply_file_t* pf, const char* element_nam
   return 1;
 }
 
+int
+ply_file_read(ply_file_t* pf)
+{
+  int error = PLY_NO_ERRORS;
+  if( !pf->_fp ) { return PLY_FILE_NOT_OPEN_ERR; }
 
-//NOTE(maciej): void** is not generic : http://c-faq.com/ptrs/genericpp.html
-#define ply_file_get_properties_from_element(PF, EN, ED, RP, RD) do{\
-void* RD_ptr = *RD;\
-_ply_file_get_properties_from_element(PF, EN, ED, RP, sizeof(RP)/sizeof(*RP), &RD_ptr);\
-*RD = RD_ptr;\
-}while(0)\
+  error = ply_file_parse_header(pf);
+  if( error ) { return error; }
+  error = ply_file_parse_contents(pf);
+  if( error ) { return error; }
+
+  return error;
+}
+
+
+
+
+// row size is super important
+int
+ply_file_get_property_from_element(ply_file_t* pf, const char* element_name, 
+                                   const char** property_names, int num_properties, 
+                                   int requested_type, int requested_list_type, 
+                                   void** data, int32_t *data_count, 
+                                   void** list_data, int32_t *list_data_count )
+{
+  ply_element_t* el = ply_file__find_element(pf, element_name); // TODO(maciej): Make public
+  if( !el ) { return PLY_ELEMENT_NOT_FOUND_ERR; }
+  else
+  {
+    if( el->data == NULL )
+    {
+      ply_file_get_element_size( pf, element_name, &el->data_size); // TODO(maciej): Just pass element!
+      el->data = malloc(el->data_size);
+      ply_file_get_element_data(pf, element_name, &el->data); // TODO(maciej): Just pass element!
+    }
+    
+    // Initialize output
+    if( data != NULL )
+    {
+      int output_size = -1;
+      ply_file_get_properties_size(pf, element_name, property_names, num_properties, &output_size);
+      *data = malloc(output_size);
+      *data_count = el->count;
+    }
+    if( list_data != NULL )
+    {
+      int output_size = -1;
+    }
+    // TODO(maciej): This needs to work with both list and regular properties
+
+    // ply_property_t* properties = el->properties;
+    // int src_offsets[4] = {0};
+    // int byte_sizes[4] = {0};
+    // int dst_row_size = 0;
+    // int src_row_size = 0;
+    // for(int i = 0; i < msh_array_size(properties); ++i)
+    // {
+    //   for(int j = 0; j < n_req_properties; ++j)
+    //   {
+    //     if(!strcmp(properties[i].name, req_properties[j])) 
+    //     {
+    //       dst_row_size += properties[i].byte_size;
+    //       src_offsets[j] = src_row_size;
+    //       byte_sizes[j] = properties[i].byte_size;
+    //     }
+    //   }
+    //   src_row_size += properties[i].byte_size;
+    // }
+
+    char* dst_data = NULL; 
+    if(data!=NULL) dst_data = (char*)*data;
+    char* dst_list = NULL;
+    if(list_data!=NULL) dst_list = (char*)*list_data;
+    char* src = (char*)el->data;
+    
+    for(int i = 0; i < el->count; ++i )
+    {
+      int32_t dst_row_size = 0;
+      int32_t dst_offset = 0;
+      int32_t src_row_size = 0;
+
+      // Calculate the required data to read
+      for(int j = 0; j < msh_array_size(el->properties); ++j)
+      {
+        for(int k = 0; k < num_properties; ++k)
+        {
+          if( !strcmp(el->properties[j].name, property_names[k]) ) 
+          {
+            dst_row_size += el->properties[j].byte_size;
+            el->properties[j].offset = src_row_size;
+          }
+        }
+        src_row_size += el->properties[j].byte_size;
+      }
+
+      for(int j = 0; j < msh_array_size(el->properties); ++j)
+      {
+        for(int k = 0; k < num_properties; ++k)
+        {
+          if( !strcmp(el->properties[j].name, property_names[k]) ) 
+          {
+            memcpy( dst_data+dst_offset, src+el->properties[j].offset, el->properties[j].byte_size );
+            dst_offset+=el->properties[j].byte_size;
+          }
+        }
+      }
+      src += src_row_size;
+      dst_data += dst_row_size;
+    }
+
+  }
+
+
+  return PLY_NO_ERRORS;
+}
 
 
 // ENCODER
-ply_element_t*
-ply_file__find_element( const ply_file_t* pf, const char* element_name )
-{
-  ply_element_t* el = NULL;
-  for(int i = 0; i < msh_array_size(pf->elements); ++i)
-  {
-    if(!strcmp(element_name, pf->elements[i].name))
-    {
-      el = &pf->elements[i];
-      break;
-    }
-  }
-  return el;
-}
+
 
 int  
 ply_file__add_element(ply_file_t* pf, const char* element_name, const int element_count)
@@ -1018,51 +1196,18 @@ ply_file__get_ith_element_as_int( void* data, int type, int i )
 
 
 void
-ply_file__print_data_at_offset(void* data, int offset, int type)
+ply_file__print_data_at_offset(const ply_file_t* pf, const void* data, const int offset, const int type)
 {
   switch(type)
   {
-    case PLY_UINT8:  printf("%zd\n", *(uint8_t*)(data+offset)); break;
-    case PLY_UINT16: printf("%zd\n", *(uint16_t*)(data+offset)); break;
-    case PLY_UINT32: printf("%zd\n", *(uint32_t*)(data+offset)); break;
-    case PLY_INT8:   printf("%d\n",  *(int8_t*)(data+offset)); break;
-    case PLY_INT16:  printf("%d\n",  *(int16_t*)(data+offset)); break;
-    case PLY_INT32:  printf("%d\n",  *(int32_t*)(data+offset)); break;
-    case PLY_FLOAT:  printf("%f\n",  *(float*)(data+offset)); break;
-    case PLY_DOUBLE: printf("%f\n",  *(double*)(data+offset)); break;
-  }
-}
-
-void
-ply_file__print_data( const ply_file_t *pf, void* data )
-{
-  int offset = 0;
-  for( int i = 0; i < msh_array_size(pf->elements); ++i )
-  {
-    ply_element_t* el = &pf->elements[i];
-    for( int k = 0 ; k < el->count; ++k )
-    {
-      for( int j = 0; j < msh_array_size(el->properties); ++j )
-      {
-        ply_property_t* pr = &el->properties[j];
-        if( pr->list_type == PLY_INVALID )
-        {
-          ply_file__print_data_at_offset( data, offset, pr->type );
-          offset += pr->byte_size;
-        }
-        else
-        {
-          int list_count = ply_file__get_ith_element_as_int(data+offset, pr->list_type, 0 );
-          ply_file__print_data_at_offset( data, offset, pr->list_type);
-          offset += pr->list_byte_size;
-          for( int l = 0; l < list_count; l++ )
-          {
-            ply_file__print_data_at_offset(data, offset, pr->type);
-            offset += pr->byte_size;
-          }
-        }
-      }
-    }
+    case PLY_UINT8:  fprintf(pf->_fp,"%zd ", *(uint8_t*)(data+offset)); break;
+    case PLY_UINT16: fprintf(pf->_fp,"%zd ", *(uint16_t*)(data+offset)); break;
+    case PLY_UINT32: fprintf(pf->_fp,"%zd ", *(uint32_t*)(data+offset)); break;
+    case PLY_INT8:   fprintf(pf->_fp,"%d ",  *(int8_t*)(data+offset)); break;
+    case PLY_INT16:  fprintf(pf->_fp,"%d ",  *(int16_t*)(data+offset)); break;
+    case PLY_INT32:  fprintf(pf->_fp,"%d ",  *(int32_t*)(data+offset)); break;
+    case PLY_FLOAT:  fprintf(pf->_fp,"%f ",  *(float*)(data+offset)); break;
+    case PLY_DOUBLE: fprintf(pf->_fp,"%f ",  *(double*)(data+offset)); break;
   }
 }
 
@@ -1093,7 +1238,6 @@ ply_file_add_property_to_element(ply_file_t* pf, const char* element_name,
     {
       return PLY_CONFLICTING_NUMBER_OF_ELEMENTS_ERR;
     }
-    // TODO:
 
     int init_offset = 0; // Helper variable for storing initial list offsets.
     for( int i = 0; i < property_count; ++i )
@@ -1179,7 +1323,7 @@ ply_file__write_header( const ply_file_t* pf )
     {
       case PLY_ASCII: { format_string="ascii"; break; }
       case PLY_LITTLE_ENDIAN: { format_string = "binary_little_endian"; break; }
-      case PLY_BIG_ENDIAN: {return PLY_UNSUPPORTED_FORMAT_ERR; }
+      case PLY_BIG_ENDIAN: { format_string = "binary_big_endian"; break;  }
       default: { return PLY_UNRECOGNIZED_FORMAT_ERR; }
     }
 
@@ -1214,8 +1358,76 @@ ply_file__write_header( const ply_file_t* pf )
   return PLY_NO_ERRORS;
 }
 
+
 int
-ply_file__write_data_le( const ply_file_t* pf )
+ply_file__write_data_ascii( const ply_file_t* pf )
+{
+  for( int i = 0 ; i < msh_array_size(pf->elements); ++i )
+  {
+    ply_element_t* el = &pf->elements[i];
+    int buffer_size = 0;
+    // printf("---\n");
+    for( int j = 0 ; j < msh_array_size(el->properties); ++j )
+    {
+      // printf("%d %s %d\n", j, el->properties[j].name, el->properties[j].total_byte_size);
+      buffer_size += el->properties[j].total_byte_size;
+    }
+
+    // void* dst = malloc( buffer_size );
+    // int dst_offset = 0;
+    for( int j = 0; j < el->count; ++j )
+    {
+      for( int k = 0; k < msh_array_size(el->properties); ++k )
+      {
+        ply_property_t* pr = &el->properties[k];
+        if( pr->list_type == PLY_INVALID )
+        {
+          ply_file__print_data_at_offset( pf, pr->data, pr->offset, pr->type );
+          pr->offset += pr->stride;
+        }
+        else
+        {
+          // figure out stride.
+          // TODO(maciej): Check stride + hints to decide on fastest way of getting stride.
+          pr->stride = ply_file__calculate_list_element_stride( pr, el->properties );
+
+          int list_idx = pr->list_offset / pr->list_byte_size;
+          ply_file__print_data_at_offset( pf, pr->list_data, pr->list_offset, pr->list_type );
+          pr->list_offset += pr->list_stride;
+
+          int list_count = ply_file__get_ith_element_as_int(pr->list_data, pr->list_type, list_idx );
+          for( int l = 0; l < list_count; ++l )
+          {
+            int cur_offset = pr->offset + l * pr->byte_size;
+            ply_file__print_data_at_offset( pf, pr->data, cur_offset, pr->type );
+          }
+          pr->offset += pr->stride;
+        }
+      }
+      fprintf(pf->_fp, "\n");
+    }
+  }
+  return PLY_NO_ERRORS;
+}
+
+void
+ply_file__memcpy(void* dest, void* src, size_t byte_size, int8_t swap)
+{
+  if( !swap ) { memcpy(dest, src, byte_size); }
+  else
+  {
+   char *src_ptr = (char *)src;
+   char *dest_ptr = (char *)dest;
+ 
+   //reverse cpy
+   for (int i=0; i<byte_size; i++)
+    dest_ptr[i] = src_ptr[byte_size-i-1];
+  }
+}
+
+// TODO(maciej): Test if splitting into completly separate functions helps
+int
+ply_file__write_data_binary( const ply_file_t* pf, int swap_endiannes )
 {
   for( int i = 0 ; i < msh_array_size(pf->elements); ++i )
   {
@@ -1237,7 +1449,7 @@ ply_file__write_data_le( const ply_file_t* pf )
         ply_property_t* pr = &el->properties[k];
         if( pr->list_type == PLY_INVALID )
         {
-          memcpy( dst+dst_offset, pr->data+pr->offset, pr->byte_size );
+          ply_file__memcpy( dst+dst_offset, pr->data+pr->offset, pr->byte_size, swap_endiannes );
           pr->offset += pr->stride;
           dst_offset += pr->byte_size;
         }
@@ -1248,14 +1460,14 @@ ply_file__write_data_le( const ply_file_t* pf )
           pr->stride = ply_file__calculate_list_element_stride( pr, el->properties );
 
           int list_idx = pr->list_offset / pr->list_byte_size;
-          memcpy( dst + dst_offset, pr->list_data + pr->list_offset, pr->list_byte_size );
+          ply_file__memcpy( dst + dst_offset, pr->list_data + pr->list_offset, pr->list_byte_size, swap_endiannes );
           pr->list_offset += pr->list_stride;
           dst_offset += pr->list_byte_size;
 
           printf("%d\n", list_idx);
           int list_count = ply_file__get_ith_element_as_int(pr->list_data, pr->list_type, list_idx );
           printf("%s LIST COUNT: %d | offest %d\n", pr->name, list_count, pr->offset/pr->byte_size );
-          memcpy( dst + dst_offset, pr->data + pr->offset, pr->byte_size * list_count );
+          ply_file__memcpy( dst + dst_offset, pr->data + pr->offset, pr->byte_size * list_count, swap_endiannes );
           for( int l = 0; l < list_count; ++l )
           {
             int val_a = ply_file__get_ith_element_as_int(pr->data+pr->offset, pr->type, l );
@@ -1280,9 +1492,9 @@ int
 ply_file__write_data( const ply_file_t* pf )
 {
   int error = PLY_NO_ERRORS;
-  if( pf->format == PLY_ASCII )         { return PLY_UNSUPPORTED_FORMAT_ERR; }
-  if( pf->format == PLY_BIG_ENDIAN )    { return PLY_UNSUPPORTED_FORMAT_ERR; }
-  if( pf->format == PLY_LITTLE_ENDIAN ) { error = ply_file__write_data_le(pf); }
+  if( pf->format == PLY_ASCII )         { error = ply_file__write_data_ascii(pf); }
+  if( pf->format == PLY_BIG_ENDIAN )    { error = ply_file__write_data_binary(pf, 1); }
+  if( pf->format == PLY_LITTLE_ENDIAN ) { error = ply_file__write_data_binary(pf, 0); }
   return error;
 }
 
@@ -1343,6 +1555,7 @@ ply_file_close(ply_file_t* pf)
     {
       ply_element_t* el = &pf->elements[i];
       if(el->properties) { msh_array_free(el->properties); }
+      if(el->data) { free(el->data); }
     }
     msh_array_free(pf->elements);
   }
@@ -1390,69 +1603,86 @@ void read_ply_file( const char* filename )
   // ply_file_add_hint(pf, indices_size_hint);
   if( pf )
   {
-    double ht1 = msh_get_time(MSHT_MICROSECONDS);
-    ply_file_parse_header(pf);
-    double ht2 = msh_get_time(MSHT_MICROSECONDS);
-    printf("Header read in %fus\n", ht2-ht1);
-    ply_file_print_header(pf);
-
-    double pt1 = msh_get_time(MSHT_MILLISECONDS);
-    ply_file_parse_contents(pf);
-    double pt2 = msh_get_time(MSHT_MILLISECONDS);
-    printf("Parsing took %f ms\n", pt2-pt1);
-
-    int vertex_count = -1;
-    int face_count = -1;
-    ply_file_get_element_count(pf, "vertex", &vertex_count);
-    ply_file_get_element_count(pf, "face", &face_count);
-
-    double t1 = msh_get_time(MSHT_MILLISECONDS);
-    int vertices_size = -1;
-    int faces_size = -1;
-    ply_file_get_element_size(pf, "vertex", &vertices_size);
-    ply_file_get_element_size(pf, "face", &faces_size);
-    printf("vertices_size : %d\n", vertices_size );
-    printf("faces_size : %d\n", faces_size );
-    void *vertices_data = malloc(vertices_size);
-    void *faces_data    = malloc(faces_size);
-    t1 = msh_get_time(MSHT_MILLISECONDS);
-    ply_file_get_element_data(pf, "vertex", &vertices_data);
-    double t2 = msh_get_time(MSHT_MILLISECONDS);
-    printf("data request : %fms\n", t2-t1);
-    t1 = msh_get_time(MSHT_MILLISECONDS);
-    ply_file_get_element_data(pf, "face", &faces_data);
-    t2 = msh_get_time(MSHT_MILLISECONDS);
-    printf("data request : %fms\n", t2-t1);
-
-    t1 = msh_get_time(MSHT_MILLISECONDS);   
-    int pos_size = -1;
-    const char* pos_prop_names[] = {"nx","ny","nz"};
-    ply_file_get_properties_size(pf, "vertex", pos_prop_names, 3, &pos_size);
-    float* positions = malloc(pos_size);
-    ply_file_get_properties_from_element(pf, "vertex", vertices_data, pos_prop_names, &positions );
-    t2 = msh_get_time(MSHT_MILLISECONDS);
-    printf("pos data copy : %fms\n", t2-t1);
-
-    t1 = msh_get_time(MSHT_MILLISECONDS);
-    ply_property_t* ind_prop = NULL;
-    ply_file_get_property(pf, "face", "vertex_indices", &ind_prop);
-    unsigned char* ind_count = (unsigned char*)malloc(face_count * ind_prop->list_byte_size);  
-    int* indices = (int*)malloc( ind_prop->total_count * ind_prop->byte_size);
-    ply_file_get_list_property_from_element(pf, "face", faces_data, "vertex_indices", &ind_count, &indices);
-    t2 = msh_get_time(MSHT_MILLISECONDS);
-    printf("ind data copy : %fms\n", t2-t1);
-
-    int offset = 0;
-    for( int i = 0; i < face_count; ++i )
+    printf("TEST\n");
+    ply_file_read(pf);  
+    printf("TEST1\n");
+    const char* positions_names[] = {"x","y","z"};
+    float* positions = NULL;
+    int32_t pos_count = -1;
+    printf("TEST2\n");
+    ply_file_get_property_from_element(pf, "vertex", positions_names, 3, PLY_FLOAT, PLY_INVALID, (void**)&positions, &pos_count, NULL, NULL );
+    printf("TEST3\n");
+    // ply_file_get_property_from_element(pf, "face", face_names, 1, PLY_INT32, PLY_UINT8, face_ind, counts, 1 );
+    
+    printf("%d\n", pos_count);
+    for( int i = 0 ; i < pos_count; ++i )
     {
-      printf( "%d ", ind_count[i] );
-      for( int j = 0 ; j < ind_count[i]; ++j )
-      {
-        printf("%d ", *(indices+offset) );
-        offset+=1;
-      }
-      printf("\n");
+      printf("%f %f %f\n", positions[3*i+0], positions[3*i+1], positions[3*i+2]);
     }
+
+    // double ht1 = msh_get_time(MSHT_MICROSECONDS);
+    // ply_file_parse_header(pf);
+    // double ht2 = msh_get_time(MSHT_MICROSECONDS);
+    // printf("Header read in %fus\n", ht2-ht1);
+    // ply_file_print_header(pf);
+
+    // double pt1 = msh_get_time(MSHT_MILLISECONDS);
+    // ply_file_parse_contents(pf);
+    // double pt2 = msh_get_time(MSHT_MILLISECONDS);
+    // printf("Parsing took %f ms\n", pt2-pt1);
+
+    // int vertex_count = -1;
+    // int face_count = -1;
+    // ply_file_get_element_count(pf, "vertex", &vertex_count);
+    // ply_file_get_element_count(pf, "face", &face_count);
+
+    // double t1 = msh_get_time(MSHT_MILLISECONDS);
+    // int vertices_size = -1;
+    // int faces_size = -1;
+    // ply_file_get_element_size(pf, "vertex", &vertices_size);
+    // ply_file_get_element_size(pf, "face", &faces_size);
+    // printf("vertices_size : %d\n", vertices_size );
+    // printf("faces_size : %d\n", faces_size );
+    // void *vertices_data = malloc(vertices_size);
+    // void *faces_data    = malloc(faces_size);
+    // t1 = msh_get_time(MSHT_MILLISECONDS);
+    // ply_file_get_element_data(pf, "vertex", &vertices_data);
+    // double t2 = msh_get_time(MSHT_MILLISECONDS);
+    // printf("data request : %fms\n", t2-t1);
+    // t1 = msh_get_time(MSHT_MILLISECONDS);
+    // ply_file_get_element_data(pf, "face", &faces_data);
+    // t2 = msh_get_time(MSHT_MILLISECONDS);
+    // printf("data request : %fms\n", t2-t1);
+
+    // t1 = msh_get_time(MSHT_MILLISECONDS);   
+    // int pos_size = -1;
+    // const char* pos_prop_names[] = {"nx","ny","nz"};
+    // ply_file_get_properties_size(pf, "vertex", pos_prop_names, 3, &pos_size);
+    // float* positions = malloc(pos_size);
+    // ply_file_get_properties_from_element(pf, "vertex", vertices_data, pos_prop_names, &positions );
+    // t2 = msh_get_time(MSHT_MILLISECONDS);
+    // printf("pos data copy : %fms\n", t2-t1);
+
+    // t1 = msh_get_time(MSHT_MILLISECONDS);
+    // ply_property_t* ind_prop = NULL;
+    // ply_file_get_property(pf, "face", "vertex_indices", &ind_prop);
+    // unsigned char* ind_count = (unsigned char*)malloc(face_count * ind_prop->list_byte_size);  
+    // int* indices = (int*)malloc( ind_prop->total_count * ind_prop->byte_size);
+    // ply_file_get_list_property_from_element(pf, "face", faces_data, "vertex_indices", &ind_count, &indices);
+    // t2 = msh_get_time(MSHT_MILLISECONDS);
+    // printf("ind data copy : %fms\n", t2-t1);
+
+    // int offset = 0;
+    // for( int i = 0; i < face_count; ++i )
+    // {
+    //   printf( "%d ", ind_count[i] );
+    //   for( int j = 0 ; j < ind_count[i]; ++j )
+    //   {
+    //     printf("%d ", *(indices+offset) );
+    //     offset+=1;
+    //   }
+    //   printf("\n");
+    // }
   }
   ply_file_close(pf);
 }
