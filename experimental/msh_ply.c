@@ -27,7 +27,6 @@ TODOs:
 [x] Small memcpy
 [-] Add options for having list data layout same as ply
 [x] Rethink ply_file__memcopy... - flips vertex order when copying the face count
-[ ] Prepare different data layouts people might have.
 [x] Write benchmarks
     [x] Tinyply2.0 https://github.com/ddiakopoulos/tinyply
     [x] rply http://w3.impa.br/~diego/software/rply/
@@ -36,12 +35,12 @@ TODOs:
     [x] Nanoply https://github.com/cnr-isti-vclab/vcglib/tree/master/wrap/nanoply
     [x] VCG Ply https://github.com/cnr-isti-vclab/vcglib/tree/master/wrap/ply
 
-[ ] Write viewer
 [ ] Casting
     [ ] Rebenchmark lucy
+    [ ] Benchmark different data layouts
+[ ] Write viewer
 [ ] Getting raw data
-[ ] 
-[ ] Enable swizzle
+[ ] Benchmark writing
 [ ] Encoder/decorder split
 [ ] Error reporting
 [ ] Revise errors
@@ -53,6 +52,7 @@ TODOs:
 [ ] Extensive testing
 [ ] Asserts!
 [ ] Optimize / Simplyfy code
+[ ] Enable swizzle
 */
 
 #include <stdlib.h>
@@ -126,7 +126,6 @@ typedef struct ply_file
   int format;
   int format_version;
   
-
   ply_element_t* cur_element;
   msh_array(ply_element_t) elements;
 
@@ -736,7 +735,7 @@ ply_file_get_element_data(ply_file_t* pf, const ply_element_t* el, void** storag
 
 // NOTE(maciej): This does not really read, it is more of a parsing
 int
-ply_file_read(ply_file_t* pf)
+ply_file_parse(ply_file_t* pf)
 {
   int error = PLY_NO_ERRORS;
   if( !pf->_fp ) { return PLY_FILE_NOT_OPEN_ERR; }
@@ -752,22 +751,26 @@ ply_file_read(ply_file_t* pf)
 
 int
 ply_file_get_properties_byte_size( ply_element_t* el, 
-                              const char** properties_names, int n_properties, 
+                              const char** properties_names, int n_properties,
+                              int type, int list_type,
                               int* data_size, int* list_size )
 {
   // find requested properties
   int n_found              = 0;
   int total_data_byte_size = 0;
   int total_list_byte_size = 0;
+  int byte_size = ply_file__type_to_byte_size(type);
+  int list_byte_size = ply_file__type_to_byte_size(list_type);
   for( int i=0;i<n_properties;++i)
   {
     for( int j=0;j<msh_array_size(el->properties);++j)
     {
-      if( !strcmp(el->properties[j].name, properties_names[i]) )
+      ply_property_t* pr = &el->properties[j];
+      if( !strcmp(pr->name, properties_names[i]) )
       {
         n_found++;
-        total_data_byte_size += el->properties[j].total_byte_size;
-        total_list_byte_size += el->properties[j].list_byte_size;
+        total_data_byte_size += pr->total_count * byte_size;
+        total_list_byte_size += list_byte_size;
       } 
     }
   }
@@ -775,7 +778,7 @@ ply_file_get_properties_byte_size( ply_element_t* el,
 
   total_list_byte_size *= el->count;
 
-  *data_size = total_data_byte_size - total_list_byte_size;
+  *data_size = total_data_byte_size;
   *list_size = total_list_byte_size;
 
   return PLY_NO_ERRORS;
@@ -838,6 +841,7 @@ ply_file_get_property_from_element(ply_file_t* pf, const char* element_name,
     int data_byte_size = -1;
     int list_byte_size = -1;
     ply_file_get_properties_byte_size(el, property_names, num_requested_properties, 
+                                      requested_type, requested_list_type,
                                       &data_byte_size, &list_byte_size);
     if( data != NULL ) 
     { 
@@ -1456,27 +1460,27 @@ void read_ply_file( const char* filename )
   ply_file_add_hint(pf, indices_size_hint);
   if( pf )
   {
-    ply_file_read(pf);
+    ply_file_parse(pf);
     const char* positions_names[] = {"x","y","z"};
     const char* vertex_indices_names[] = {"vertex_indices"};
-    float* positions = NULL;
+    double* positions = NULL;
     int n_verts = -1;
     int* indices = NULL;
     int n_faces = -1;
     uint8_t* indices_counts = NULL;
-    ply_file_get_property_from_element(pf, "vertex", positions_names, 3, PLY_FLOAT, PLY_INVALID, 
+    ply_file_get_property_from_element(pf, "vertex", positions_names, 3, PLY_DOUBLE, PLY_INVALID, 
                                       (void**)&positions, NULL, &n_verts );
-    ply_file_get_property_from_element(pf, "face", vertex_indices_names, 1, PLY_INT32, PLY_UINT8, 
+    ply_file_get_property_from_element(pf, "face", vertex_indices_names, 1, PLY_FLOAT, PLY_UINT8, 
                                        (void**)&indices, NULL, &n_faces);
 
     printf("Vertex count: %d\n", n_verts);
     for( int i = 0 ; i < 3; ++i )
     {
-      printf("%f %f %f\n", positions[3*i+0], positions[3*i+1], positions[3*i+2]);
+      printf("%g %g %g\n", positions[3*i+0], positions[3*i+1], positions[3*i+2]);
     }
     for( int i = n_verts-1 ; i > n_verts-4 ; --i )
     {
-      printf("%f %f %f\n", positions[3*i+0], positions[3*i+1], positions[3*i+2]);
+      printf("%g %g %g\n", positions[3*i+0], positions[3*i+1], positions[3*i+2]);
     }
 
     printf("Face Count: %d\n", n_faces);
