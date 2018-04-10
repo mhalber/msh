@@ -840,6 +840,8 @@ ply_file_get_property_from_element(ply_file_t* pf, const char* element_name,
     uint8_t* dst_list = NULL;
     int data_byte_size = -1;
     int list_byte_size = -1;
+    int requested_byte_size = ply_file__type_to_byte_size(requested_type);
+    int requested_byte_size = ply_file__type_to_byte_size(requested_list_type);
     ply_file_get_properties_byte_size(el, property_names, num_requested_properties, 
                                       requested_type, requested_list_type,
                                       &data_byte_size, &list_byte_size);
