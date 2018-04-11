@@ -691,9 +691,9 @@ msh_pdf2cdf( const float* pdf, float* cdf, int n_vals )
   for( int32_t i = 0; i < n_vals; ++i ) { accum += pdf[i]; cdf[i] = accum;  };
 }
 
-void
-msh_invert_cdf( const float* cdf, float* invcdf, int n_vals)
-{
+// void
+// msh_invert_cdf( const float* cdf, float* invcdf, int n_vals)
+// {
   // int prev_idx = 0;
   // for(int i = 0 ; i < n_vals; ++i)
   // {
@@ -705,7 +705,7 @@ msh_invert_cdf( const float* cdf, float* invcdf, int n_vals)
   //   }
   //   prev_idx = idx;
   // }
-}
+// }
 
 
 float
