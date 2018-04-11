@@ -55,10 +55,10 @@ TODOs:
 [ ] Enable swizzle
 */
 
-#include <stdlib.h>
-#include <stdint.h>
-#define MSH_IMPLEMENTATION
-#include "msh.h"
+// #include <stdlib.h>
+// #include <stdint.h>
+// #define MSH_IMPLEMENTATION
+// #include "msh.h"
 
 // API does not allow mixing regular and list properties
 
@@ -228,8 +228,6 @@ ply_file_find_element( const ply_file_t* pf, const char* element_name )
 ply_property_t*
 ply_file_find_property( const ply_element_t* el, const char* property_name)
 {
-  int err_code = PLY_NO_ERRORS;
-
   ply_property_t* pr = NULL;
   for(int i=0; i < msh_array_size(el->properties) ; ++i)
   {
@@ -366,7 +364,7 @@ int
 ply_file__parse_element_cmd(char* line, ply_file_t* pf)
 {
   char cmd[PLY_FILE_MAX_STR_LEN];
-  ply_element_t el = {0};
+  ply_element_t el = {{0}};
   el.properties = NULL;
   if(sscanf(line, "%s %s %d", &cmd[0], &el.name[0], &el.count) != 3) { return PLY_ELEMENT_CMD_ERR; }
   msh_array_push(pf->elements, el);
@@ -625,6 +623,7 @@ ply_file_get_element_size(const ply_element_t *el, uint64_t* size)
   return err_code;
 }
 
+// NOTE(this works better with an assignment)
 #define PLY_CONVERT_AND_COPY(D, C, T, conv_funct) {\
   T n = (T)conv_funct(C); \
   memcpy((void*)(D), (void*)&n, sizeof(T)); \
@@ -1427,9 +1426,9 @@ ply_file_open(const char* filename, const char* mode)
     pf->valid          = 0;
     pf->format         = -1;
     pf->format_version = 0;
-    pf->elements       = NULL;
-    pf->cur_element    = NULL;
-    pf->_hints         = NULL;
+    pf->elements       = 0;
+    pf->cur_element    = 0;
+    pf->_hints         = 0;
     pf->_fp            = fp;
     // endianness check
     int n = 1;
@@ -1466,96 +1465,96 @@ ply_file_close(ply_file_t* pf)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void write_ply_file( const char* filename )
-{
-  double t1 = msh_get_time(MSHT_MILLISECONDS);
-  const char* positions_names[] = {"x", "y", "z"};
-  const char* normals_names[]   = {"nx", "ny", "nz"};
-  const char* colors_names[]    = {"red", "green", "blue", "alpha"};
-  float positions[] = { 1.0f, 0.0f, 1.0f, 
-                        0.0f, 0.0f, 1.0f,
-                        1.0f, 0.0f, 0.0f };
-  float normals[] = { 0.0f, 1.0f, 0.0f, 
-                      0.0f, 1.0f, 0.0f,
-                      0.0f, 1.0f, 0.0f };
-  uint8_t colors[] = { 255, 125, 125, 255, 
-                     0, 255, 0, 255,
-                     0, 0, 255, 255 };
-  const char* face_names[] = {"vertex_indices"};
-  int face_ind[] = {0,1,2, 3,4,5,6, 7,8};
-  unsigned char counts[] = {3,4,2};
+// void write_ply_file( const char* filename )
+// {
+//   double t1 = msh_get_time(MSHT_MILLISECONDS);
+//   const char* positions_names[] = {"x", "y", "z"};
+//   const char* normals_names[]   = {"nx", "ny", "nz"};
+//   const char* colors_names[]    = {"red", "green", "blue", "alpha"};
+//   float positions[] = { 1.0f, 0.0f, 1.0f, 
+//                         0.0f, 0.0f, 1.0f,
+//                         1.0f, 0.0f, 0.0f };
+//   float normals[] = { 0.0f, 1.0f, 0.0f, 
+//                       0.0f, 1.0f, 0.0f,
+//                       0.0f, 1.0f, 0.0f };
+//   uint8_t colors[] = { 255, 125, 125, 255, 
+//                      0, 255, 0, 255,
+//                      0, 0, 255, 255 };
+//   const char* face_names[] = {"vertex_indices"};
+//   int face_ind[] = {0,1,2, 3,4,5,6, 7,8};
+//   unsigned char counts[] = {3,4,2};
 
-  ply_file_t* pf = ply_file_open(filename, "wb");
-  pf->format = PLY_BIG_ENDIAN;
-  ply_file_add_property_to_element(pf, "vertex", positions_names, 3, PLY_FLOAT, PLY_INVALID, positions, NULL, 3 );
-  ply_file_add_property_to_element(pf, "vertex", normals_names, 3, PLY_FLOAT, PLY_INVALID, normals, NULL, 3 );
-  ply_file_add_property_to_element(pf, "vertex", colors_names, 4, PLY_UINT8, PLY_INVALID, colors, NULL, 3 );
-  ply_file_add_property_to_element(pf, "face", face_names, 1, PLY_INT32, PLY_UINT8, face_ind, counts, 3 );
+//   ply_file_t* pf = ply_file_open(filename, "wb");
+//   pf->format = PLY_BIG_ENDIAN;
+//   ply_file_add_property_to_element(pf, "vertex", positions_names, 3, PLY_FLOAT, PLY_INVALID, positions, NULL, 3 );
+//   ply_file_add_property_to_element(pf, "vertex", normals_names, 3, PLY_FLOAT, PLY_INVALID, normals, NULL, 3 );
+//   ply_file_add_property_to_element(pf, "vertex", colors_names, 4, PLY_UINT8, PLY_INVALID, colors, NULL, 3 );
+//   ply_file_add_property_to_element(pf, "face", face_names, 1, PLY_INT32, PLY_UINT8, face_ind, counts, 3 );
 
 
-  ply_file_write(pf);
-  ply_file_close(pf);
-  double t2 = msh_get_time(MSHT_MILLISECONDS);
-  printf("Done in %f milliseconds\n", t2-t1);
-}
+//   ply_file_write(pf);
+//   ply_file_close(pf);
+//   double t2 = msh_get_time(MSHT_MILLISECONDS);
+//   printf("Done in %f milliseconds\n", t2-t1);
+// }
 
-void read_ply_file( const char* filename )
-{
-  printf("Reading file : %s\n", filename);
-  ply_file_t* pf = ply_file_open(filename, "rb");
-  ply_hint_t indices_size_hint = {.property_name="vertex_indices", .expected_size=3};
-  ply_file_add_hint(pf, indices_size_hint);
-  if( pf )
-  {
-    ply_file_parse(pf);
-    const char* positions_names[] = {"x","y","z"};
-    const char* vertex_indices_names[] = {"vertex_indices"};
-    float* positions = NULL;
-    int n_verts = -1;
-    int* indices = NULL;
-    int n_faces = -1;
-    uint8_t* indices_counts = NULL;
-    ply_file_get_property_from_element(pf, "vertex", positions_names, 3, PLY_FLOAT, PLY_INVALID, 
-                                      (void**)&positions, NULL, &n_verts );
-    ply_file_get_property_from_element(pf, "face", vertex_indices_names, 1, PLY_INT32, PLY_UINT8, 
-                                       (void**)&indices, NULL, &n_faces);
+// void read_ply_file( const char* filename )
+// {
+//   printf("Reading file : %s\n", filename);
+//   ply_file_t* pf = ply_file_open(filename, "rb");
+//   ply_hint_t indices_size_hint = {.property_name="vertex_indices", .expected_size=3};
+//   ply_file_add_hint(pf, indices_size_hint);
+//   if( pf )
+//   {
+//     ply_file_parse(pf);
+//     const char* positions_names[] = {"x","y","z"};
+//     const char* vertex_indices_names[] = {"vertex_indices"};
+//     float* positions = NULL;
+//     int n_verts = -1;
+//     int* indices = NULL;
+//     int n_faces = -1;
+//     uint8_t* indices_counts = NULL;
+//     ply_file_get_property_from_element(pf, "vertex", positions_names, 3, PLY_FLOAT, PLY_INVALID, 
+//                                       (void**)&positions, NULL, &n_verts );
+//     ply_file_get_property_from_element(pf, "face", vertex_indices_names, 1, PLY_INT32, PLY_UINT8, 
+//                                        (void**)&indices, NULL, &n_faces);
 
-    printf("Vertex count: %d\n", n_verts);
-    for( int i = 0 ; i < 3; ++i )
-    {
-      printf("%f %f %f\n", positions[3*i+0], positions[3*i+1], positions[3*i+2]);
-    }
-    for( int i = n_verts-1 ; i > n_verts-4 ; --i )
-    {
-      printf("%f %f %f\n", positions[3*i+0], positions[3*i+1], positions[3*i+2]);
-    }
+//     printf("Vertex count: %d\n", n_verts);
+//     for( int i = 0 ; i < 3; ++i )
+//     {
+//       printf("%f %f %f\n", positions[3*i+0], positions[3*i+1], positions[3*i+2]);
+//     }
+//     for( int i = n_verts-1 ; i > n_verts-4 ; --i )
+//     {
+//       printf("%f %f %f\n", positions[3*i+0], positions[3*i+1], positions[3*i+2]);
+//     }
 
-    printf("Face Count: %d\n", n_faces);
-    for( int i = 0; i < n_faces; ++i )
-    {
-      int should_print = (i < 3 || i > n_faces - 4);
-      int count = 3;//indices_counts[i];
-      msh_cprintf(should_print, "%d | ", count);
-      for( int j = 0 ; j < count; ++j )
-      {
-        msh_cprintf(should_print, "%d ", *indices );
-        indices+=1;
-      }
-      msh_cprintf(should_print,"\n");
-    }
-  }
-  // ply_file_print_header(pf);
-  ply_file_close(pf);
-}
+//     printf("Face Count: %d\n", n_faces);
+//     for( int i = 0; i < n_faces; ++i )
+//     {
+//       int should_print = (i < 3 || i > n_faces - 4);
+//       int count = 3;//indices_counts[i];
+//       msh_cprintf(should_print, "%d | ", count);
+//       for( int j = 0 ; j < count; ++j )
+//       {
+//         msh_cprintf(should_print, "%d ", *indices );
+//         indices+=1;
+//       }
+//       msh_cprintf(should_print,"\n");
+//     }
+//   }
+//   // ply_file_print_header(pf);
+//   ply_file_close(pf);
+// }
 
-int main(int argc, char** argv)
-{
-  if(argc < 2) {printf("Please provide .ply filename\n"); return 0;} 
-  char* filename = argv[1];
+// int main(int argc, char** argv)
+// {
+//   if(argc < 2) {printf("Please provide .ply filename\n"); return 0;} 
+//   char* filename = argv[1];
 
-  // write_ply_file(filename);
-  read_ply_file(filename);
+//   // write_ply_file(filename);
+//   read_ply_file(filename);
 
-  return 1;
-}
+//   return 1;
+// }
 // 
