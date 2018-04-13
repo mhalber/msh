@@ -1,45 +1,175 @@
-//------------------------------------------------------------------------------
-//  texcube-glfw.c
-//------------------------------------------------------------------------------
+/*
+TODOs
+[ ] Fix speckles
+    [x] Clamping
+    [ ] Better vertex normal calculation - weight by area etc.
+[ ] Move viewport rather than resizing model
+[ ] Speed up the normal calculation with enkiTS
+*/
+
+/*------------------------------------------------------------------------------
+//  meshview.c
+------------------------------------------------------------------------------*/
+#define MSH_IMPLEMENTATION
+#define MSH_CAM_IMPLEMENTATION
+#define MSH_ARGPARSE_IMPLEMENTATION
+#define MSH_VEC_MATH_IMPLEMENTATION
+#include "msh.h"
+#include "msh_vec_math.h"
+#include "msh_argparse.h"
+#include "msh_cam.h"
+#include "experimental/msh_ply.h"
+
 #define GLFW_INCLUDE_NONE
 #include "GLFW/glfw3.h"
 #include "glad/glad.h"
 #define SOKOL_IMPL
 #define SOKOL_GLCORE33
 #include "sokol/sokol_gfx.h"
-#define MSH_IMPLEMENTATION
-#define MSH_VEC_MATH_IMPLEMENTATION
-#include "msh.h"
-#include "msh_vec_math.h"
-#include "experimental/msh_ply.h"
 
-/* a uniform block with a model-view-projection matrix */
-typedef struct {
-    msh_mat4_t mvp;
-} params_t;
 
-int main( int argc, char** argv ) {
-    const int WIDTH = 800;
-    const int HEIGHT = 600;
+/*------------------------------------------------------------------------------
+Command line opts 
+------------------------------------------------------------------------------*/
+typedef struct options
+{
+  char* input_filename;
+  bool verbose;
+  int width;
+  int height;
+} opts_t;
 
-    /* create GLFW window and initialize GL */
-    glfwInit();
-    glfwWindowHint(GLFW_SAMPLES, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    GLFWwindow* w = glfwCreateWindow(WIDTH, HEIGHT, "Sokol Textured Cube GLFW", 0, 0);
-    glfwMakeContextCurrent(w);
-    // glfwSwapInterval(1);
-    gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
+int parse_arguments( int argc, char** argv, opts_t* opts)
+{
+  msh_argparse_t parser;
+  opts->input_filename  = NULL;
+  opts->verbose         = 0;
+  opts->width           = 800;
+  opts->height          = 600;
 
-//// READ MESH
-double t1, t2;
-  t1 = msh_get_time(MSHT_MILLISECONDS);
-  float* positions = NULL; int n_verts = -1;
-  int* indices = NULL; int n_faces = -1;
-  ply_file_t* pf = ply_file_open( argv[1] , "rb");
+  msh_init_argparse( "mshview",
+                     "Simple utility for viewing meshes", 
+                     &parser );
+  msh_add_string_argument("input_filename", NULL, "Name of mesh file to read",
+                           &opts->input_filename, 1, &parser );
+  msh_add_bool_argument("--verbose", "-v", "Print verbose information",
+                        &opts->verbose, 0, &parser );
+
+  if( !msh_parse_arguments(argc, argv, &parser) )
+  {
+    msh_display_help( &parser );
+    return 1;
+  }
+  return 0;
+}
+
+/*------------------------------------------------------------------------------
+ Keyboard & Mouse
+------------------------------------------------------------------------------*/
+typedef struct mouse_state
+{
+  msh_vec2_t prev_pos;
+  msh_vec2_t cur_pos;
+  msh_scalar_t x_scroll_state;
+  msh_scalar_t y_scroll_state;
+  int lmb_state;
+  int rmb_state;
+  int mmb_state;
+  int shift_key_state;
+  int super_key_state;
+  int alt_key_state;
+  int ctrl_key_state;
+} mouse_state_t;
+
+typedef struct keyboard_state
+{
+  int pressed[GLFW_KEY_LAST];
+} keyboard_state_t;
+
+
+static mouse_state_t mouse;
+static keyboard_state_t keyboard;
+
+static void 
+mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
+{
+  if( !glfwGetWindowAttrib(window, GLFW_FOCUSED) ) return;
+  mouse.lmb_state       = 0;
+  mouse.rmb_state       = 0;
+  mouse.mmb_state       = 0;
+  mouse.shift_key_state = 0;
+  mouse.super_key_state = 0;
+  mouse.alt_key_state   = 0;
+  mouse.ctrl_key_state  = 0;
+
+  if( action == GLFW_PRESS )
+  {
+    if( button == GLFW_MOUSE_BUTTON_LEFT )   mouse.lmb_state = 1;
+    if( button == GLFW_MOUSE_BUTTON_RIGHT )  mouse.rmb_state = 1;
+    if( button == GLFW_MOUSE_BUTTON_MIDDLE ) mouse.mmb_state = 1;
+    if( mods & GLFW_MOD_SHIFT )              mouse.shift_key_state = 1;
+    if( mods & GLFW_MOD_SUPER )              mouse.super_key_state = 1;
+    if( mods & GLFW_MOD_ALT )                mouse.alt_key_state   = 1;
+    if( mods & GLFW_MOD_CONTROL )            mouse.ctrl_key_state  = 1;
+  }
+}
+
+static void 
+mouse_scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+  if( !glfwGetWindowAttrib(window, GLFW_FOCUSED) ) return;
+  mouse.x_scroll_state = 0.5*xoffset;
+  mouse.y_scroll_state = 0.5*yoffset;
+}
+
+static void
+keyboard_callback( GLFWwindow *window, int key, int scancode, int action, int mods)
+{
+  keyboard.pressed[ key ] = 0;
+
+  if( action == GLFW_PRESS || action == GLFW_REPEAT )
+  {
+    keyboard.pressed[ key ] = 1;
+  }
+
+  if( keyboard.pressed[GLFW_KEY_ESCAPE] ) exit(1);
+
+}
+
+static void
+mouse_refresh( GLFWwindow *window )
+{
+  mouse.prev_pos  = mouse.cur_pos;
+  double x, y;
+  glfwGetCursorPos( window, &x, &y );
+  mouse.cur_pos.x = x;
+  mouse.cur_pos.y = y;
+  
+  mouse.x_scroll_state = 0;
+  mouse.y_scroll_state = 0;
+}
+
+/*------------------------------------------------------------------------------
+ Mesh data structure
+------------------------------------------------------------------------------*/
+typedef struct face
+{
+  int i0, i1, i2;
+} face_t;
+
+typedef struct trimesh
+{
+  msh_vec3_t* positions;
+  msh_vec3_t* normals;
+  face_t* faces;
+  int n_vertices;
+  int n_faces;
+} trimesh_t;
+
+void 
+trimesh_read_ply( trimesh_t* tm, const char* filename )
+{
+  ply_file_t* pf = ply_file_open( filename, "rb");
   ply_hint_t indices_size_hint = {.property_name = "vertex_indices", 
                                   .expected_size = 3};
   ply_file_add_hint(pf, indices_size_hint);
@@ -49,434 +179,258 @@ double t1, t2;
     const char* positions_names[] = {"x","y","z"};
     const char* vertex_indices_names[] = {"vertex_indices"};
     ply_file_get_property_from_element(pf, "vertex", positions_names, 3, PLY_FLOAT, PLY_INVALID, 
-                                      (void**)&positions, NULL, &n_verts );
+                                      (void**)&tm->positions, NULL, &tm->n_vertices );
     ply_file_get_property_from_element(pf, "face", vertex_indices_names, 1, PLY_INT32, PLY_UINT8, 
-                                       (void**)&indices, NULL, &n_faces);
-    msh_vec3_t min_pt = msh_vec3_zeros();
-    msh_vec3_t max_pt = msh_vec3_zeros();
-    msh_vec3_t avg_pt = msh_vec3_zeros();
-    for( int i = 0; i < n_verts; ++i )
-    {
-      msh_vec3_t* pt = (msh_vec3_t*)&positions[3*i];
-      if( i == 0 ) { min_pt = *pt; max_pt = *pt; }
-      min_pt.x = msh_min(pt->x, min_pt.x); max_pt.x = msh_max(pt->x, max_pt.x);
-      min_pt.y = msh_min(pt->y, min_pt.y); max_pt.y = msh_max(pt->y, max_pt.y);
-      min_pt.z = msh_min(pt->z, min_pt.z); max_pt.z = msh_max(pt->z, max_pt.z);
-      avg_pt = msh_vec3_add(*pt, avg_pt);
-    }
-    avg_pt = msh_vec3_scalar_div( avg_pt, n_verts );
-    double sx = 1.0 / msh_abs(min_pt.x-max_pt.x);
-    double sy = 1.0 / msh_abs(min_pt.y-max_pt.y);
-    double sz = 1.0 / msh_abs(min_pt.z-max_pt.z);
-    double s = msh_max3(sx, sy, sz);
-    printf("%g %g %g | %g\n", sx, sy, sz, s);
-    // msh_mat4_t xform = msh_translate( msh_mat4_identity(), msh_vec3_invert(avg_pt) );
-    // xform = msh_scale(xform, msh_vec3(sx, sy, sz));
-    msh_mat4_t xform = msh_scale(msh_mat4_identity(), msh_vec3(s, s, s));
-    xform = msh_translate( xform, msh_vec3_invert(avg_pt) );
-    avg_pt = msh_vec3_zeros();
-        for( int i = 0; i < n_verts; ++i )
-    {
-      msh_vec3_t* pt = (msh_vec3_t*)&positions[3*i];
-      *pt = msh_mat4_vec3_mul( xform, *pt, 1);
-      if( i == 0 ) { min_pt = *pt; max_pt = *pt; }
-      min_pt.x = msh_min(pt->x, min_pt.x); max_pt.x = msh_max(pt->x, max_pt.x);
-      min_pt.y = msh_min(pt->y, min_pt.y); max_pt.y = msh_max(pt->y, max_pt.y);
-      min_pt.z = msh_min(pt->z, min_pt.z); max_pt.z = msh_max(pt->z, max_pt.z);
-      avg_pt = msh_vec3_add(*pt, avg_pt);
-    }
-    avg_pt = msh_vec3_scalar_div( avg_pt, n_verts );
-    msh_vec3_print(avg_pt);
-    msh_vec3_print(min_pt);
-    msh_vec3_print(max_pt);
-
-    // msh_cprintf( opts.verbose, "Vertex count: %d\n", n_verts );
-    // msh_cprintf( opts.verbose, "Face Count: %d\n", n_faces );
+                                       (void**)&tm->faces, NULL, &tm->n_faces);
   }
-  // ply_file_print_header(pf);
-  t2 = msh_get_time(MSHT_MILLISECONDS);
-  // msh_cprintf(opts.verbose, "Mesh reading: %fms.\n", t2-t1);
   ply_file_close(pf);
-  // printf( "Mesh reading: %fms.\n", t2-t1);
+}
 
-    /* setup sokol_gfx */
-    sg_desc desc = {0};
-    sg_setup(&desc);
-    assert(sg_isvalid());
+// TODO(maciej): This should just be zero mean
+msh_mat4_t 
+trimesh_calculate_normalizing_transform( const trimesh_t* tm )
+{
+  msh_vec3_t min_pt = msh_vec3_zeros();
+  msh_vec3_t max_pt = msh_vec3_zeros();
+  msh_vec3_t avg_pt = msh_vec3_zeros();
+  for( int i = 0; i < tm->n_vertices; ++i )
+  {
+    msh_vec3_t pt = tm->positions[i];
+    if( i == 0 ) { min_pt = pt; max_pt = pt; }
+    min_pt.x = msh_min(pt.x, min_pt.x); max_pt.x = msh_max(pt.x, max_pt.x);
+    min_pt.y = msh_min(pt.y, min_pt.y); max_pt.y = msh_max(pt.y, max_pt.y);
+    min_pt.z = msh_min(pt.z, min_pt.z); max_pt.z = msh_max(pt.z, max_pt.z);
+    avg_pt = msh_vec3_add(pt, avg_pt);
+  }
+  avg_pt = msh_vec3_scalar_div( avg_pt, tm->n_vertices );
+  double sx = 1.0 / msh_abs(min_pt.x-max_pt.x);
+  double sy = 1.0 / msh_abs(min_pt.y-max_pt.y);
+  double sz = 1.0 / msh_abs(min_pt.z-max_pt.z);
+  double scale = msh_max3(sx, sy, sz);
 
-/* cube vertex buffer */
-    sg_buffer vbuf = sg_make_buffer(&(sg_buffer_desc){
-        .size = n_verts * 3 * sizeof(float),
-        .content = positions,
-    });
+  msh_mat4_t xform = msh_scale( msh_mat4_identity(), 
+                                msh_vec3(scale, scale, scale));
+  xform = msh_translate( xform, msh_vec3_invert(avg_pt) );
+  return xform;
+}
 
-    sg_buffer ibuf = sg_make_buffer(&(sg_buffer_desc){
-        .type = SG_BUFFERTYPE_INDEXBUFFER,
-        .size = n_faces * 3 * sizeof(int),
-        .content = indices,
-    });
-
-    /* create shader */
-    sg_shader shd = sg_make_shader(&(sg_shader_desc){
-        .vs.uniform_blocks[0] = { 
-            .size = sizeof(params_t),
-            .uniforms = {
-                [0] = { .name="mvp", .type=SG_UNIFORMTYPE_MAT4 }
-            },
-        },
-        .vs.source =
-            "#version 330\n"
-            "uniform mat4 mvp;\n"
-            "layout(location = 0) in vec4 position;\n"
-            "void main() {\n"
-            "  gl_Position = mvp * position;\n"
-            "}\n",
-        .fs.source =
-            "#version 330\n"
-            "out vec4 frag_color;\n"
-            "void main() {\n"
-            "  frag_color = vec4(1.0, 0.5, 0.0, 1.0);\n"
-            "}\n"
-    });
-
-    /* create pipeline object */
-    sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
-        .layout = {
-            /* on GL3.3 we can ommit the vertex attribute name if the 
-               vertex shader explicitely defines the attribute location
-               via layout(location = xx), and since the vertex layout
-               has no gaps, we don't need to give the vertex stride
-               or attribute offsets
-            */
-            .attrs = {
-                [0] = { .format=SG_VERTEXFORMAT_FLOAT3 },
-            }
-        },
-        .shader = shd,
-        .index_type = SG_INDEXTYPE_UINT32,
-        .depth_stencil = {
-            .depth_compare_func = SG_COMPAREFUNC_LESS_EQUAL,
-            .depth_write_enabled = true
-        },
-        .rasterizer.cull_mode = SG_CULLMODE_FRONT
-    });
-
-    /* draw state struct with resource bindings */
-    sg_draw_state draw_state = {
-        .pipeline = pip,
-        .vertex_buffers[0] = vbuf,
-        .index_buffer = ibuf,
-    };
-
-    /* default pass action */
-    sg_pass_action pass_action = { 0 };
-
-    /* view-projection matrix */
-    msh_mat4_t proj = msh_perspective(msh_deg2rad(60.0), 640.0f/480.0f, 0.001f, 10.0f);
-    msh_mat4_t view = msh_look_at(msh_vec3(2.0f, 2.0f, 2.0f), msh_vec3(0.0f, 0.0f, 0.0f), msh_vec3(0.0f, 1.0f, 0.0f));
-    msh_mat4_t view_proj = msh_mat4_mul(proj, view);
-
-    params_t vs_params;
-    float rx = 0.0f, ry = 0.0f;
-    while( !glfwWindowShouldClose(w) )
+void
+trimesh_apply_transform( trimesh_t* tm, const msh_mat4_t xform )
+{
+  msh_mat4_t normal_matrix = msh_mat4_transpose(msh_mat4_inverse(xform));
+  for( int i = 0; i < tm->n_vertices; ++i )
+  {
+    tm->positions[i] = msh_mat4_vec3_mul( xform, tm->positions[i], 1 );
+  }
+  if( tm->normals )
+  {
+    for( int i = 0 ; i < tm->n_vertices; ++i )
     {
-        // rx += 0.01f; ry += 0.02f;
-        // msh_mat4_t rxm = msh_rotate( msh_mat4_identity(), rx, msh_vec3(1.0f, 0.0f, 0.0f));
-        msh_mat4_t rym = msh_rotate( msh_mat4_identity(), ry, msh_vec3(0.0f, 1.0f, 0.0f));
-        msh_mat4_t model = msh_mat4_identity();
-
-        /* model-view-projection matrix for vertex shader */
-        vs_params.mvp = msh_mat4_mul(view_proj, model);
-
-        int cur_width, cur_height;
-        glfwGetFramebufferSize(w, &cur_width, &cur_height);
-        sg_begin_default_pass(&pass_action, cur_width, cur_height);
-        sg_apply_draw_state(&draw_state);
-        sg_apply_uniform_block(SG_SHADERSTAGE_VS, 0, &vs_params, sizeof(vs_params));
-        sg_draw(0, n_faces * 3, 1);
-        sg_end_pass();
-        sg_commit();
-
-        glfwSwapBuffers(w);
-        glfwPollEvents();
+      tm->normals[i] = msh_mat4_vec3_mul( normal_matrix, tm->normals[i], 0 );
     }
+  }
+}
 
-    sg_shutdown();
-    glfwTerminate();
+void
+trimesh_calculate_normals( trimesh_t* tm )
+{
+  
+  if( !tm->normals )
+  {
+    for( int i = 0; i < tm->n_vertices; ++i ) { msh_array_push(tm->normals, msh_vec3_zeros()); }
+  }
+  else
+  {
+    for( int i = 0; i < tm->n_vertices; ++i ) { tm->normals[i] = msh_vec3_zeros(); }
+  }
+
+  // msh_array(int32_t) valence = {0};
+  // for( int i = 0; i < tm->n_vertices; ++i ) { msh_array_push(valence, 0); }
+  
+  for( int i = 0 ; i < tm->n_faces; ++i )
+  {
+    msh_vec3_t p0 = tm->positions[tm->faces[i].i0];
+    msh_vec3_t p1 = tm->positions[tm->faces[i].i1];
+    msh_vec3_t p2 = tm->positions[tm->faces[i].i2];
+
+    msh_vec3_t v0 = msh_vec3_sub(p2, p0);
+    msh_vec3_t v1 = msh_vec3_sub(p1, p0);
+
+    msh_vec3_t normal = msh_vec3_normalize( msh_vec3_cross(v0, v1) );
+    
+    tm->normals[tm->faces[i].i0] = msh_vec3_add(tm->normals[tm->faces[i].i0], normal);
+    tm->normals[tm->faces[i].i1] = msh_vec3_add(tm->normals[tm->faces[i].i1], normal);
+    tm->normals[tm->faces[i].i2] = msh_vec3_add(tm->normals[tm->faces[i].i2], normal);
+
+    // valence[tm->faces[i].i0]++;
+    // valence[tm->faces[i].i1]++;
+    // valence[tm->faces[i].i2]++;
+  }
+
+  for( int i = 0; i < tm->n_vertices; ++i ) { tm->normals[i] = msh_vec3_normalize(tm->normals[i]); }
+
 }
 
 
-// #define MSH_IMPLEMENTATION
-// #define MSH_ARGPARSE_IMPLEMENTATION
-// #define MSH_VEC_MATH_IMPLEMENTATION
-// #define MSH_CAM_IMPLEMENTATION
-
-// #include "msh.h"
-// #include "msh_argparse.h"
-// #include "msh_vec_math.h"
-// #include "experimental/msh_ply.h"
-// #define GLFW_INCLUDE_NONE
-// #include "GLFW/glfw3.h"
-// #include "glad/glad.h"
-// #define SOKOL_IMPL
-// #define SOKOL_GLCORE33
-// #include "sokol/sokol_gfx.h"
 
 
-// typedef struct options
-// {
-//   char* input_filename;
-//   bool verbose;
-// }opts_t;
-
-// typedef struct {
-//     msh_mat4_t mvp;
-// } params_t;
+int main( int argc, char** argv ) {
+  opts_t opts = {0};
+  int parse_err = parse_arguments( argc, argv, &opts );
+  if( parse_err ) { return 1; }
 
 
-// int parse_arguments( int argc, char** argv, opts_t* opts)
-// {
-//   msh_argparse_t parser;
-//   opts->input_filename  = NULL;
-//   opts->verbose         = 0;
+  /* create GLFW window and initialize GL */
+  glfwInit();
+  glfwWindowHint(GLFW_SAMPLES, 4);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+  glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+  GLFWwindow* w = glfwCreateWindow(opts.width, opts.height, "MeshView", 0, 0);
+  glfwMakeContextCurrent( w );
+  glfwSetMouseButtonCallback( w, mouse_button_callback );
+  glfwSetScrollCallback( w, mouse_scroll_callback );
+  glfwSetKeyCallback( w, keyboard_callback );
+  gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
 
-//   msh_init_argparse( "mshview",
-//                      "Simple utility for viewing meshes", 
-//                      &parser );
-//   msh_add_string_argument("input_filename", NULL, "Name of mesh file to read",
-//                            &opts->input_filename, 1, &parser );
-//   msh_add_bool_argument("--verbose", "-v", "Print verbose information",
-//                         &opts->verbose, 0, &parser );
+  /* read in and prep the mesh */
+  trimesh_t mesh = {0};
+  trimesh_read_ply( &mesh, opts.input_filename );
+  msh_mat4_t center_scale = trimesh_calculate_normalizing_transform( &mesh );
+  trimesh_apply_transform( &mesh, center_scale );
+  trimesh_calculate_normals( &mesh );
 
-//   if( !msh_parse_arguments(argc, argv, &parser) )
-//   {
-//     msh_display_help( &parser );
-//     return 1;
-//   }
-//   return 0;
-// }
+  /* setup sokol_gfx */
+  sg_desc desc = {0};
+  sg_setup(&desc);
+  assert(sg_isvalid());
 
-// int main( int argc, char** argv )
-// {
-//   opts_t opts;
-//   int parse_err = parse_arguments( argc, argv, &opts );
-//   if( parse_err ) { return 1; }
+/* cube vertex buffer */
+  sg_buffer pbuf = sg_make_buffer(&(sg_buffer_desc){
+    .size = mesh.n_vertices * sizeof(msh_vec3_t),
+    .content = mesh.positions,
+  });
 
-//   double t1,t2;
-//   t1 = msh_get_time(MSHT_MILLISECONDS);
-//   glfwInit();
-//   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-//   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-//   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-//   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-//   GLFWwindow* w = glfwCreateWindow(640, 480, "meshview", 0, 0);
-//   glfwMakeContextCurrent(w);
-//   t2 = msh_get_time(MSHT_MILLISECONDS);
-//   msh_cprintf(opts.verbose, "Window creation: %fms.\n", t2-t1);
+  sg_buffer nbuf = sg_make_buffer(&(sg_buffer_desc){
+    .size = mesh.n_vertices * sizeof(msh_vec3_t),
+    .content = mesh.normals,
+  });
 
-//   gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
-//   glfwSwapInterval(1);
+  sg_buffer ibuf = sg_make_buffer(&(sg_buffer_desc){
+    .type = SG_BUFFERTYPE_INDEXBUFFER,
+    .size = mesh.n_faces * sizeof(face_t),
+    .content = mesh.faces,
+  });
 
-// //// READ MESH
-//   // t1 = msh_get_time(MSHT_MILLISECONDS);
-//   // float* positions = NULL; int n_verts = -1;
-//   // int* indices = NULL; int n_faces = -1;
-//   // ply_file_t* pf = ply_file_open( opts.input_filename , "r");
-//   // ply_hint_t indices_size_hint = {.property_name = "vertex_indices", 
-//   //                                 .expected_size = 3};
-//   // ply_file_add_hint(pf, indices_size_hint);
-//   // if( pf )
-//   // {
-//   //   ply_file_parse(pf);
-//   //   const char* positions_names[] = {"x","y","z"};
-//   //   const char* vertex_indices_names[] = {"vertex_indices"};
-//   //   ply_file_get_property_from_element(pf, "vertex", positions_names, 3, PLY_FLOAT, PLY_INVALID, 
-//   //                                     (void**)&positions, NULL, &n_verts );
-//   //   ply_file_get_property_from_element(pf, "face", vertex_indices_names, 1, PLY_INT32, PLY_UINT8, 
-//   //                                      (void**)&indices, NULL, &n_faces);
+  /* create shader */
+  typedef struct params {
+    msh_mat4_t mvp;
+    msh_vec3_t light_pos;
+  } params_t;
 
-//   //   msh_cprintf( opts.verbose, "Vertex count: %d\n", n_verts );
-//   //   msh_cprintf( opts.verbose, "Face Count: %d\n", n_faces );
-//   // }
-//   // ply_file_print_header(pf);
-//   // t2 = msh_get_time(MSHT_MILLISECONDS);
-//   // msh_cprintf(opts.verbose, "Mesh reading: %fms.\n", t2-t1);
-//   // ply_file_close(pf);
-// //// SOKOL STUFF
+  sg_shader shd = sg_make_shader(&(sg_shader_desc){
+    .vs.uniform_blocks[0] = { 
+      .size = sizeof(params_t),
+      .uniforms = {
+        [0] = { .name="mvp", .type=SG_UNIFORMTYPE_MAT4 },
+        [1] = { .name="light_pos", .type=SG_UNIFORMTYPE_FLOAT3 }
+      },
+    },
+    .vs.source =
+      "#version 330\n"
+      "uniform mat4 mvp;\n"
+      "uniform vec3 light_pos;\n"
+      "layout(location = 0) in vec3 position;\n"
+      "layout(location = 1) in vec3 normal;\n"
+      "out vec3 color;\n"
+      "void main() {\n"
+      "  vec4 p = mvp * vec4(position, 1.0);\n"
+      "  vec4 n = mvp * vec4(normal, 0.0);\n"
+      "  float intensity = clamp(dot(-normalize(light_pos), vec3(normal)), 0.0, 1.0);\n"
+      "  color = vec3(intensity);\n"
+      "  gl_Position = p;\n"
+      "}\n",
+    .fs.source =
+      "#version 330\n"
+      "out vec4 frag_color;\n"
+      "in vec3 color;"
+      "void main() {\n"
+      "  frag_color = vec4(color, 1.0);\n"
+      "}\n"
+  });
 
-//  /* cube vertex buffer */
-//     float vertices[] = {
-//         /* pos                  color                       uvs */
-//         -1.0f, -1.0f, -1.0f,    1.0f, 0.0f, 0.0f, 1.0f,     0.0f, 0.0f,
-//          1.0f, -1.0f, -1.0f,    1.0f, 0.0f, 0.0f, 1.0f,     1.0f, 0.0f,
-//          1.0f,  1.0f, -1.0f,    1.0f, 0.0f, 0.0f, 1.0f,     1.0f, 1.0f,
-//         -1.0f,  1.0f, -1.0f,    1.0f, 0.0f, 0.0f, 1.0f,     0.0f, 1.0f,
+  // TODO(maciej): Figure out how to do the operation with stride
+  /* create pipeline object */
+  sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
+      .layout = {
+          .attrs = {
+              [0] = { .name="position", .format=SG_VERTEXFORMAT_FLOAT3, .buffer_index = 0 },
+              [1] = { .name="normal", .format=SG_VERTEXFORMAT_FLOAT3, .buffer_index = 1 },
+          }
+      },
+      .shader = shd,
+      .index_type = SG_INDEXTYPE_UINT32,
+      .depth_stencil = {
+          .depth_compare_func = SG_COMPAREFUNC_LESS_EQUAL,
+          .depth_write_enabled = true
+      },
+      .rasterizer.cull_mode = SG_CULLMODE_FRONT
+  });
 
-//         -1.0f, -1.0f,  1.0f,    0.0f, 1.0f, 0.0f, 1.0f,     0.0f, 0.0f, 
-//          1.0f, -1.0f,  1.0f,    0.0f, 1.0f, 0.0f, 1.0f,     1.0f, 0.0f,
-//          1.0f,  1.0f,  1.0f,    0.0f, 1.0f, 0.0f, 1.0f,     1.0f, 1.0f,
-//         -1.0f,  1.0f,  1.0f,    0.0f, 1.0f, 0.0f, 1.0f,     0.0f, 1.0f,
+  /* draw state struct with resource bindings */
+  sg_draw_state draw_state = {
+      .pipeline = pip,
+      .vertex_buffers[0] = pbuf,
+      .vertex_buffers[1] = nbuf,
+      .index_buffer = ibuf,
+  };
 
-//         -1.0f, -1.0f, -1.0f,    0.0f, 0.0f, 1.0f, 1.0f,     0.0f, 0.0f,
-//         -1.0f,  1.0f, -1.0f,    0.0f, 0.0f, 1.0f, 1.0f,     1.0f, 0.0f,
-//         -1.0f,  1.0f,  1.0f,    0.0f, 0.0f, 1.0f, 1.0f,     1.0f, 1.0f,
-//         -1.0f, -1.0f,  1.0f,    0.0f, 0.0f, 1.0f, 1.0f,     0.0f, 1.0f,
+  /* default pass action */
+  sg_pass_action pass_action = { 0 };
 
-//          1.0f, -1.0f, -1.0f,    1.0f, 0.5f, 0.0f, 1.0f,     0.0f, 0.0f,
-//          1.0f,  1.0f, -1.0f,    1.0f, 0.5f, 0.0f, 1.0f,     1.0f, 0.0f,
-//          1.0f,  1.0f,  1.0f,    1.0f, 0.5f, 0.0f, 1.0f,     1.0f, 1.0f,
-//          1.0f, -1.0f,  1.0f,    1.0f, 0.5f, 0.0f, 1.0f,     0.0f, 1.0f,
+  /* setup camera */
+  msh_camera_t camera;
+  msh_camera_init( &camera,
+                    msh_vec3(0.0, 0.0, 5.0),
+                    msh_vec3(0.0, 0.0, 0.0),
+                    msh_vec3(0.0, 1.0, 0.0),
+                    0.75,
+                    1.0, 
+                    0.1, 100.0 );
 
-//         -1.0f, -1.0f, -1.0f,    0.0f, 0.5f, 1.0f, 1.0f,     0.0f, 0.0f,
-//         -1.0f, -1.0f,  1.0f,    0.0f, 0.5f, 1.0f, 1.0f,     1.0f, 0.0f,
-//          1.0f, -1.0f,  1.0f,    0.0f, 0.5f, 1.0f, 1.0f,     1.0f, 1.0f,
-//          1.0f, -1.0f, -1.0f,    0.0f, 0.5f, 1.0f, 1.0f,     0.0f, 1.0f,
+  params_t vs_params;
+  while( !glfwWindowShouldClose(w) )
+  {
+    int cur_width, cur_height;
+    glfwGetFramebufferSize(w, &cur_width, &cur_height);
+    float aspect_ratio = (float)cur_width/(float)cur_height;
+    msh_arcball_camera_update( &camera, 
+                                mouse.prev_pos, mouse.cur_pos,
+                                mouse.lmb_state,
+                                mouse.rmb_state,
+                                mouse.y_scroll_state,
+                                msh_vec4(0, 0, cur_width, cur_height));
+    mouse_refresh( w ); 
 
-//         -1.0f,  1.0f, -1.0f,    1.0f, 0.0f, 0.5f, 1.0f,     0.0f, 0.0f,
-//         -1.0f,  1.0f,  1.0f,    1.0f, 0.0f, 0.5f, 1.0f,     1.0f, 0.0f,
-//          1.0f,  1.0f,  1.0f,    1.0f, 0.0f, 0.5f, 1.0f,     1.0f, 1.0f,
-//          1.0f,  1.0f, -1.0f,    1.0f, 0.0f, 0.5f, 1.0f,     0.0f, 1.0f
-//     };
-//     sg_buffer vbuf = sg_make_buffer(&(sg_buffer_desc){
-//         .size = sizeof(vertices),
-//         .content = vertices,
-//     });
+      /* model-view-projection matrix for vertex shader */
+    msh_mat4_t proj = msh_perspective(msh_deg2rad(60.0), aspect_ratio, 0.01f, 10.0f);
+    msh_mat4_t view_proj = msh_mat4_mul(proj, camera.view);
+    msh_mat4_t model = msh_mat4_identity();
+    vs_params.mvp = msh_mat4_mul(view_proj, model);
+    vs_params.light_pos = msh_vec3(0.0f, 0.0f, 5.0f);
 
-//     /* create an index buffer for the cube */
-//     uint16_t indices2[] = {
-//         0, 1, 2,  0, 2, 3,
-//         6, 5, 4,  7, 6, 4,
-//         8, 9, 10,  8, 10, 11,
-//         14, 13, 12,  15, 14, 12,
-//         16, 17, 18,  16, 18, 19,
-//         22, 21, 20,  23, 22, 20
-//     };
-//     sg_buffer ibuf = sg_make_buffer(&(sg_buffer_desc){
-//         .type = SG_BUFFERTYPE_INDEXBUFFER,
-//         .size = sizeof(indices2),
-//         .content = indices2,
-//     });
+    sg_begin_default_pass(&pass_action, cur_width, cur_height);
+    sg_apply_draw_state(&draw_state);
+    sg_apply_uniform_block(SG_SHADERSTAGE_VS, 0, &vs_params, sizeof(vs_params));
+    sg_draw(0, mesh.n_faces*3, 1);
+    sg_end_pass();
+    sg_commit();
 
-//     /* create a checkerboard texture */
-//     uint32_t pixels[4*4] = {
-//         0xFFFFFFFF, 0x00000000, 0xFFFFFFFF, 0x00000000,
-//         0x00000000, 0xFFFFFFFF, 0x00000000, 0xFFFFFFFF,
-//         0xFFFFFFFF, 0x00000000, 0xFFFFFFFF, 0x00000000,
-//         0x00000000, 0xFFFFFFFF, 0x00000000, 0xFFFFFFFF,
-//     };
-//     sg_image img = sg_make_image(&(sg_image_desc){
-//         .width = 4,
-//         .height = 4,
-//         .pixel_format = SG_PIXELFORMAT_RGBA8,
-//         .min_filter = SG_FILTER_LINEAR,
-//         .mag_filter = SG_FILTER_LINEAR,
-//         .content.subimage[0][0] = {
-//             .ptr = pixels,
-//             .size = sizeof(pixels)
-//         }
-//     });
+    glfwSwapBuffers(w);
+    glfwPollEvents();
+  }
 
-//     /* create shader */
-//     sg_shader shd = sg_make_shader(&(sg_shader_desc){
-//         .vs.uniform_blocks[0] = { 
-//             .size = sizeof(params_t),
-//             .uniforms = {
-//                 [0] = { .name="mvp", .type=SG_UNIFORMTYPE_MAT4 }
-//             },
-//         },
-//         .fs.images[0] = { .name="tex", .type=SG_IMAGETYPE_2D },
-//         .vs.source =
-//             "#version 330\n"
-//             "uniform mat4 mvp;\n"
-//             "layout(location = 0) in vec4 position;\n"
-//             "layout(location = 1) in vec4 color0;\n"
-//             "layout(location = 2) in vec2 texcoord0;\n"
-//             "out vec4 color;\n"
-//             "out vec2 uv;"
-//             "void main() {\n"
-//             "  gl_Position = mvp * position;\n"
-//             "  color = color0;\n"
-//             "  uv = texcoord0 * 5.0;\n"
-//             "}\n",
-//         .fs.source =
-//             "#version 330\n"
-//             "uniform sampler2D tex;"
-//             "in vec4 color;\n"
-//             "in vec2 uv;\n"
-//             "out vec4 frag_color;\n"
-//             "void main() {\n"
-//             "  frag_color = texture(tex, uv) * color;\n"
-//             "}\n"
-//     });
-
-//     /* create pipeline object */
-//     sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
-//         .layout = {
-//             /* on GL3.3 we can ommit the vertex attribute name if the 
-//                vertex shader explicitely defines the attribute location
-//                via layout(location = xx), and since the vertex layout
-//                has no gaps, we don't need to give the vertex stride
-//                or attribute offsets
-//             */
-//             .attrs = {
-//                 [0] = { .format=SG_VERTEXFORMAT_FLOAT3 },
-//                 [1] = { .format=SG_VERTEXFORMAT_FLOAT4 },
-//                 [2] = { .format=SG_VERTEXFORMAT_FLOAT2 }
-//             }
-//         },
-//         .shader = shd,
-//         .index_type = SG_INDEXTYPE_UINT16,
-//         .depth_stencil = {
-//             .depth_compare_func = SG_COMPAREFUNC_LESS_EQUAL,
-//             .depth_write_enabled = true
-//         },
-//         .rasterizer.cull_mode = SG_CULLMODE_BACK
-//     });
-
-//     /* draw state struct with resource bindings */
-//     sg_draw_state draw_state = {
-//         .pipeline = pip,
-//         .vertex_buffers[0] = vbuf,
-//         .index_buffer = ibuf,
-//         .fs_images[0] = img
-//     };
-
-//     /* default pass action */
-//     sg_pass_action pass_action = { 0 };
-// ////////////
-// printf("TEST\n");
-//   msh_mat4_t proj = msh_perspective(msh_deg2rad(60.0), 640.0f/480.0f, 0.01f, 10.0f);
-//   msh_mat4_t view = msh_look_at(msh_vec3(0.0f, 1.5f, 6.0f), msh_vec3(0.0f, 0.0f, 0.0f), msh_vec3(0.0f, 1.0f, 0.0f));
-//   msh_mat4_t view_proj = msh_mat4_mul(proj, view);
-
-//   params_t vs_params;
-//   float rx = 0.0f, ry = 0.0f;
-//   while( !glfwWindowShouldClose(w) )
-//   {
-//     rx += 1.0f; ry += 2.0f;
-//     msh_mat4_t rxm = msh_rotate( msh_mat4_identity(), rx, msh_vec3(1.0f, 0.0f, 0.0f));
-//     msh_mat4_t rym = msh_rotate( msh_mat4_identity(), ry, msh_vec3(0.0f, 1.0f, 0.0f));
-//     msh_mat4_t model = msh_mat4_mul(rxm, rym);
-
-//     /* model-view-projection matrix for vertex shader */
-//     vs_params.mvp = msh_mat4_mul(view_proj, model);
-
-//     int cur_width, cur_height;
-//     glfwGetFramebufferSize(w, &cur_width, &cur_height);
-//     sg_begin_default_pass(&pass_action, cur_width, cur_height);
-//     sg_apply_draw_state(&draw_state);
-//     sg_apply_uniform_block(SG_SHADERSTAGE_VS, 0, &vs_params, sizeof(vs_params));
-//     sg_draw(0, 36, 1);
-//     sg_end_pass();
-//     sg_commit();
-    
-//     glfwSwapBuffers(w);
-//     glfwPollEvents();
-//   }
-//   glfwDestroyWindow(w);
-//   glfwTerminate();
-
-
-
-//   return 0;
-// }
+  sg_shutdown();
+  glfwTerminate();
+}

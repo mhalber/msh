@@ -53,6 +53,7 @@ TODOs:
 [ ] Asserts!
 [ ] Optimize / Simplyfy code
 [ ] Enable swizzle
+[ ] A version where user specifies attributes and layouts he wants -- different api design
 */
 
 // #include <stdlib.h>
@@ -820,7 +821,7 @@ ply_file_get_property_from_element(ply_file_t* pf, const char* element_name,
         }
       }
       // printf("CAN COPY: %d\n", can_simply_copy);
-      can_simply_copy = 0;
+      // can_simply_copy = 0;
       if( can_simply_copy )
       {
         ply_file_get_element_size( el, &el->data_size);
