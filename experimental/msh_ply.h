@@ -34,36 +34,47 @@ TODOs:
     [x] Bourke ply http://paulbourke.net/dataformats/ply/
     [x] Nanoply https://github.com/cnr-isti-vclab/vcglib/tree/master/wrap/nanoply
     [x] VCG Ply https://github.com/cnr-isti-vclab/vcglib/tree/master/wrap/ply
+[x] Write viewer
 
 [ ] Casting
-    [ ] Add list property support
-    [ ] Make casting optional - only applied if needed.
+    [x] Add list property support
+    [x] Make casting optional - only applied if needed.
     [ ] Rebenchmark lucy
     [ ] Benchmark different data layouts
-[x] Write viewer
+[ ] Benchmark and revisit writer
+[ ] Build in c++ mode
+[ ] Optimize 
+  [x] Read data sequentially without prefetching large block.
+  [ ] Separate functions to read all datatypes?
+  [ ] Why is O2 faster than O3?
+  [ ] What are the other 0.262 seconds
+
+
+[ ] Functions accepting descriptors.
 [ ] Getting raw data for list property - different function.
 [ ] Encoder/decorder split
-[ ] Error reporting
-[ ] Revise errors
+[ ] Replace msh_array with buf.c or with pervogsen buf (https://gist.github.com/vurtun/5144bbcc2db73d51e36bf327ac19b604)
 [ ] Code cleanup
   [ ] Replace duplicated code
-  [ ] Decide what to do with malloc(ie. Should we alloc memory? We are using FILE* anyway..)
-[ ] Fix the header names to be mply
-[ ] Replace msh_array with buf.c or with pervogsen buf (https://gist.github.com/vurtun/5144bbcc2db73d51e36bf327ac19b604)
+  [-] Decide what to do with malloc(ie. Should we alloc memory? We are using FILE* anyway..)
+[ ] Error reporting
 [ ] Extensive testing
-[ ] Asserts!
-[ ] Optimize / Simplyfy code
+[ ] Fix the header names to be mply
 [ ] Enable swizzle
-[ ] A version where user specifies attributes and layouts he wants -- different api design
 */
 
 // #include <stdlib.h>
 // #include <stdint.h>
 // #define MSH_IMPLEMENTATION
 // #include "msh.h"
-
+// #include <unistd.h>
 // API does not allow mixing regular and list properties
 
+#if defined(_MSC_VER)
+#define PLY_INLINE __forceinline
+#else
+#define PLY_INLINE __attribute__((unused, always_inline)) inline
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // This ply library only provides set of functionalities to read/write your own specific ply file.
@@ -101,7 +112,7 @@ typedef struct ply_property
   int32_t type;
   int32_t list_type;
 
-  int total_count;
+  int32_t total_count;
   int total_byte_size;
 
   // data storage -> maybe we will put that into some write helper
@@ -186,24 +197,16 @@ typedef enum ply_type_id
   PLY_N_TYPES
 } ply_type_id_t;
 
-void
-ply_file__small_memcpy( uint8_t* dst, uint8_t* src, int32_t n_bytes )
-{
-  for( int i = 0; i < n_bytes; ++i )
-  {
-    dst[i] = src[i];
-  }
-}
 
-void 
+PLY_INLINE void 
 ply_file__swap_bytes(uint8_t* buffer, int32_t type_size, int32_t count)
 {  
   for( int32_t i = 0; i < count; ++i )
   {
     int32_t offset = i * type_size;  
-    for( int32_t j = 0; j < type_size / 2; ++j )
+    for( int32_t j = 0; j < type_size >> 1; ++j )
     {
-      uint8_t temp = buffer[offset + j];
+      int32_t temp = buffer[offset + j];
       buffer[offset + j] = buffer[offset + type_size - 1 - j];
       buffer[offset + type_size - 1 - j] = temp;
     }
@@ -212,7 +215,7 @@ ply_file__swap_bytes(uint8_t* buffer, int32_t type_size, int32_t count)
 
 static char* ply_type_str[PLY_N_TYPES] = {"%s","%c","%uc","%s","%us","%d","%ud","%f","%g"};
 
-ply_element_t*
+PLY_INLINE ply_element_t*
 ply_file_find_element( const ply_file_t* pf, const char* element_name )
 {
   ply_element_t* el = NULL;
@@ -227,7 +230,7 @@ ply_file_find_element( const ply_file_t* pf, const char* element_name )
   return el;
 }
 
-ply_property_t*
+PLY_INLINE ply_property_t*
 ply_file_find_property( const ply_element_t* el, const char* property_name)
 {
   ply_property_t* pr = NULL;
@@ -239,7 +242,7 @@ ply_file_find_property( const ply_element_t* el, const char* property_name)
   return pr;
 }
 
-int
+PLY_INLINE int
 ply_file__get_data_as_int( void* data, int type, int8_t swap_endianness )
 {
   int retval = 0;
@@ -281,7 +284,8 @@ ply_file__get_data_as_int( void* data, int type, int8_t swap_endianness )
 }
 
 
-int ply_file__type_to_byte_size( ply_type_id_t type )
+PLY_INLINE int 
+ply_file__type_to_byte_size( ply_type_id_t type )
 {
   int retval = 0;
   switch( type )
@@ -299,7 +303,7 @@ int ply_file__type_to_byte_size( ply_type_id_t type )
   return retval;
 }
 
-void
+PLY_INLINE void
 ply_file__property_type_to_string( ply_type_id_t type, char** string )
 {
   switch( type )
@@ -316,8 +320,7 @@ ply_file__property_type_to_string( ply_type_id_t type, char** string )
   }
 }
 
-
-void
+PLY_INLINE void
 ply_file__string_to_property_type(char* type_str, int* pr_type, int16_t* pr_size)
 {
   if      (!strcmp("int8",    type_str) || !strcmp("char",   type_str)) {*pr_type=PLY_INT8;   *pr_size=1;} 
@@ -330,7 +333,6 @@ ply_file__string_to_property_type(char* type_str, int* pr_type, int16_t* pr_size
   else if (!strcmp("float64", type_str) || !strcmp("double", type_str)) {*pr_type=PLY_DOUBLE; *pr_size=8;} 
   else { *pr_type = PLY_INVALID; *pr_size = 0;}
 }
-
 
 int
 ply_file__parse_ply_cmd(char* line, ply_file_t* pf)
@@ -631,7 +633,7 @@ ply_file_get_element_size(const ply_element_t *el, uint64_t* size)
   memcpy((void*)(D), (void*)&n, sizeof(T)); \
   (D)+=sizeof(T);}
 
-void 
+PLY_INLINE void 
 ply_file__ascii_to_value( char** dst, char* src, const int type )
 {
   switch(type)
@@ -648,7 +650,7 @@ ply_file__ascii_to_value( char** dst, char* src, const int type )
 }
 
 int
-ply_file__get_element_data_ascii(ply_file_t* pf, const ply_element_t* el, void** storage)
+ply_file__get_element_data_ascii(ply_file_t* pf, const ply_element_t* el, void** storage, int64_t storage_size)
 {
   int err_code = PLY_NO_ERRORS;
 
@@ -708,28 +710,26 @@ ply_file__get_element_data_ascii(ply_file_t* pf, const ply_element_t* el, void**
 
 int
 ply_file__get_element_data_binary(ply_file_t* pf, const ply_element_t* el, 
-                                 void** storage)
+                                 void** storage, int64_t storage_size )
 {
   int err_code = PLY_NO_ERRORS;
- 
-  // get the size
-  int size = 0;
-  for(int i= 0; i<msh_array_size(el->properties); ++i)
-  {
-    size += el->properties[i].total_byte_size;
-  }
+  // double st1 = msh_get_time(MSHT_MILLISECONDS); 
   fseek(pf->_fp, el->file_anchor, SEEK_SET);
-  if( fread(*storage, size, 1, pf->_fp ) != 1) { return PLY_PARSE_ERROR;}
+  // double st2 = msh_get_time(MSHT_MILLISECONDS);
 
+  // double rt1 = msh_get_time(MSHT_MILLISECONDS);
+  if( fread(*storage, storage_size, 1, pf->_fp ) != 1 ) { return PLY_PARSE_ERROR;}
+  // double rt2 = msh_get_time(MSHT_MILLISECONDS);
+  // printf("   Sys. time: %f %f %lld\n", st2-st1, rt2-rt1, storage_size);
   return err_code;
 }
 
-int
-ply_file_get_element_data(ply_file_t* pf, const ply_element_t* el, void** storage)
+PLY_INLINE int
+ply_file_get_element_data(ply_file_t* pf, const ply_element_t* el, void** storage, int64_t storage_size)
 {
   int err_code = PLY_NO_ERRORS;
-  if(pf->format==PLY_ASCII)  err_code = ply_file__get_element_data_ascii(pf, el, storage);
-  else                       err_code = ply_file__get_element_data_binary(pf, el, storage);
+  if(pf->format == PLY_ASCII)  err_code = ply_file__get_element_data_ascii(pf, el, storage, storage_size);
+  else                         err_code = ply_file__get_element_data_binary(pf, el, storage, storage_size);
 
   return err_code;
 }
@@ -785,8 +785,174 @@ ply_file_get_properties_byte_size( ply_element_t* el,
   return PLY_NO_ERRORS;
 }
 
+PLY_INLINE void
+ply_file__data_assign(void* dst, void* src, int32_t type, int32_t count)
+{
+  int32_t a = count / 3;
+  int32_t b = count % 3;
+  for (uint32_t c = 0; c < a; c+=3 )
+  {
+    switch( type )
+    {
+      case PLY_UINT8:
+        *((uint8_t*)(dst)) = *((uint8_t*)(src)); 
+        *((uint8_t*)(dst)+1) = *((uint8_t*)(src)+1); 
+        *((uint8_t*)(dst)+2) = *((uint8_t*)(src)+2); 
+        break;
+      case PLY_UINT16:
+        *((uint16_t*)(dst)) = *((uint16_t*)(src)); 
+        *((uint16_t*)(dst)+1) = *((uint16_t*)(src)+1); 
+        *((uint16_t*)(dst)+2) = *((uint16_t*)(src)+2); 
+        break;
+      case PLY_UINT32:
+        *((uint32_t*)(dst)) = *((uint32_t*)(src)); 
+        *((uint32_t*)(dst)+1) = *((uint32_t*)(src)+1); 
+        *((uint32_t*)(dst)+2) = *((uint32_t*)(src)+2); 
+        break;
+      case PLY_INT8:
+        *((int8_t*)(dst)) = *((int8_t*)(src)); 
+        *((int8_t*)(dst)+1) = *((int8_t*)(src)+1); 
+        *((int8_t*)(dst)+2) = *((int8_t*)(src)+2); 
+        break;
+      case PLY_INT16:
+        *((int16_t*)(dst)) = *((int16_t*)(src)); 
+        *((int16_t*)(dst)+1) = *((int16_t*)(src)+1); 
+        *((int16_t*)(dst)+2) = *((int16_t*)(src)+2); 
+        break;
+      case PLY_INT32:
+        *((int32_t*)(dst)) = *((int32_t*)(src)); 
+        *((int32_t*)(dst)+1) = *((int32_t*)(src)+1); 
+        *((int32_t*)(dst)+2) = *((int32_t*)(src)+2); 
+        break;
+      case PLY_FLOAT:
+        *((float*)(dst)) = *((float*)(src)); 
+        *((float*)(dst)+1) = *((float*)(src)+1); 
+        *((float*)(dst)+2) = *((float*)(src)+2); 
+        break;
+      case PLY_DOUBLE:
+        *((double*)(dst)) = *((double*)(src)); 
+        *((double*)(dst)+1) = *((double*)(src)+1); 
+        *((double*)(dst)+2) = *((double*)(src)+2); 
+        break;
+      default:
+        break;
+    }
+  }
+  for (uint32_t c = 0; c < b; ++c )
+  {
+    switch( type )
+    {
+      case PLY_UINT8:
+        *((uint8_t*)(dst)+c) = *((uint8_t*)(src)+c); 
+        break;
+      case PLY_UINT16:
+        *((uint16_t*)(dst)+c) = *((uint16_t*)(src)+c); 
+        break;
+      case PLY_UINT32:
+        *((uint32_t*)(dst)+c) = *((uint32_t*)(src)+c); 
+        break;
+      case PLY_INT8:
+        *((int8_t*)(dst)+c) = *((int8_t*)(src)+c); 
+        break;
+      case PLY_INT16:
+        *((int16_t*)(dst)+c) = *((int16_t*)(src)+c); 
+        break;
+      case PLY_INT32:
+        *((int32_t*)(dst)+c) = *((int32_t*)(src)+c); 
+        break;
+      case PLY_FLOAT:
+        *((float*)(dst)+c) = *((float*)(src)+c); 
+        break;
+      case PLY_DOUBLE:
+        *((double*)(dst)+c) = *((double*)(src)+c); 
+        break;
+      default:
+        break;
+    }
+  }
+}
 
-// row size is super important
+PLY_INLINE void
+ply_file__data_assign_cast(void* dst, void* src, int32_t type_dst, int32_t type_src, int32_t count)
+{
+  union Data {
+    uint8_t as_uint8;
+    uint16_t as_uint16;
+    uint32_t as_uint32;
+    int8_t as_int8;
+    int16_t as_int16;
+    int32_t as_int32;
+    float as_float;
+    double as_double;
+  } data;
+
+  for (uint32_t c = 0; c < count; ++c )
+  {
+    switch( type_src )
+    {
+      // intermediate store
+      case PLY_UINT8:
+        data.as_uint8 = *((uint8_t*)(src)+c); 
+        break;
+      case PLY_UINT16:
+        data.as_uint16 = *((uint16_t*)(src)+c); 
+        break;
+      case PLY_UINT32:
+        data.as_uint32 = *((uint32_t*)(src)+c); 
+        break;
+      case PLY_INT8:
+        data.as_int8 = *((int8_t*)(src)+c); 
+        break;
+      case PLY_INT16:
+        data.as_int16 = *((int16_t*)(src)+c); 
+        break;
+      case PLY_INT32:
+        data.as_int32 = *((int32_t*)(src)+c); 
+        break;
+      case PLY_FLOAT:
+        data.as_float = *((float*)(src)+c); 
+        break;
+      case PLY_DOUBLE:
+        data.as_double = *((double*)(src)+c); 
+        break;
+      default:
+        break;
+    }
+
+    // write
+    switch( type_dst )
+    {
+      case PLY_UINT8:
+        *((uint8_t*)(dst)+c) = data.as_uint8; 
+        break;
+      case PLY_UINT16:
+        *((uint16_t*)(dst)+c) = data.as_uint16; 
+        break;
+      case PLY_UINT32:
+        *((uint32_t*)(dst)+c) = data.as_uint32; 
+        break;
+      case PLY_INT8:
+        *((int8_t*)(dst)+c) = data.as_int8; 
+        break;
+      case PLY_INT16:
+        *((int16_t*)(dst)+c) = data.as_int16; 
+        break;
+      case PLY_INT32:
+        *((int32_t*)(dst)+c) = data.as_int32; 
+        break;
+      case PLY_FLOAT:
+        *((float*)(dst)+c) = data.as_float; 
+        break;
+      case PLY_DOUBLE:
+        *((double*)(dst)+c) = data.as_double; 
+        break;
+      default:
+        break;
+    }
+  }
+}
+
+
 int
 ply_file_get_property_from_element(ply_file_t* pf, const char* element_name, 
                                    const char** property_names, int num_requested_properties, 
@@ -794,7 +960,6 @@ ply_file_get_property_from_element(ply_file_t* pf, const char* element_name,
                                    void** data, void** list_data, int32_t *data_count )
 {
   // TODO(maciej): Errors!
-
   int8_t swap_endianness = pf->format != PLY_ASCII ? (pf->_system_format != pf->format) : 0;
   int32_t num_properties = -1;
   ply_element_t* el = ply_file_find_element(pf, element_name);
@@ -802,6 +967,7 @@ ply_file_get_property_from_element(ply_file_t* pf, const char* element_name,
   if( !el ) { return PLY_ELEMENT_NOT_FOUND_ERR; }
   else
   {
+    // double pt1 = msh_get_time(MSHT_MILLISECONDS);
     num_properties = msh_array_size(el->properties);
     if( el->data == NULL )
     {
@@ -821,19 +987,22 @@ ply_file_get_property_from_element(ply_file_t* pf, const char* element_name,
           if( pr->list_type != PLY_INVALID ) { can_simply_copy = 0;}
         }
       }
-      // printf("CAN COPY: %d\n", can_simply_copy);
       // can_simply_copy = 0;
       if( can_simply_copy )
       {
         ply_file_get_element_size( el, &el->data_size);
         *data_count = el->count;
         *data = malloc(el->data_size);
-        ply_file_get_element_data( pf, el, &*data); 
+        ply_file_get_element_data( pf, el, &*data, el->data_size); 
         return PLY_NO_ERRORS;
       }
+      
       ply_file_get_element_size( el, &el->data_size);
       el->data = malloc(el->data_size);
-      ply_file_get_element_data( pf, el, &el->data); 
+      // double dt1 = msh_get_time(MSHT_MILLISECONDS);
+      ply_file_get_element_data( pf, el, &el->data, el->data_size); 
+      // double dt2 = msh_get_time(MSHT_MILLISECONDS);
+      // printf("Data time: %fs\n", dt2-dt1);
     }
     
     // Initialize output
@@ -872,7 +1041,7 @@ ply_file_get_property_from_element(ply_file_t* pf, const char* element_name,
         if( !strcmp(pr->name, property_names[j]) ) 
         {
           requested_property[i] = 1;
-          if( pr->type != need_cast ) need_cast = 1;
+          if( pr->type != requested_type ) need_cast = 1;
           if( pr->list_type != PLY_INVALID &&
               pr->list_type != requested_list_type ) need_cast_list = 1;
         }
@@ -914,38 +1083,11 @@ ply_file_get_property_from_element(ply_file_t* pf, const char* element_name,
 
         precalc_src_row_size += pr->list_byte_size + pr->stride;
       }
-
-      // Group requested properties
-      // for(int i = 0; i < num_properties; ++i)
-      // {
-      //   ply_property_t* pr = &el->properties[i];
-
-      //   for(int j = 0; j < num_requested_properties; ++j)
-      //   {
-      //     if( !strcmp(pr->name, property_names[j]) ) 
-      //     {
-      //       int k = i;
-      //       ++k; ++j;
-      //       while( k < num_properties && 
-      //              j < num_requested_properties &&
-      //              !strcmp( el->properties[k].name, property_names[j] ) )
-      //       {
-      //         pr->list_count += el->properties[k].list_count;
-      //         pr->stride += el->properties[k].stride;
-      //         requested_property[k] = 0;
-      //         ++k; ++j;
-      //       }
-      //       i = k;
-      //     }
-      //   }
-      // }
-
-      for( int i = 0 ; i < num_properties; ++i )
-      {
-        printf("%d %d %d\n", el->properties[i].list_count, requested_property[i], el->properties[i].stride);
-      }
     }
-  
+    // double pt2 = msh_get_time(MSHT_MILLISECONDS);
+    // printf("Prep time: %g\n", pt2 - pt1);
+
+    // double rt1 = msh_get_time(MSHT_MILLISECONDS);
     // Start copying
     for(int i = 0; i < el->count; ++i)
     {
@@ -992,98 +1134,22 @@ ply_file_get_property_from_element(ply_file_t* pf, const char* element_name,
         if( requested_property[j] )
         {
           ply_property_t* pr = &el->properties[j];
-          //TODO(maciej) - replace these with casting functions
           if( dst_data )
           {
             void* dst_ptr = (dst_data + dst_offset);
             void* src_ptr = (src + pr->offset);
-            // memcpy( dst_ptr, src + pr->offset, pr->stride );
-            // TODO(maciej): Instead of invoking memcopy do casting here
-            union Data {
-              uint8_t as_uint8;
-              uint16_t as_uint16;
-              uint32_t as_uint32;
-              int8_t as_int8;
-              int16_t as_int16;
-              int32_t as_int32;
-              float as_float;
-              double as_double;
-            } data;
-
-            // TODO(maciej): Check if need to cast.
-            for( int c = 0; c < pr->list_count; ++c) 
-            { 
-              switch( pr->type )
-              {
-                // intermediate store
-                case PLY_UINT8:
-                  data.as_uint8 = *((uint8_t*)(src_ptr)+c); 
-                  break;
-                case PLY_UINT16:
-                  data.as_uint16 = *((uint16_t*)(src_ptr)+c); 
-                  break;
-                case PLY_UINT32:
-                  data.as_uint32 = *((uint32_t*)(src_ptr)+c); 
-                  break;
-                case PLY_INT8:
-                  data.as_int8 = *((int8_t*)(src_ptr)+c); 
-                  break;
-                case PLY_INT16:
-                  data.as_int16 = *((int16_t*)(src_ptr)+c); 
-                  break;
-                case PLY_INT32:
-                  data.as_int32 = *((int32_t*)(src_ptr)+c); 
-                  break;
-                case PLY_FLOAT:
-                  data.as_float = *((float*)(src_ptr)+c); 
-                  break;
-                case PLY_DOUBLE:
-                  data.as_double = *((double*)(src_ptr)+c); 
-                  break;
-                default:
-                  break;
-              }
-              // write
-              switch( pr->type )
-              {
-                case PLY_UINT8:
-                  *((uint8_t*)(dst_ptr)+c) = data.as_uint8; 
-                  break;
-                case PLY_UINT16:
-                  *((uint16_t*)(dst_ptr)+c) = data.as_uint16; 
-                  break;
-                case PLY_UINT32:
-                  *((uint32_t*)(dst_ptr)+c) = data.as_uint32; 
-                  break;
-                case PLY_INT8:
-                  *((int8_t*)(dst_ptr)+c) = data.as_int8; 
-                  break;
-                case PLY_INT16:
-                  *((int16_t*)(dst_ptr)+c) = data.as_int16; 
-                  break;
-                case PLY_INT32:
-                  *((int32_t*)(dst_ptr)+c) = data.as_int32; 
-                  break;
-                case PLY_FLOAT:
-                  *((float*)(dst_ptr)+c) = data.as_float; 
-                  break;
-                case PLY_DOUBLE:
-                  *((double*)(dst_ptr)+c) = data.as_double; 
-                  break;
-                default:
-                  break;
-              }
-            }
-            if( swap_endianness ) // possibly make another function for swap endianness 
-            { 
-              ply_file__swap_bytes( (uint8_t*)dst_ptr, requested_byte_size, pr->list_count );
-            }
+            if( need_cast) ply_file__data_assign_cast( dst_ptr, src_ptr, requested_type, pr->type, pr->list_count );
+            else           ply_file__data_assign( dst_ptr, src_ptr, pr->type, pr->list_count );
+            if( swap_endianness ) ply_file__swap_bytes( (uint8_t*)dst_ptr, requested_byte_size, pr->list_count );
             dst_offset += pr->stride; // Would need to make per property to enable swizzle
           }
+          
           if( dst_list )
           {
             void* dst_ptr = (dst_list + dst_list_offset);
-            memcpy( dst_ptr, src + pr->list_offset, pr->list_byte_size );
+            void* src_ptr = (src + pr->list_offset);
+            if( need_cast_list )  ply_file__data_assign_cast( dst_ptr, src_ptr, requested_list_type , pr->list_type, 1 );
+            else                  ply_file__data_assign( dst_ptr, src_ptr, pr->list_type, 1 );
             if( swap_endianness ) ply_file__swap_bytes( (uint8_t*)dst_ptr, pr->list_byte_size, 1 );
             dst_list_offset += pr->list_byte_size;
           }
@@ -1093,10 +1159,15 @@ ply_file_get_property_from_element(ply_file_t* pf, const char* element_name,
       if(dst_data) dst_data += dst_row_size;
       if(dst_list) dst_list += dst_list_row_size;
     }
+    // double rt2 = msh_get_time(MSHT_MILLISECONDS);
+    // printf("Read time: %g\n", rt2 - rt1);
   }
+
 
   return PLY_NO_ERRORS;
 }
+
+
 
 // ENCODER
 
@@ -1464,6 +1535,7 @@ ply_file_open(const char* filename, const char* mode)
   if( mode[0] != 'r' && mode[0] != 'w' ) return NULL;
   FILE* fp = fopen(filename, mode);
   
+  
   if( fp )
   {
     pf                 = (ply_file_t*)malloc(sizeof(ply_file_t));
@@ -1474,6 +1546,7 @@ ply_file_open(const char* filename, const char* mode)
     pf->cur_element    = 0;
     pf->_hints         = 0;
     pf->_fp            = fp;
+  
     // endianness check
     int n = 1;
     if(*(char *)&n == 1) { pf->_system_format = PLY_LITTLE_ENDIAN; }

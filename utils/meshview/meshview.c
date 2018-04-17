@@ -8,9 +8,9 @@ TODOs
   [ ] Load a mesh with vertex normals and see how it looks
   [ ] Speed up the normal calculation with enkiTS
 [ ] Move viewport rather than resizing model
-[ ] Stutter issue
-  [ ] Check tearing.c
-  [ ] Update glfw
+[x] Stutter issue
+  [x] Check tearing.c
+  [x] Update glfw
 */
 
 /*------------------------------------------------------------------------------
@@ -379,7 +379,7 @@ int main( int argc, char** argv ) {
           }
       },
       .shader = shd,
-      .index_type = SG_INDEXTYPE_UINT16,
+      .index_type = SG_INDEXTYPE_UINT32,
       .depth_stencil = {
           .depth_compare_func = SG_COMPAREFUNC_LESS_EQUAL,
           .depth_write_enabled = true
