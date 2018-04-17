@@ -36,11 +36,12 @@ TODOs:
     [x] VCG Ply https://github.com/cnr-isti-vclab/vcglib/tree/master/wrap/ply
 
 [ ] Casting
+    [ ] Add list property support
+    [ ] Make casting optional - only applied if needed.
     [ ] Rebenchmark lucy
     [ ] Benchmark different data layouts
-[ ] Write viewer
-[ ] Getting raw data
-[ ] Benchmark writing
+[x] Write viewer
+[ ] Getting raw data for list property - different function.
 [ ] Encoder/decorder split
 [ ] Error reporting
 [ ] Revise errors
@@ -998,34 +999,76 @@ ply_file_get_property_from_element(ply_file_t* pf, const char* element_name,
             void* src_ptr = (src + pr->offset);
             // memcpy( dst_ptr, src + pr->offset, pr->stride );
             // TODO(maciej): Instead of invoking memcopy do casting here
-            
+            union Data {
+              uint8_t as_uint8;
+              uint16_t as_uint16;
+              uint32_t as_uint32;
+              int8_t as_int8;
+              int16_t as_int16;
+              int32_t as_int32;
+              float as_float;
+              double as_double;
+            } data;
+
+            // TODO(maciej): Check if need to cast.
             for( int c = 0; c < pr->list_count; ++c) 
             { 
               switch( pr->type )
               {
+                // intermediate store
                 case PLY_UINT8:
-                  *((uint8_t*)(dst_ptr)+c) = *((uint8_t*)(src_ptr)+c); 
+                  data.as_uint8 = *((uint8_t*)(src_ptr)+c); 
                   break;
                 case PLY_UINT16:
-                  *((uint16_t*)(dst_ptr)+c) = *((uint16_t*)(src_ptr)+c); 
+                  data.as_uint16 = *((uint16_t*)(src_ptr)+c); 
                   break;
                 case PLY_UINT32:
-                  *((uint32_t*)(dst_ptr)+c) = *((uint32_t*)(src_ptr)+c); 
+                  data.as_uint32 = *((uint32_t*)(src_ptr)+c); 
                   break;
                 case PLY_INT8:
-                  *((int8_t*)(dst_ptr)+c) = *((int8_t*)(src_ptr)+c); 
+                  data.as_int8 = *((int8_t*)(src_ptr)+c); 
                   break;
                 case PLY_INT16:
-                  *((int16_t*)(dst_ptr)+c) = *((int16_t*)(src_ptr)+c); 
+                  data.as_int16 = *((int16_t*)(src_ptr)+c); 
                   break;
                 case PLY_INT32:
-                  *((int32_t*)(dst_ptr)+c) = *((int32_t*)(src_ptr)+c); 
+                  data.as_int32 = *((int32_t*)(src_ptr)+c); 
                   break;
                 case PLY_FLOAT:
-                  *((float*)(dst_ptr)+c) = *((float*)(src_ptr)+c); 
+                  data.as_float = *((float*)(src_ptr)+c); 
                   break;
                 case PLY_DOUBLE:
-                  *((double*)(dst_ptr)+c) = *((double*)(src_ptr)+c); 
+                  data.as_double = *((double*)(src_ptr)+c); 
+                  break;
+                default:
+                  break;
+              }
+              // write
+              switch( pr->type )
+              {
+                case PLY_UINT8:
+                  *((uint8_t*)(dst_ptr)+c) = data.as_uint8; 
+                  break;
+                case PLY_UINT16:
+                  *((uint16_t*)(dst_ptr)+c) = data.as_uint16; 
+                  break;
+                case PLY_UINT32:
+                  *((uint32_t*)(dst_ptr)+c) = data.as_uint32; 
+                  break;
+                case PLY_INT8:
+                  *((int8_t*)(dst_ptr)+c) = data.as_int8; 
+                  break;
+                case PLY_INT16:
+                  *((int16_t*)(dst_ptr)+c) = data.as_int16; 
+                  break;
+                case PLY_INT32:
+                  *((int32_t*)(dst_ptr)+c) = data.as_int32; 
+                  break;
+                case PLY_FLOAT:
+                  *((float*)(dst_ptr)+c) = data.as_float; 
+                  break;
+                case PLY_DOUBLE:
+                  *((double*)(dst_ptr)+c) = data.as_double; 
                   break;
                 default:
                   break;

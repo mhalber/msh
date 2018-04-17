@@ -1,10 +1,16 @@
+
 /*
 TODOs
-[ ] Fix speckles
+[x] Fix speckles
     [x] Clamping
-    [ ] Better vertex normal calculation - weight by area etc.
+    [x] Better vertex normal calculation - weight by area etc.
+[ ] Normal calculation
+  [ ] Load a mesh with vertex normals and see how it looks
+  [ ] Speed up the normal calculation with enkiTS
 [ ] Move viewport rather than resizing model
-[ ] Speed up the normal calculation with enkiTS
+[ ] Stutter issue
+  [ ] Check tearing.c
+  [ ] Update glfw
 */
 
 /*------------------------------------------------------------------------------
@@ -244,9 +250,6 @@ trimesh_calculate_normals( trimesh_t* tm )
     for( int i = 0; i < tm->n_vertices; ++i ) { tm->normals[i] = msh_vec3_zeros(); }
   }
 
-  // msh_array(int32_t) valence = {0};
-  // for( int i = 0; i < tm->n_vertices; ++i ) { msh_array_push(valence, 0); }
-  
   for( int i = 0 ; i < tm->n_faces; ++i )
   {
     msh_vec3_t p0 = tm->positions[tm->faces[i].i0];
@@ -256,15 +259,11 @@ trimesh_calculate_normals( trimesh_t* tm )
     msh_vec3_t v0 = msh_vec3_sub(p2, p0);
     msh_vec3_t v1 = msh_vec3_sub(p1, p0);
 
-    msh_vec3_t normal = msh_vec3_normalize( msh_vec3_cross(v0, v1) );
+    msh_vec3_t normal = msh_vec3_cross(v0, v1);
     
     tm->normals[tm->faces[i].i0] = msh_vec3_add(tm->normals[tm->faces[i].i0], normal);
     tm->normals[tm->faces[i].i1] = msh_vec3_add(tm->normals[tm->faces[i].i1], normal);
     tm->normals[tm->faces[i].i2] = msh_vec3_add(tm->normals[tm->faces[i].i2], normal);
-
-    // valence[tm->faces[i].i0]++;
-    // valence[tm->faces[i].i1]++;
-    // valence[tm->faces[i].i2]++;
   }
 
   for( int i = 0; i < tm->n_vertices; ++i ) { tm->normals[i] = msh_vec3_normalize(tm->normals[i]); }
@@ -282,9 +281,9 @@ int main( int argc, char** argv ) {
 
   /* create GLFW window and initialize GL */
   glfwInit();
-  glfwWindowHint(GLFW_SAMPLES, 4);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+  glfwWindowHint(GLFW_SAMPLES, 1);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   GLFWwindow* w = glfwCreateWindow(opts.width, opts.height, "MeshView", 0, 0);
@@ -293,7 +292,7 @@ int main( int argc, char** argv ) {
   glfwSetScrollCallback( w, mouse_scroll_callback );
   glfwSetKeyCallback( w, keyboard_callback );
   gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
-
+  glfwSwapInterval(1);
   /* read in and prep the mesh */
   trimesh_t mesh = {0};
   trimesh_read_ply( &mesh, opts.input_filename );
@@ -306,7 +305,7 @@ int main( int argc, char** argv ) {
   sg_setup(&desc);
   assert(sg_isvalid());
 
-/* cube vertex buffer */
+  /* cube vertex buffer */
   sg_buffer pbuf = sg_make_buffer(&(sg_buffer_desc){
     .size = mesh.n_vertices * sizeof(msh_vec3_t),
     .content = mesh.positions,
@@ -326,6 +325,7 @@ int main( int argc, char** argv ) {
   /* create shader */
   typedef struct params {
     msh_mat4_t mvp;
+    msh_mat4_t modelview;
     msh_vec3_t light_pos;
   } params_t;
 
@@ -334,29 +334,38 @@ int main( int argc, char** argv ) {
       .size = sizeof(params_t),
       .uniforms = {
         [0] = { .name="mvp", .type=SG_UNIFORMTYPE_MAT4 },
-        [1] = { .name="light_pos", .type=SG_UNIFORMTYPE_FLOAT3 }
+        [1] = { .name="modelview", .type=SG_UNIFORMTYPE_MAT4 },
+        [2] = { .name="light_pos", .type=SG_UNIFORMTYPE_FLOAT3 }
       },
     },
+
     .vs.source =
       "#version 330\n"
       "uniform mat4 mvp;\n"
-      "uniform vec3 light_pos;\n"
+      "uniform mat4 modelview;\n"
+      "uniform vec3 light_pos;"
       "layout(location = 0) in vec3 position;\n"
       "layout(location = 1) in vec3 normal;\n"
-      "out vec3 color;\n"
+      "out vec3 p;\n"
+      "out vec3 n;\n"
+      "out vec3 l;\n"
       "void main() {\n"
-      "  vec4 p = mvp * vec4(position, 1.0);\n"
-      "  vec4 n = mvp * vec4(normal, 0.0);\n"
-      "  float intensity = clamp(dot(-normalize(light_pos), vec3(normal)), 0.0, 1.0);\n"
-      "  color = vec3(intensity);\n"
-      "  gl_Position = p;\n"
-      "}\n",
+      "  p = vec3(modelview * vec4(position, 1.0));\n"
+      "  n = vec3(modelview * vec4(normal, 0.0));\n"
+      "  l = vec3(modelview * vec4(light_pos, 1.0));\n"
+      "  gl_Position = mvp * vec4(position, 1.0);\n"
+      "}\n",  
     .fs.source =
       "#version 330\n"
       "out vec4 frag_color;\n"
-      "in vec3 color;"
+      "in vec3 p;"
+      "in vec3 n;"
+      "in vec3 l;"
       "void main() {\n"
-      "  frag_color = vec4(color, 1.0);\n"
+      "  vec3 ld = normalize(p-l);\n"
+      "  float intensity = clamp(dot(n,ld), 0.0, 1.0);\n"
+      // "  frag_color = vec4(0.5*(n+1.0), 1.0);\n"
+      "  frag_color = vec4(vec3(intensity), 1.0);\n"
       "}\n"
   });
 
@@ -366,11 +375,11 @@ int main( int argc, char** argv ) {
       .layout = {
           .attrs = {
               [0] = { .name="position", .format=SG_VERTEXFORMAT_FLOAT3, .buffer_index = 0 },
-              [1] = { .name="normal", .format=SG_VERTEXFORMAT_FLOAT3, .buffer_index = 1 },
+              [1] = { .name="normal",   .format=SG_VERTEXFORMAT_FLOAT3, .buffer_index = 1 },
           }
       },
       .shader = shd,
-      .index_type = SG_INDEXTYPE_UINT32,
+      .index_type = SG_INDEXTYPE_UINT16,
       .depth_stencil = {
           .depth_compare_func = SG_COMPAREFUNC_LESS_EQUAL,
           .depth_write_enabled = true
@@ -400,8 +409,11 @@ int main( int argc, char** argv ) {
                     0.1, 100.0 );
 
   params_t vs_params;
+  float rx = 0.0f;
   while( !glfwWindowShouldClose(w) )
   {
+    glfwPollEvents();
+
     int cur_width, cur_height;
     glfwGetFramebufferSize(w, &cur_width, &cur_height);
     float aspect_ratio = (float)cur_width/(float)cur_height;
@@ -416,10 +428,11 @@ int main( int argc, char** argv ) {
       /* model-view-projection matrix for vertex shader */
     msh_mat4_t proj = msh_perspective(msh_deg2rad(60.0), aspect_ratio, 0.01f, 10.0f);
     msh_mat4_t view_proj = msh_mat4_mul(proj, camera.view);
-    msh_mat4_t model = msh_mat4_identity();
+    msh_mat4_t model = msh_rotate(msh_mat4_identity(), rx, msh_vec3(0.0f, 1.0f, 0.0f));
+    rx+=0.1;
     vs_params.mvp = msh_mat4_mul(view_proj, model);
+    vs_params.modelview = msh_mat4_mul(camera.view, model);
     vs_params.light_pos = msh_vec3(0.0f, 0.0f, 5.0f);
-
     sg_begin_default_pass(&pass_action, cur_width, cur_height);
     sg_apply_draw_state(&draw_state);
     sg_apply_uniform_block(SG_SHADERSTAGE_VS, 0, &vs_params, sizeof(vs_params));
@@ -428,9 +441,9 @@ int main( int argc, char** argv ) {
     sg_commit();
 
     glfwSwapBuffers(w);
-    glfwPollEvents();
   }
 
   sg_shutdown();
+  glfwDestroyWindow(w);
   glfwTerminate();
 }
