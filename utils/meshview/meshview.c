@@ -296,6 +296,10 @@ int main( int argc, char** argv ) {
   /* read in and prep the mesh */
   trimesh_t mesh = {0};
   trimesh_read_ply( &mesh, opts.input_filename );
+  for( int i = 0 ; i < mesh.n_vertices; ++i )
+  {
+    msh_vec3_print( mesh.positions[i] );
+  }
   msh_mat4_t center_scale = trimesh_calculate_normalizing_transform( &mesh );
   trimesh_apply_transform( &mesh, center_scale );
   trimesh_calculate_normals( &mesh );
