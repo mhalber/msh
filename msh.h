@@ -363,7 +363,8 @@ enum msh__time_units
   MSHT_NANOSECONDS
 };
 
-double msh_get_time(int unit);
+uint64_t msh_time_now();
+double msh_time_diff(int32_t unit, uint64_t new_time, uint64_t old_time);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // PCG-based random number generation 
@@ -547,12 +548,26 @@ msh_rand_range( msh_rand_ctx_t* pcg, int min, int max )
 // TIME
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // NOTE(maciej): This time measurement might actually be bad. Model it after sokol_time.h
+
+double msh_time_diff( int32_t unit, uint64_t new_time, uint64_t old_time )
+{
+  uint64_t diff = new_time - old_time;
+  switch(unit)
+  {
+    case MSHT_SECONDS:      return (double)(diff * 1e-9);
+    case MSHT_MILLISECONDS: return (double)(diff * 1e-6);
+    case MSHT_MICROSECONDS: return (double)(diff * 1e-3);
+    case MSHT_NANOSECONDS:  return (double)(diff);
+  }
+  return(double)diff;
+}
+
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 
 #include <windows.h>
 
-double msh_get_time(int unit)
+uint64_t msh_time_now()
 {
   static int first = 1;
   static LARGE_INTEGER freq;
@@ -560,56 +575,36 @@ double msh_get_time(int unit)
   
   QueryPerformanceCounter(&now);
   if(first) { first = 0; QueryPerformanceFrequency(&freq);}
-  // printf("%lld %lld %f\n", now.QuadPart, freq.QuadPart, (double)(now.QuadPart) / (double)freq.QuadPart);
-  switch(unit)
-  {
-    case MSHT_SECONDS:      return ((double)(now.QuadPart) / (double)freq.QuadPart);
-    case MSHT_MILLISECONDS: return ((double)(now.QuadPart * 1e+3) / (double)freq.QuadPart);
-    case MSHT_MICROSECONDS: return ((double)(now.QuadPart * 1e+6) / (double)freq.QuadPart);
-    case MSHT_NANOSECONDS:  return ((double)(now.QuadPart * 1e+9) / (double)freq.QuadPart);
-  }
-  return (double)((now.QuadPart) / freq.QuadPart);
+  return ((now.QuadPart * 1000000000) / freq.QuadPart);
 }
 #elif defined(__unix__)
 
 #include <time.h>
-double msh_get_time(int unit)
+uint64_t msh_time_now()
 {
   struct timespec now;
   clock_gettime( CLOCK_MONOTONIC, &now );
-  double nano_time = (((double)now.tv_sec * 1.0e+9) + (double)now.tv_nsec);
-  switch(unit)
-  {
-    case MSHT_SECONDS:      return (nano_time * 1e-9);
-    case MSHT_MILLISECONDS: return (nano_time * 1e-6);
-    case MSHT_MICROSECONDS: return (nano_time * 1e-3);
-    case MSHT_NANOSECONDS:  return nano_time;
-  }
+  double nano_time = ((now.tv_sec * 1000000000) + now.tv_nsec);
   return nano_time;
 }
 
 #elif defined(__APPLE__)
 
 #include <mach/mach_time.h>
-double msh_get_time(int unit)
+uint64_t msh_time_now()
 {
-  static double factor = -1.0;
+  static int first = 1;
+  static uint64_t factor = 0;
 
-  if(factor < 0.0)
+  if(first)
   {
     mach_timebase_info_data_t info;
     mach_timebase_info(&info);
-    factor = ((double)info.numer / (double)info.denom);
+    factor = (info.numer / info.denom);
+    first = 0;
   }
 
-  double nano_time = (double)mach_absolute_time() * factor; 
-  switch(unit)
-  {
-    case MSHT_SECONDS:      return (nano_time * 1e-9);
-    case MSHT_MILLISECONDS: return (nano_time * 1e-6);
-    case MSHT_MICROSECONDS: return (nano_time * 1e-3);
-    case MSHT_NANOSECONDS:  return nano_time;
-  }
+  uint64_t nano_time = mach_absolute_time() * factor; 
   return nano_time;
 }
 

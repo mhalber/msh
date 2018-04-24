@@ -175,6 +175,7 @@ typedef struct trimesh
 void 
 trimesh_read_ply( trimesh_t* tm, const char* filename )
 {
+  uint64_t t1 = msh_time_now();
   ply_file_t* pf = ply_file_open( filename, "rb");
   ply_hint_t indices_size_hint = {.property_name = "vertex_indices", 
                                   .expected_size = 3};
@@ -190,6 +191,23 @@ trimesh_read_ply( trimesh_t* tm, const char* filename )
                                        (void**)&tm->faces, NULL, &tm->n_faces);
   }
   ply_file_close(pf);
+  uint64_t t2 = msh_time_now();
+  printf("Time to read %f ms.\n", msh_time_diff( MSHT_MILLISECONDS, t2, t1));
+  t1 = msh_time_now();
+
+  pf = ply_file_open("../../../data/test.ply", "wb");
+  ply_file_add_hint(pf, indices_size_hint);
+  const char* positions_names[] = {"x", "y", "z"};
+  const char* face_names[] = {"vertex_indices"};
+  uint8_t* counts = malloc(sizeof(uint8_t) * tm->n_faces );
+  for( int i = 0; i < tm->n_faces; ++i ) { counts[i] = 3; }
+  printf("%d\n", tm->n_faces);
+  ply_file_add_property_to_element(pf, "vertex", positions_names, 3, PLY_FLOAT, PLY_INVALID, tm->positions, NULL, tm->n_vertices );
+  ply_file_add_property_to_element(pf, "face", face_names, 1, PLY_INT32, PLY_UINT8, tm->faces, counts, tm->n_faces );
+  ply_file_write(pf);
+  ply_file_close(pf);
+  t2 = msh_time_now();
+  printf("Time to write %f ms.\n", msh_time_diff( MSHT_MILLISECONDS, t2, t1));
 }
 
 // TODO(maciej): This should just be zero mean
@@ -296,10 +314,6 @@ int main( int argc, char** argv ) {
   /* read in and prep the mesh */
   trimesh_t mesh = {0};
   trimesh_read_ply( &mesh, opts.input_filename );
-  for( int i = 0 ; i < mesh.n_vertices; ++i )
-  {
-    msh_vec3_print( mesh.positions[i] );
-  }
   msh_mat4_t center_scale = trimesh_calculate_normalizing_transform( &mesh );
   trimesh_apply_transform( &mesh, center_scale );
   trimesh_calculate_normals( &mesh );
