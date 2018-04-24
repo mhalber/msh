@@ -15,12 +15,12 @@ MESHVIEW_SRCS = meshview.c
 MESHVIEW_OBJS = $(MESHVIEW_SRCS:%.c=$(OUT_DIR)%.o)
 
 # Compile and link options
-CC = gcc
+CC = g++
 ifeq ($(OS_NAME), CYGWIN_NT-10.0)
 CC = /bin/x86_64-w64-mingw32-gcc.exe
 endif
 WARNINGS = -Wall
-CFLAGS = -O3 -g0 -std=gnu11 -DNDEBUG -DMSH_NDEBUG -I/usr/local/include -I../../ -I$(EXTERN_DIR)  
+CFLAGS = -O3 -g0 -std=c++11 -DNDEBUG -DMSH_NDEBUG -I/usr/local/include -I../../ -I$(EXTERN_DIR)  
 
 # Libraries and Frameworks
 ifeq ($(OS_NAME), Darwin)

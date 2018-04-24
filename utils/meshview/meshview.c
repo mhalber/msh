@@ -177,7 +177,7 @@ trimesh_read_ply( trimesh_t* tm, const char* filename )
 {
   uint64_t t1 = msh_time_now();
   ply_file_t* pf = ply_file_open( filename, "rb");
-  ply_hint_t indices_size_hint = {.property_name = "vertex_indices", 
+  ply_hint_t indices_size_hint = {.property_name = (char*)"vertex_indices", 
                                   .expected_size = 3};
   ply_file_add_hint(pf, indices_size_hint);
   if( pf )
@@ -193,21 +193,22 @@ trimesh_read_ply( trimesh_t* tm, const char* filename )
   ply_file_close(pf);
   uint64_t t2 = msh_time_now();
   printf("Time to read %f ms.\n", msh_time_diff( MSHT_MILLISECONDS, t2, t1));
-  t1 = msh_time_now();
 
-  pf = ply_file_open("../../../data/test.ply", "wb");
-  ply_file_add_hint(pf, indices_size_hint);
+  ply_file_t* pf2 = ply_file_open("../../../data/test.ply", "wb");
+  ply_file_add_hint(pf2, indices_size_hint);
   const char* positions_names[] = {"x", "y", "z"};
   const char* face_names[] = {"vertex_indices"};
-  uint8_t* counts = malloc(sizeof(uint8_t) * tm->n_faces );
+  uint8_t* counts = (uint8_t*)malloc(sizeof(uint8_t) * tm->n_faces );
   for( int i = 0; i < tm->n_faces; ++i ) { counts[i] = 3; }
-  printf("%d\n", tm->n_faces);
-  ply_file_add_property_to_element(pf, "vertex", positions_names, 3, PLY_FLOAT, PLY_INVALID, tm->positions, NULL, tm->n_vertices );
-  ply_file_add_property_to_element(pf, "face", face_names, 1, PLY_INT32, PLY_UINT8, tm->faces, counts, tm->n_faces );
-  ply_file_write(pf);
-  ply_file_close(pf);
+  ply_file_add_property_to_element(pf2, "vertex", positions_names, 3, PLY_FLOAT, PLY_INVALID, tm->positions, NULL, tm->n_vertices );
+  ply_file_add_property_to_element(pf2, "face", face_names, 1, PLY_INT32, PLY_UINT8, tm->faces, counts, tm->n_faces );
+  t1 = msh_time_now();
+  ply_file_write(pf2);
   t2 = msh_time_now();
   printf("Time to write %f ms.\n", msh_time_diff( MSHT_MILLISECONDS, t2, t1));
+  ply_file_close(pf2);
+
+  exit(-1);
 }
 
 // TODO(maciej): This should just be zero mean
@@ -230,7 +231,7 @@ trimesh_calculate_normalizing_transform( const trimesh_t* tm )
   double sx = 1.0 / msh_abs(min_pt.x-max_pt.x);
   double sy = 1.0 / msh_abs(min_pt.y-max_pt.y);
   double sz = 1.0 / msh_abs(min_pt.z-max_pt.z);
-  double scale = msh_max3(sx, sy, sz);
+  float scale = msh_max3(sx, sy, sz);
 
   msh_mat4_t xform = msh_scale( msh_mat4_identity(), 
                                 msh_vec3(scale, scale, scale));
@@ -324,21 +325,24 @@ int main( int argc, char** argv ) {
   assert(sg_isvalid());
 
   /* cube vertex buffer */
-  sg_buffer pbuf = sg_make_buffer(&(sg_buffer_desc){
-    .size = mesh.n_vertices * sizeof(msh_vec3_t),
+  sg_buffer_desc pbuf_desc = (sg_buffer_desc){
+    .size = mesh.n_vertices * (int)sizeof(msh_vec3_t),
     .content = mesh.positions,
-  });
+  };
+  sg_buffer pbuf = sg_make_buffer( &pbuf_desc );
 
-  sg_buffer nbuf = sg_make_buffer(&(sg_buffer_desc){
-    .size = mesh.n_vertices * sizeof(msh_vec3_t),
+  sg_buffer_desc nbuf_desc = (sg_buffer_desc){
+    .size = mesh.n_vertices * (int)sizeof(msh_vec3_t),
     .content = mesh.normals,
-  });
+  };
+  sg_buffer nbuf = sg_make_buffer( &nbuf_desc );
 
-  sg_buffer ibuf = sg_make_buffer(&(sg_buffer_desc){
+  sg_buffer_desc ibuf_desc = (sg_buffer_desc){
     .type = SG_BUFFERTYPE_INDEXBUFFER,
-    .size = mesh.n_faces * sizeof(face_t),
-    .content = mesh.faces,
-  });
+    .size = mesh.n_faces * (int)sizeof(face_t),
+    .content = mesh.faces
+  };
+  sg_buffer ibuf = sg_make_buffer( &ibuf_desc );
 
   /* create shader */
   typedef struct params {
@@ -347,7 +351,7 @@ int main( int argc, char** argv ) {
     msh_vec3_t light_pos;
   } params_t;
 
-  sg_shader shd = sg_make_shader(&(sg_shader_desc){
+  sg_shader_desc shd_desc = (sg_shader_desc){
     .vs.uniform_blocks[0] = { 
       .size = sizeof(params_t),
       .uniforms = {
@@ -385,11 +389,12 @@ int main( int argc, char** argv ) {
       // "  frag_color = vec4(0.5*(n+1.0), 1.0);\n"
       "  frag_color = vec4(vec3(intensity), 1.0);\n"
       "}\n"
-  });
+  };
+  sg_shader shd = sg_make_shader( &shd_desc );
 
   // TODO(maciej): Figure out how to do the operation with stride
   /* create pipeline object */
-  sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
+  sg_pipeline_desc pipe_desc = (sg_pipeline_desc){
       .layout = {
           .attrs = {
               [0] = { .name="position", .format=SG_VERTEXFORMAT_FLOAT3, .buffer_index = 0 },
@@ -403,7 +408,8 @@ int main( int argc, char** argv ) {
           .depth_write_enabled = true
       },
       .rasterizer.cull_mode = SG_CULLMODE_FRONT
-  });
+  };
+  sg_pipeline pip = sg_make_pipeline(&pipe_desc);
 
   /* draw state struct with resource bindings */
   sg_draw_state draw_state = {
@@ -440,7 +446,7 @@ int main( int argc, char** argv ) {
                                 mouse.lmb_state,
                                 mouse.rmb_state,
                                 mouse.y_scroll_state,
-                                msh_vec4(0, 0, cur_width, cur_height));
+                                msh_vec4(0.0f, 0.0f, (float)cur_width, (float)cur_height));
     mouse_refresh( w ); 
 
       /* model-view-projection matrix for vertex shader */
