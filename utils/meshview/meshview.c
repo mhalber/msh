@@ -194,19 +194,28 @@ trimesh_read_ply( trimesh_t* tm, const char* filename )
   uint64_t t2 = msh_time_now();
   printf("Time to read %f ms.\n", msh_time_diff( MSHT_MILLISECONDS, t2, t1));
 
-  ply_file_t* pf2 = ply_file_open("../../../data/test.ply", "wb");
-  ply_file_add_hint(pf2, indices_size_hint);
-  const char* positions_names[] = {"x", "y", "z"};
-  const char* face_names[] = {"vertex_indices"};
-  uint8_t* counts = (uint8_t*)malloc(sizeof(uint8_t) * tm->n_faces );
-  for( int i = 0; i < tm->n_faces; ++i ) { counts[i] = 3; }
-  ply_file_add_property_to_element(pf2, "vertex", positions_names, 3, PLY_FLOAT, PLY_INVALID, tm->positions, NULL, tm->n_vertices );
-  ply_file_add_property_to_element(pf2, "face", face_names, 1, PLY_INT32, PLY_UINT8, tm->faces, counts, tm->n_faces );
-  t1 = msh_time_now();
-  ply_file_write(pf2);
-  t2 = msh_time_now();
-  printf("Time to write %f ms.\n", msh_time_diff( MSHT_MILLISECONDS, t2, t1));
-  ply_file_close(pf2);
+  // for( int32_t i = 0; i < 10; ++i )
+  // {
+  //   msh_vec3_print( tm->positions[i] );
+  // }
+
+  // for( int32_t i = 0; i < 10; ++i )
+  // {
+  //   printf("%d %d %d\n", tm->faces[i].i0, tm->faces[i].i1, tm->faces[i].i2 );
+  // }
+  // ply_file_t* pf2 = ply_file_open("../../../data/test.ply", "wb");
+  // ply_file_add_hint(pf2, indices_size_hint);
+  // const char* positions_names[] = {"x", "y", "z"};
+  // const char* face_names[] = {"vertex_indices"};
+  // uint8_t* counts = (uint8_t*)malloc(sizeof(uint8_t) * tm->n_faces );
+  // for( int i = 0; i < tm->n_faces; ++i ) { counts[i] = 3; }
+  // ply_file_add_property_to_element(pf2, "vertex", positions_names, 3, PLY_FLOAT, PLY_INVALID, tm->positions, NULL, tm->n_vertices );
+  // ply_file_add_property_to_element(pf2, "face", face_names, 1, PLY_INT32, PLY_UINT8, tm->faces, counts, tm->n_faces );
+  // t1 = msh_time_now();
+  // ply_file_write(pf2);
+  // t2 = msh_time_now();
+  // printf("Time to write %f ms.\n", msh_time_diff( MSHT_MILLISECONDS, t2, t1));
+  // ply_file_close(pf2);
 
   exit(-1);
 }

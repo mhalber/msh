@@ -48,7 +48,7 @@ TODOs:
 [x] Build in c++ mode
 [ ] Optimize 
   [ ] Profile lucy writing, why it is showing a big slowdown.
-  [ ] Add property reading in group (group_size variable)
+  [ ] Add property reading in group (requested_group_size variable)
   [x] Read data sequentially without prefetching large block.
   [x] Separate functions to read all datatypes?
   [x] Why is O2 faster than O3 - autovectorization I guess.
@@ -1057,7 +1057,7 @@ ply_file_get_property_from_element( ply_file_t* pf, const char* element_name,
           if( pr->list_type != PLY_INVALID ) { can_simply_copy = 0;}
         }
       }
-   
+      can_simply_copy = 0;
       if( can_simply_copy )
       {
         ply_file_get_element_size( el, &el->data_size);
@@ -1095,9 +1095,10 @@ ply_file_get_property_from_element( ply_file_t* pf, const char* element_name,
     }
     uint8_t* src = (uint8_t*)el->data;
 
-    // Mark which properties were requested
+    // Check if need to cast
     int need_cast = 0;
-    int8_t is_requested[PLY_FILE_MAX_REQ_PROPERTIES] = {0};
+    int8_t requested_group_size[PLY_FILE_MAX_REQ_PROPERTIES] = {0};
+
     for( int i = 0; i < num_properties; ++i )
     {
       ply_property_t* pr = &el->properties[i];
@@ -1106,7 +1107,6 @@ ply_file_get_property_from_element( ply_file_t* pf, const char* element_name,
       {
         if( !strcmp(pr->name, property_names[j]) ) 
         {
-          is_requested[i] = 1;
           if( pr->type != requested_type ) need_cast = 1;
           if( pr->list_type != PLY_INVALID &&
               pr->list_type != requested_list_type ) need_cast = 1;
@@ -1114,11 +1114,88 @@ ply_file_get_property_from_element( ply_file_t* pf, const char* element_name,
       }
     }
 
+    int32_t num_groups = 0;
+    for( int32_t i = 0; i < num_properties; ++i )
+    {
+      ply_property_t* pr = &el->properties[i];
+      for( int32_t j = 0; j < num_requested_properties; ++j )
+      {
+        int32_t k = j;
+        if( !strcmp(pr->name, property_names[j]) ) 
+        { 
+          num_groups++; 
+        }
+
+        while( !strcmp(pr->name, property_names[j]) )
+        {
+          requested_group_size[k]+=1;
+          j++;
+          i++;
+          if( i >= num_properties || j >= num_requested_properties ) break;
+          pr = &el->properties[i];
+        }
+      }
+    }
+
+
+    for( int32_t i = 0; i < num_properties; ++i )
+    {
+      ply_property_t* pr = &el->properties[i];
+      printf("%s %d | %d\n", pr->name, requested_group_size[i], num_groups);
+    }
+
     // TODO(maciej): Make into a struct?
     int32_t precalc_dst_row_size = 0;
     int32_t precalc_dst_list_row_size = 0;
     int32_t precalc_src_row_size = 0;
     int32_t precalc_dst_stride = 0;
+
+    int32_t can_precalculate = ply_file__can_precalculate_sizes(pf, el);
+    if( can_precalculate )
+    {
+      // Determine data row sizes
+      for( int32_t j = 0; j < num_properties; ++j )
+      {
+        ply_property_t* pr = &el->properties[j];
+        pr->list_count = 1;
+
+        if( pr->list_type != PLY_INVALID ) 
+        {
+          for( int32_t k=0; k<msh_array_size(pf->_hints); ++k)
+          {
+            if( !strcmp(pr->name, pf->_hints[k].property_name) ) 
+            { 
+              pr->list_count = pf->_hints[k].expected_size;
+            }
+          }
+        }
+        printf("List count: %d\n", pr->list_count);
+    
+        if( requested_group_size[j] )
+        {
+          if( pr->list_type == PLY_INVALID )
+          {
+            precalc_dst_stride = requested_group_size[j] * requested_byte_size;
+            printf(" STRIDE: %d\n", precalc_dst_stride);
+          }
+          else
+          {
+            precalc_dst_stride = pr->list_count * requested_byte_size;
+          }
+          precalc_dst_list_row_size += requested_list_byte_size;
+          precalc_dst_row_size += precalc_dst_stride;
+          pr->offset = precalc_src_row_size + pr->list_byte_size;
+          pr->list_offset = precalc_src_row_size;
+        }
+        printf("List count: %d\n", pr->list_count);
+        precalc_src_row_size += pr->list_byte_size + pr->list_count * pr->byte_size;
+      }
+    }
+  
+    printf( "%d\n", precalc_dst_row_size );
+    printf( "%d\n", precalc_dst_list_row_size );
+    printf( "%d\n", precalc_dst_stride );
+    printf( "%d\n", precalc_src_row_size );
 
     // Create separate list for just requested properties
     typedef struct ply_property_read_helper
@@ -1131,55 +1208,27 @@ ply_file_get_property_from_element( ply_file_t* pf, const char* element_name,
     } ply_property_read_helper_t;
     ply_property_read_helper_t requested_properties[PLY_FILE_MAX_REQ_PROPERTIES] = {{0}};
 
-    int can_precalculate = ply_file__can_precalculate_sizes(pf, el);
-    if( can_precalculate )
-    {
-      // Determine data row sizes
-      for( int j = 0; j < num_properties; ++j )
-      {
-        ply_property_t* pr = &el->properties[j];
-        pr->list_count = 1;
-
-        if( pr->list_type != PLY_INVALID ) 
-        {
-          for( int k=0; k<msh_array_size(pf->_hints); ++k)
-          {
-            if( !strcmp(pr->name, pf->_hints[k].property_name) ) 
-            { 
-              pr->list_count = pf->_hints[k].expected_size;
-            };
-          }
-        }
-        precalc_dst_stride = pr->list_count * requested_byte_size;
-
-        if( is_requested[j] )
-        {
-          precalc_dst_list_row_size += requested_list_byte_size;
-          precalc_dst_row_size += pr->list_count * requested_byte_size;
-          pr->offset = precalc_src_row_size + pr->list_byte_size;
-          pr->list_offset = precalc_src_row_size;
-        }
-
-        precalc_src_row_size += pr->list_byte_size + pr->list_count * pr->byte_size;
-      }
-    }
-  
-
-    int pr_count = 0;
-    for( int i = 0; i < num_properties; ++i )
+    int32_t pr_count = 0;
+    for( int32_t i = 0; i < num_properties; ++i )
     {
       ply_property_t *pr = &el->properties[i];
-      if( is_requested[i] )
+      if( requested_group_size[i] )
       {
         requested_properties[pr_count].offset = pr->offset; 
         requested_properties[pr_count].list_count = pr->list_count; 
         requested_properties[pr_count].list_offset = pr->list_offset; 
         requested_properties[pr_count].type = pr->type;
-        requested_properties[pr_count].list_type = pr->list_type; 
-        pr_count++;
+        requested_properties[pr_count].list_type = pr->list_type;
+        if( pr->list_type == PLY_INVALID )
+        {
+          requested_properties[pr_count].list_count  = requested_group_size[i];
+        }
+        pr_count += requested_group_size[i];
       }
     }
     assert(pr_count == num_requested_properties );
+
+
 
     // Start copying
     for( int i = 0; i < el->count; ++i )
@@ -1213,7 +1262,7 @@ ply_file_get_property_from_element( ply_file_t* pf, const char* element_name,
           }
           dst_stride = pr->list_count * requested_byte_size;
 
-          if( is_requested[j] )
+          if( requested_group_size[j] )
           {
             dst_list_row_size += requested_list_byte_size;
             dst_row_size += pr->list_count * requested_byte_size;
@@ -1232,12 +1281,11 @@ ply_file_get_property_from_element( ply_file_t* pf, const char* element_name,
       // TODO(maciej): Maybe make casting a separate function
       if( need_cast )
       {
-        for( int32_t j = 0; j < num_requested_properties; ++j )
+        for( int32_t j = 0; j < num_groups; ++j )
         {
           ply_property_read_helper_t* prh = &requested_properties[j];
           if( dst_data )
           {
-
             void* dst_ptr = (dst_data + dst_offset);
             void* src_ptr = (src + prh->offset);
             ply_file__data_assign_cast( dst_ptr, src_ptr, requested_type, prh->type, prh->list_count );
@@ -1257,7 +1305,7 @@ ply_file_get_property_from_element( ply_file_t* pf, const char* element_name,
       }
       else
       {
-        for( int32_t j = 0; j < num_requested_properties; ++j )
+        for( int32_t j = 0; j < num_groups; ++j )
         {
           ply_property_read_helper_t* prh = &requested_properties[j];
           if( dst_data )
@@ -1311,14 +1359,14 @@ ply_file__fprint_data_at_offset(const ply_file_t* pf, const void* data, const in
 {
   switch(type)
   {
-    case PLY_UINT8:  fprintf(pf->_fp,"%zd ", *(uint8_t*)(data)+offset); break;
-    case PLY_UINT16: fprintf(pf->_fp,"%zd ", *(uint16_t*)(data)+offset); break;
-    case PLY_UINT32: fprintf(pf->_fp,"%zd ", *(uint32_t*)(data)+offset); break;
-    case PLY_INT8:   fprintf(pf->_fp,"%d ",  *(int8_t*)(data)+offset); break;
-    case PLY_INT16:  fprintf(pf->_fp,"%d ",  *(int16_t*)(data)+offset); break;
-    case PLY_INT32:  fprintf(pf->_fp,"%d ",  *(int32_t*)(data)+offset); break;
-    case PLY_FLOAT:  fprintf(pf->_fp,"%f ",  *(float*)(data)+offset); break;
-    case PLY_DOUBLE: fprintf(pf->_fp,"%f ",  *(double*)(data)+offset); break;
+    case PLY_UINT8:  fprintf(pf->_fp,"%d ", *(uint8_t*)(data)+offset); break;
+    case PLY_UINT16: fprintf(pf->_fp,"%d ", *(uint16_t*)(data)+offset); break;
+    case PLY_UINT32: fprintf(pf->_fp,"%d ", *(uint32_t*)(data)+offset); break;
+    case PLY_INT8:   fprintf(pf->_fp,"%d ", *(int8_t*)(data)+offset); break;
+    case PLY_INT16:  fprintf(pf->_fp,"%d ", *(int16_t*)(data)+offset); break;
+    case PLY_INT32:  fprintf(pf->_fp,"%d ", *(int32_t*)(data)+offset); break;
+    case PLY_FLOAT:  fprintf(pf->_fp,"%f ", *(float*)(data)+offset); break;
+    case PLY_DOUBLE: fprintf(pf->_fp,"%f ", *(double*)(data)+offset); break;
   }
 }
 
