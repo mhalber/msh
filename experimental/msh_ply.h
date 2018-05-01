@@ -44,19 +44,19 @@ TODOs:
     [x] Allow for NULL count if hint is present
     [x] Add optimization for calculating stride if hint is present
     [x] Replace memcpy with assignment
-    [ ] Test encoder with more exotic meshes
+    [ ] Test encoder with more exotic meshes - copy tinyply example.
 [x] Build in c++ mode
 [ ] Optimize 
   [ ] Profile lucy writing, why it is showing a big slowdown.
-  [ ] Add property reading in group (requested_group_size variable)
+  [x] Add property reading in group (requested_group_size variable)
   [x] Read data sequentially without prefetching large block.
   [x] Separate functions to read all datatypes?
   [x] Why is O2 faster than O3 - autovectorization I guess.
   [-] What are the other 0.262 seconds
 
-[ ] Functions accepting descriptors like sokol
+[x] Functions accepting descriptors like sokol
   [ ] Scrap hint system, have it as a property in descriptor
-  [ ] Encoder/decorder split
+[ ] Encoder/decorder split
 [ ] Error reporting
 [ ] Extensive testing
 [ ] Getting raw data for list property - different function.
@@ -64,6 +64,7 @@ TODOs:
 [ ] Code cleanup
   [ ] Replace duplicated code
   [ ] Replace syscalls with redefineable macros
+  [ ] C++ support
 [ ] Fix the header names to be mply
 [ ] Enable swizzle
 
@@ -82,17 +83,6 @@ TODOs:
 #define PLY_INLINE __attribute__((unused, always_inline)) inline
 #endif
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// This ply library only provides set of functionalities to read/write your own specific ply file.
-// pf_file_t does not actually store any mesh data. You need to provide buffers to which such data
-// can be written.
-// This code assumes that your computer is little endian
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// All i am doing here is jumping through hoops if data is not interleaved.
-// Maybe I should assume it is, and if it is not, create separate interlevard buffers and write them...
-
-// Like the question I should be answering is what is the best data format for the ply
-// file to be writen / read easily. And then provide functions transforming to that format.
 #define PLY_FILE_MAX_STR_LEN 1024
 #define PLY_FILE_MAX_REQ_PROPERTIES 16
 #define PLY_FILE_MAX_PROPERTIES 128
@@ -175,6 +165,38 @@ typedef struct ply_file
   int _system_format;
   msh_array(ply_hint_t) _hints;
 } ply_file_t;
+
+// idea: make property_names a string and create dynamic arrays of tokens later.
+typedef struct ply_file_property_desc
+{
+  char* element_name;
+  const char** property_names;
+  int32_t num_requested_properties;
+  ply_type_id_t requested_type;
+  ply_type_id_t requested_list_type;
+  void* requested_data;
+  void* requested_list_data;
+  int32_t* requested_data_count;
+  int32_t size_hint;
+} ply_file_property_desc_t;
+
+int
+ply_file_get_property_from_element( ply_file_t* pf, ply_file_property_desc_t* desc );
+
+
+//////1//////////////////////////////////////////////////////////////////////////////////////////////
+// This ply library only provides set of functionalities to read/write your own specific ply file.
+// pf_file_t does not actually store any mesh data. You need to provide buffers to which such data
+// can be written.
+// This code assumes that your computer is little endian
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// All i am doing here is jumping through hoops if data is not interleaved.
+// Maybe I should assume it is, and if it is not, create separate interlevard buffers and write them...
+
+// Like the question I should be answering is what is the best data format for the ply
+// file to be writen / read easily. And then provide functions transforming to that format.
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Implementation
@@ -1024,10 +1046,11 @@ ply_file__data_assign_cast( void* dst, void* src, int32_t type_dst, int32_t type
 }
 
 int
-ply_file_get_property_from_element( ply_file_t* pf, const char* element_name, 
+ply_file__get_property_from_element_explicit( ply_file_t* pf, const char* element_name, 
                                     const char** property_names, int num_requested_properties, 
                                     ply_type_id_t requested_type, ply_type_id_t requested_list_type, 
-                                    void** data, void** list_data, int32_t *data_count )
+                                    void** data, void** list_data, int32_t *data_count,
+                                    int32_t size_hint )
 {
   // TODO(maciej): Errors!
   int8_t swap_endianness = pf->format != PLY_ASCII ? (pf->_system_format != pf->format) : 0;
@@ -1057,7 +1080,7 @@ ply_file_get_property_from_element( ply_file_t* pf, const char* element_name,
           if( pr->list_type != PLY_INVALID ) { can_simply_copy = 0;}
         }
       }
-      can_simply_copy = 0;
+
       if( can_simply_copy )
       {
         ply_file_get_element_size( el, &el->data_size);
@@ -1169,14 +1192,14 @@ ply_file_get_property_from_element( ply_file_t* pf, const char* element_name,
             }
           }
         }
-        printf("List count: %d\n", pr->list_count);
+        // printf("List count: %d\n", pr->list_count);
     
         if( requested_group_size[j] )
         {
           if( pr->list_type == PLY_INVALID )
           {
             precalc_dst_stride = requested_group_size[j] * requested_byte_size;
-            printf(" STRIDE: %d\n", precalc_dst_stride);
+            // printf(" STRIDE: %d\n", precalc_dst_stride);
           }
           else
           {
@@ -1187,15 +1210,15 @@ ply_file_get_property_from_element( ply_file_t* pf, const char* element_name,
           pr->offset = precalc_src_row_size + pr->list_byte_size;
           pr->list_offset = precalc_src_row_size;
         }
-        printf("List count: %d\n", pr->list_count);
+        // printf("List count: %d\n", pr->list_count);
         precalc_src_row_size += pr->list_byte_size + pr->list_count * pr->byte_size;
       }
     }
   
-    printf( "%d\n", precalc_dst_row_size );
-    printf( "%d\n", precalc_dst_list_row_size );
-    printf( "%d\n", precalc_dst_stride );
-    printf( "%d\n", precalc_src_row_size );
+    // printf( "%d\n", precalc_dst_row_size );
+    // printf( "%d\n", precalc_dst_list_row_size );
+    // printf( "%d\n", precalc_dst_stride );
+    // printf( "%d\n", precalc_src_row_size );
 
     // Create separate list for just requested properties
     typedef struct ply_property_read_helper
@@ -1338,6 +1361,17 @@ ply_file_get_property_from_element( ply_file_t* pf, const char* element_name,
   return PLY_NO_ERRORS;
 }
 
+int
+ply_file_get_property_from_element( ply_file_t* pf, ply_file_property_desc_t* desc )
+{
+  // TODO(maciej): Check for null ptrs etc.
+  // TODO(maciej): Tokenize the string from user into multiple strings.
+  return ply_file__get_property_from_element_explicit( pf, desc->element_name, 
+                                desc->property_names, desc->num_requested_properties, 
+                                desc->requested_type, desc->requested_list_type, 
+                                (void**)desc->requested_data, (void**)desc->requested_list_data, 
+                                desc->requested_data_count, desc->size_hint );
+}
 
 
 // ENCODER
