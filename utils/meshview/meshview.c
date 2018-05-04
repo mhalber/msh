@@ -193,8 +193,10 @@ trimesh_read_ply( trimesh_t* tm, const char* filename )
                                            .property_names = vertex_indices_names,
                                            .num_requested_properties = 1,
                                            .requested_type = PLY_INT32,
+                                           .requested_list_type = PLY_UINT8,
                                            .requested_data = &tm->faces,
-                                           .requested_data_count = &tm->n_faces };
+                                           .requested_data_count = &tm->n_faces,
+                                           .size_hint = 3 };
     ply_file_add_descriptor( pf, &vertex_desc );
     ply_file_add_descriptor( pf, &face_desc );
     ply_file_read(pf);
@@ -207,7 +209,7 @@ trimesh_read_ply( trimesh_t* tm, const char* filename )
   ply_file_close(pf);
   uint64_t t2 = msh_time_now();
   printf("Time to read %f ms.\n", msh_time_diff( MSHT_MILLISECONDS, t2, t1));
-
+  
   for( int32_t i = 0; i < 10; ++i )
   {
     msh_vec3_print( tm->positions[i] );

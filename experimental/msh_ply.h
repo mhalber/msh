@@ -1165,6 +1165,7 @@ ply_file__get_property_from_element( ply_file_t* pf, const char* element_name,
     int32_t precalc_dst_stride = 0;
 
     int32_t can_precalculate = ply_file__can_precalculate_sizes(pf, el);
+    printf("PRECALC : %d | NEED_CAST : %d\n", can_precalculate, need_cast);
     if( can_precalculate )
     {
       // Determine data row sizes
@@ -1183,7 +1184,7 @@ ply_file__get_property_from_element( ply_file_t* pf, const char* element_name,
         //     }
         //   }
         // }
-        // // printf("List count: %d\n", pr->list_count);
+        printf("List count: %d\n", pr->list_count);
     
         if( requested_group_size[j] )
         {
@@ -1814,10 +1815,9 @@ ply_file_read(ply_file_t* pf)
 
   error = ply_file_parse_header( pf );
   if( error ) { return error; }
-  error = ply_file_parse_contents( pf );
-  if( error ) { return error; }
-
   error = ply_file__synchronize_list_sizes( pf ); 
+  if( error ) { return error; }
+  error = ply_file_parse_contents( pf );
   if( error ) { return error; }
   
   for( int32_t i = 0; i < msh_array_size( pf->descriptors ); ++i )
