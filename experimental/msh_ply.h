@@ -1141,9 +1141,9 @@ ply_file__get_property_from_element_explicit( ply_file_t* pf, const char* elemen
     for( int32_t i = 0; i < num_properties; ++i )
     {
       ply_property_t* pr = &el->properties[i];
+      int32_t k = i;
       for( int32_t j = 0; j < num_requested_properties; ++j )
       {
-        int32_t k = j;
         if( !strcmp(pr->name, property_names[j]) ) 
         { 
           num_groups++; 
