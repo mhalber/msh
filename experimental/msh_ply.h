@@ -1777,7 +1777,11 @@ ply_file__synchronize_list_sizes( ply_file_t *pf )
         ply_property_t* pr = &el->properties[j];
         if( !strcmp( pr->name, desc->property_names[i] ) )
         {
-          if( pr->list_type != PLY_INVALID ) { pr->list_count = desc->size_hint; }
+          if( pr->list_type != PLY_INVALID ) 
+          { 
+            pr->list_count = desc->size_hint; 
+            if( desc->requested_list_data == NULL ) { desc->requested_list_type = pr->list_type; }
+          }
           else { pr->list_count = 1; desc->size_hint = 1; }
           found = 1;
           break;

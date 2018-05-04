@@ -180,7 +180,6 @@ trimesh_read_ply( trimesh_t* tm, const char* filename )
 
   if( pf )
   {
-    // ply_file_parse(pf);
     const char* positions_names[] = { "x", "y", "z" };
     const char* vertex_indices_names[] = { "vertex_indices" };
     ply_file_property_desc_t vertex_desc = { .element_name = "vertex",
@@ -193,32 +192,20 @@ trimesh_read_ply( trimesh_t* tm, const char* filename )
                                            .property_names = vertex_indices_names,
                                            .num_requested_properties = 1,
                                            .requested_type = PLY_INT32,
-                                           .requested_list_type = PLY_UINT8,
                                            .requested_data = &tm->faces,
                                            .requested_data_count = &tm->n_faces,
                                            .size_hint = 3 };
     ply_file_add_descriptor( pf, &vertex_desc );
     ply_file_add_descriptor( pf, &face_desc );
     ply_file_read(pf);
-    // ply_file_get_property_from_element( pf, &vertex_desc );
-    // ply_file_get_property_from_element( pf, &face_desc );
 
-    // printf("n_vertices %d\n", tm->n_vertices);
-    // printf("n_faces %d\n", tm->n_faces);
+    printf("n_vertices %d\n", tm->n_vertices);
+    printf("n_faces %d\n", tm->n_faces);
   }
   ply_file_close(pf);
   uint64_t t2 = msh_time_now();
   printf("Time to read %f ms.\n", msh_time_diff( MSHT_MILLISECONDS, t2, t1));
   
-  for( int32_t i = 0; i < 10; ++i )
-  {
-    msh_vec3_print( tm->positions[i] );
-  }
-
-  for( int32_t i = 0; i < 10; ++i )
-  {
-    printf("%d %d %d\n", tm->faces[i].i0, tm->faces[i].i1, tm->faces[i].i2 );
-  }
   // ply_file_t* pf2 = ply_file_open("../../../data/test.ply", "wb");
   // ply_file_add_hint(pf2, indices_size_hint);
   // const char* positions_names[] = {"x", "y", "z"};
