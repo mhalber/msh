@@ -96,11 +96,11 @@ extern "C" {
 #include <stdint.h>
 #endif
 
-#ifdef __APPLE__
-  #include <OpenGL/gl3.h>
-#else
+// #ifdef __APPLE__
+  // #include <OpenGL/gl3.h>
+// #else
   #include "glad/glad.h"
-#endif
+// #endif
 
 #define GLFW_INCLUDE_NONE
 #include "GLFW/glfw3.h"
