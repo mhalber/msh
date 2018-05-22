@@ -113,6 +113,11 @@ extern "C" {
 #define msh_global          static // Global variables
 #define msh_internal        static // Internal linkage
 
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
+  #define MSH_FILE_SEPARATOR '\\'
+#else
+  #define MSH_FILE_SEPARATOR '/'
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Maths & stats helpers
