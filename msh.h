@@ -300,11 +300,11 @@ typedef struct msh_array_header
 
 #define msh_array_push( a, v ) do \
 { \
-  if( !a || msh__array_header(a)->capacity < msh__array_header(a)->count + 1 )     \
+  if( !(a) || msh__array_header((a))->capacity < msh__array_header((a))->count + 1 )     \
   { \
-    msh__array_grow(a); \
+    msh__array_grow((a)); \
   }\
-  (a)[msh__array_header(a)->count++] = v; \
+  (a)[msh__array_header((a))->count++] = (v); \
 } while( 0 )
 
 #define msh_array_pop(a)   do\

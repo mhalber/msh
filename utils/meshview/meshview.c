@@ -177,24 +177,23 @@ trimesh_read_ply( trimesh_t* tm, const char* filename )
 {
   uint64_t t1 = msh_time_now();
   ply_file_t* pf = ply_file_open( filename, "rb");
-
   if( pf )
   {
     const char* positions_names[] = { "x", "y", "z" };
     const char* vertex_indices_names[] = { "vertex_indices" };
     ply_file_property_desc_t vertex_desc = { .element_name = "vertex",
                                              .property_names = positions_names,
-                                             .num_requested_properties = 3,
-                                             .requested_type = PLY_FLOAT,
-                                             .requested_data = &tm->positions,
-                                             .requested_data_count = &tm->n_vertices };
+                                             .num_properties = 3,
+                                             .data_type = PLY_FLOAT,
+                                             .data = &tm->positions,
+                                             .data_count = &tm->n_vertices };
     ply_file_property_desc_t face_desc = { .element_name = "face",
                                            .property_names = vertex_indices_names,
-                                           .num_requested_properties = 1,
-                                           .requested_type = PLY_INT32,
-                                           .requested_data = &tm->faces,
-                                           .requested_data_count = &tm->n_faces,
-                                           .size_hint = 3 };
+                                           .num_properties = 1,
+                                           .data_type = PLY_INT32,
+                                           .data = &tm->faces,
+                                           .data_count = &tm->n_faces,
+                                           .list_size_hint = 3 };
     ply_file_add_descriptor( pf, &vertex_desc );
     ply_file_add_descriptor( pf, &face_desc );
     ply_file_read(pf);
@@ -206,21 +205,30 @@ trimesh_read_ply( trimesh_t* tm, const char* filename )
   uint64_t t2 = msh_time_now();
   printf("Time to read %f ms.\n", msh_time_diff( MSHT_MILLISECONDS, t2, t1));
   
-  // ply_file_t* pf2 = ply_file_open("../../../data/test.ply", "wb");
-  // ply_file_add_hint(pf2, indices_size_hint);
-  // const char* positions_names[] = {"x", "y", "z"};
-  // const char* face_names[] = {"vertex_indices"};
-  // uint8_t* counts = (uint8_t*)malloc(sizeof(uint8_t) * tm->n_faces );
-  // for( int i = 0; i < tm->n_faces; ++i ) { counts[i] = 3; }
-  // ply_file_add_property_to_element(pf2, "vertex", positions_names, 3, PLY_FLOAT, PLY_INVALID, tm->positions, NULL, tm->n_vertices );
-  // ply_file_add_property_to_element(pf2, "face", face_names, 1, PLY_INT32, PLY_UINT8, tm->faces, counts, tm->n_faces );
-  // t1 = msh_time_now();
-  // ply_file_write(pf2);
-  // t2 = msh_time_now();
-  // printf("Time to write %f ms.\n", msh_time_diff( MSHT_MILLISECONDS, t2, t1));
-  // ply_file_close(pf2);
+  ply_file_t* pf2 = ply_file_open( "../../../data/test.ply", "wb"); //<- this just creates a context
+  if( pf2 )
+  {
+    const char* positions_names[] = { "x", "y", "z" };
+    const char* vertex_indices_names[] = { "vertex_indices" };
+    ply_file_property_desc_t vertex_desc = { .element_name = "vertex",
+                                             .property_names = positions_names,
+                                             .num_properties = 3,
+                                             .data_type = PLY_FLOAT,
+                                             .data = &tm->positions,
+                                             .data_count = &tm->n_vertices };
+    ply_file_property_desc_t face_desc = { .element_name = "face",
+                                           .property_names = vertex_indices_names,
+                                           .num_properties = 1,
+                                           .data_type = PLY_INT32,
+                                           .data = &tm->faces,
+                                           .data_count = &tm->n_faces,
+                                           .list_size_hint = 3 };
+    ply_file_add_descriptor( pf2, &vertex_desc );
+    ply_file_add_descriptor( pf2, &face_desc );
+    ply_file_write(pf2); // <- this has more parameters
 
-  // exit(-1);
+  }
+  ply_file_close(pf2);
 }
 
 // TODO(maciej): This should just be zero mean
