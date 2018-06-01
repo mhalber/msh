@@ -304,7 +304,7 @@ typedef struct msh_array_header
   { \
     msh__array_grow((a)); \
   }\
-  (a)[msh__array_header((a))->count++] = (v); \
+  (a)[msh__array_header((a))->count++] = v; \
 } while( 0 )
 
 #define msh_array_pop(a)   do\
