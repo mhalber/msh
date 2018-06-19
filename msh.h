@@ -1,7 +1,7 @@
 /*
   ==============================================================================
   
-  MSH_STB.H 
+  MSH_STD.H 
   
   A single header library for some standard library functionality, that is not
   present in C. This file is partially written by myself, but also includes a lot
@@ -10,7 +10,7 @@
   To use the library you simply add:
   
   #define MSH_IMPLEMENTATION
-  #include "msh_math.h"
+  #include "msh.h"
 
   The define should only include once in your source. If you need to include 
   library in multiple places, simply use the include:
@@ -41,7 +41,7 @@
   ==============================================================================
   TODOs:
   [x] Dynamic array (std::vector replacement)
-  [ ] Separate into header / implementation
+  [x] Separate into header / implementation
   [ ] Add switch flags
   [ ] Hashtable
   [x] Static keyword disentanglement
@@ -233,6 +233,7 @@ void msh__assert_handler( char const *condition, char const *file, int32_t line,
 // TODO(maciej): Prepare Better docs
 // TODO(maciej): Test efficiency against std::vector/regular arrays. Investigate what might be 
 //               causing the slowdown. 
+// TODO(maciej): Per Vognsen version is much smaller.
 
 // msh_array_init(a, n)     // <- Initialize array of size n with unitialized values
 // msh_array_grow(a, n)     // <- Grow array to size n
@@ -276,7 +277,6 @@ typedef struct msh_array_header
 
 #define msh_array_free(a) do                                                   \
 {                                                                              \
-  MSH_ASSERT( a!=NULL );                                                       \
   msh_array_header_t *msh__ah = msh__array_header(a);                          \
   free( msh__ah );                                                             \
   a = NULL;                                                                    \
@@ -332,6 +332,11 @@ typedef struct msh_array_header
 
 MSHDEF void* msh__array_reserve( void* array, int32_t capacity, int32_t item_size );
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Hashtable
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// TODO :)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // String and path manipulation

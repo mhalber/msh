@@ -452,10 +452,10 @@ ply_file_parse_header(ply_file_t* pf)
     line_no++;
     char cmd[PLY_FILE_MAX_STR_LEN];
     if(sscanf(line, "%s", cmd)!=(unsigned) 1) { return PLY_LINE_PARSE_ERR; }
-    if(line_no == 1 && strcmp(cmd,"ply") !=0 ) { return PLY_INVALID_FILE_ERR; }
     if(!strcmp(cmd,"end_header")) break;
     if(!strcmp(cmd,"comment")) continue;
     err_code = ply_file__parse_command(cmd, line, pf);
+    if( err_code ) break;
   }
   pf->_header_size = ftell(pf->_fp);
   return err_code;
@@ -1102,7 +1102,7 @@ ply_file__get_property_from_element( ply_file_t* pf, const char* element_name,
     for( int32_t i = 0; i < num_properties; ++i )
     {
       ply_property_t* pr = &el->properties[i];
-      printf("%s %d | %d\n", pr->name, requested_group_size[i], num_groups);
+      // printf("%s %d | %d\n", pr->name, requested_group_size[i], num_groups);
     }
 
     // TODO(maciej): Make into a struct?
@@ -1322,10 +1322,10 @@ ply_file__fprint_data_at_offset(const ply_file_t* pf, const void* data, const in
 // TODO(maciej): This function needs a rework, it is bit messy
 int32_t
 ply_file__add_property_to_element(ply_file_t* pf, const char* element_name, 
-                  const char** property_names, int32_t num_properties,
-                  const ply_type_id_t data_type, const ply_type_id_t list_type, 
-                  void* data, void* list_data, int32_t element_count, 
-                  int32_t size_hint )
+                                  const char** property_names, int32_t num_properties,
+                                  const ply_type_id_t data_type, const ply_type_id_t list_type, 
+                                  void* data, void* list_data, 
+                                  int32_t element_count, int32_t size_hint )
 {
   // Check if list type is integral type
   if( list_type == PLY_FLOAT || list_type == PLY_DOUBLE )
@@ -1382,7 +1382,7 @@ ply_file__add_property_to_element(ply_file_t* pf, const char* element_name,
           {
             pr.offset = init_offset;
             init_offset += list_count * pr.byte_size;
-            printf("Offset %lld\n", pr.offset);
+            // printf("Offset %lld\n", pr.offset);
           }
         }
       }
@@ -1408,7 +1408,7 @@ ply_file__add_property_to_element( ply_file_t* pf, const ply_file_property_desc_
   return ply_file__add_property_to_element( pf, desc->element_name, desc->property_names, 
                                             desc->num_properties, desc->data_type, desc->list_type,
                                             desc->data, desc->list_data,
-                                            desc->data_count, desc->list_size_hint);
+                                            *desc->data_count, desc->list_size_hint);
 }
 
 
@@ -1709,11 +1709,11 @@ ply_file__synchronize_list_sizes( ply_file_t *pf )
       if( !found ) { return PLY_REQUESTED_PROPERTY_IS_MISSING; }
     }
 
-    for( int32_t i = 0; i < msh_array_size( el->properties ); ++i )
-    {
-      printf("%s -> %d\n", el->properties[i].name, el->properties[i].list_count );
-    }
-    printf("\n");
+    // for( int32_t i = 0; i < msh_array_size( el->properties ); ++i )
+    // {
+    //   printf("%s -> %d\n", el->properties[i].name, el->properties[i].list_count );
+    // }
+    // printf("\n");
   }
 
   return PLY_NO_ERRORS;
