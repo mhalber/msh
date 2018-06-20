@@ -227,110 +227,78 @@ void msh__assert_handler( char const *condition, char const *file, int32_t line,
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Array
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// TODO(maciej): Test bug with m_back / last
-// TODO(maciej): Should these be changed to functions instead of macros?
+// NOTE(maciej): This implementation is a mix between a SeanBaretts stretchy buffers and Per Vogsnen
+//               ion implementation
+// TODO(maciej): Check PerVogsnen explanation on some of the implementations
 // TODO(maciej): Small array optimization
 // TODO(maciej): Prepare Better docs
 // TODO(maciej): Test efficiency against std::vector/regular arrays. Investigate what might be 
 //               causing the slowdown. 
-// TODO(maciej): Per Vognsen version is much smaller.
-
-// msh_array_init(a, n)     // <- Initialize array of size n with unitialized values
-// msh_array_grow(a, n)     // <- Grow array to size n
-// msh_array_push(a, v)     // <- Push value v onto array 
-// msh_array_pop(a)         // <- Pop value from array
-// msh_array_back(a)        // <- Access the last element
-// msh_array_count(a)       // <- Size of an array
-// msh_array_size(a)        // <- Size of an array
-// msh_array_capacity(a)    // <- Capacity of an array
-// msh_array_clear(a)       // <- Clear elements but leave array allocated
-// msh_array_free(a)        // <- Free memory
 
 typedef struct msh_array_header
 {
-  int32_t count;
-  int32_t capacity;
-} msh_array_header_t;
+  int32_t len;
+  int32_t cap;
+  char buf[];
+} msh_array_hdr_t;
 
 #define msh_array(T) T*
 
-#define MSH_ARRAY_GROW_FORMULA(x) ( 1.5*(x) + 2 )
+#define msh_array__grow_formula(x)    ((1.6180339887498948482*(x)))
+#define msh_array__hdr(a)             ((msh_array_hdr_t *)((char *)(a) - offsetof(msh_array_hdr_t, buf)))
 
-#define msh__array_header(a)     ((msh_array_header_t*)(a) - 1)
-#define msh_array_count(a)       ((a) ? msh__array_header(a)->count : 0)
-#define msh_array_size(a)        ((a) ? msh__array_header(a)->count : 0)
-#define msh_array_capacity(a)    ((a) ? msh__array_header(a)->capacity : 0)
-#define msh_array_empty(a)       ((a) ? (msh__array_header(a)->count <= 0) : 0)
-#define msh_array_front(a)       ((a) ? &a[0] : NULL)
-#define msh_array_back(a)        ((a) ? &a[((msh__array_header(a)->count) - 1)] : NULL)
+#define msh_array_len(a)              ((a) ? (msh_array__hdr((a))->len) : 0)
+#define msh_array_cap(a)              ((a) ? (msh_array__hdr((a))->cap) : 0)
+#define msh_array_sizeof(a)           ((a) ? (msh_array__hdr((a))->len * sizeof(*(a))) : 0)
+#define msh_array_isempty(a)          ((a) ? (msh_array__hdr((a))->len <= 0) : 1)
+#define msh_array_front(a)            ((a) ? (a) : NULL)
+#define msh_array_back(a)             ((a) ? ((a) + msh_array_len(a)) : NULL)
 
-#define msh_array_init(a, n) do                                                \
-{                                                                              \
-  MSH_ASSERT(a == NULL);                                                       \
-  msh_array_header_t *msh__ah =                                                \
-   (msh_array_header_t *)malloc(sizeof(msh_array_header_t) + sizeof(*(a)) * n);\
-  msh__ah->capacity = n;                                                       \
-  msh__ah->count = 0;                                                          \
-  void** msh__array = (void**)&(a);                                            \
-  (*msh__array) = (void*)(msh__ah+1);                                          \
-} while( 0 )
+#define msh_array_free(a)             ((a) ? (free(msh_array__hdr(a)), (a) = NULL) :0 )
+#define msh_array_fit(a, n)           ((n) <= msh_array_cap(a) ? (0) : ({ void** ta = (void**)&(a); (*ta) = msh_array__grow((a), (n), sizeof(*(a))); })) 
+#define msh_array_push(a, ...)        (msh_array_fit((a), 1 + msh_array_len(a)), (a)[msh_array__hdr(a)->len++] = (__VA_ARGS__))
+#define msh_array_pop(a)              ((a) ? (msh_array__hdr((a))->len--) : 0)
+#define msh_array_clear(a)            ((a) ? (msh_array__hdr((a))->len = 0) : 0)
 
-#define msh_array_free(a) do                                                   \
-{                                                                              \
-  msh_array_header_t *msh__ah = msh__array_header(a);                          \
-  free( msh__ah );                                                             \
-  a = NULL;                                                                    \
-} while( 0 )
+#define msh_array_cpy( dst, src, n )  (msh_array_fit( (dst), (n) ), memcpy( (void*)(dst), (void*)(src), (n) * sizeof(*(dst))))
 
-#define msh__array_grow(a) do                                                  \
-{                                                                              \
-  int32_t new_capacity=(int32_t)MSH_ARRAY_GROW_FORMULA(msh_array_capacity(a)); \
-  void** msh__array = (void**)&(a);                                            \
-  (*msh__array) = msh__array_reserve( (void*)a, new_capacity, sizeof(*(a)) );  \
-} while( 0 )
+void* 
+msh_array__grow(const void *array, int32_t new_len, int32_t elem_size) {
+  int32_t old_cap = msh_array_cap( array );
+  int32_t new_cap = (int32_t)msh_array__grow_formula( old_cap );
+  new_cap = (int32_t)msh_max( new_cap, msh_max(new_len, 16) );
+  assert(new_len <= new_cap);
+  int32_t new_size = offsetof(msh_array_hdr_t, buf) + new_cap * elem_size;
+  msh_array_hdr_t *new_hdr;
+  if( array ) {
+    new_hdr = (msh_array_hdr_t*)realloc( msh_array__hdr( array ), new_size );
+  } else {
+    new_hdr = (msh_array_hdr_t*)malloc( new_size );
+    new_hdr->len = 0;
+  }
+  new_hdr->cap = new_cap;
+  return new_hdr->buf;
+}
 
-#define msh_array_reserve( a, n ) do                                  \
-{                                                                     \
-  if( msh__array_header(a)->capacity < n )                            \
-  {                                                                   \
-  void** msh__array = (void**)&(a);                                   \
-  (*msh__array) = msh__array_reserve( (void*)a, n, sizeof(*(a)) );    \
-  }                                                                   \
-} while( 0 )
-
-#define msh_array_push( a, v ) do \
-{ \
-  if( !(a) || msh__array_header((a))->capacity < msh__array_header((a))->count + 1 )     \
-  { \
-    msh__array_grow((a)); \
-  }\
-  (a)[msh__array_header((a))->count++] = v; \
-} while( 0 )
-
-#define msh_array_pop(a)   do\
-{ \
-  MSH_ASSERT(a!=NULL); \
-  MSH_ASSERT(msh__array_header(a)->count > 0); \
-  msh__array_header(a)->count--; \
-} while (0)
-
-#define msh_array_clear(a) do \
-{\
-  msh__array_header(a)->count = 0; \
-} while (0)
-
-#define msh_array_copy( dest, src, n ) do \
-{ \
-  if( !dest || msh__array_header(dest)->capacity < n ) \
-  { \
-    void** msh__array = (void**)&(dest);                                \
-    (*msh__array) = msh__array_reserve( (void*)dest, n, sizeof(*(dest)) );   \
-  } \
-  memcpy( (void*)dest, (void*)src, n*sizeof(*(dest)) ); \
-  msh__array_header(dest)->count = n; \
-} while(0)
-
-MSHDEF void* msh__array_reserve( void* array, int32_t capacity, int32_t item_size );
+#define msh_array_sprintf(b, ...)     ((b) = msh_array__sprintf((b), __VA_ARGS__))
+char*
+msh_array__sprintf(char *buf, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  int32_t cap = msh_array_cap(buf) - msh_array_len(buf);
+  int32_t n = 1 + vsnprintf(msh_array_back(buf), cap, fmt, args);
+  va_end(args);
+  if (n > cap) {
+    msh_array_fit(buf, n + msh_array_len(buf));
+    va_start(args, fmt);
+    int32_t new_cap = msh_array_cap(buf) - msh_array_len(buf);
+    n = 1 + vsnprintf(msh_array_back(buf), new_cap, fmt, args);
+    assert(n <= new_cap);
+    va_end(args);
+  }
+  msh_array__hdr(buf)->len += n - 1;
+  return buf;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hashtable
@@ -419,29 +387,29 @@ int         msh_rand_range( msh_rand_ctx_t* pcg, int min, int max );
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // ARRAY
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-MSHDEF void*
-msh__array_reserve( void* array, int32_t capacity, int32_t item_size )
-{
-  MSH_ASSERT( item_size > 0 );
+// MSHDEF void*
+// msh__array_reserve( void* array, int32_t cap, int32_t item_size )
+// {
+//   MSH_ASSERT( item_size > 0 );
 
-  msh_array_header_t * ah = msh__array_header( array );
-  if( array && capacity == ah->capacity ) 
-  { 
-    return array;
-  }
+//   msh_array_hdr_t * ah = msh__array_header( array );
+//   if( array && cap == ah->cap ) 
+//   { 
+//     return array;
+//   }
 
-  int32_t prev_count = array ? ah->count : 0;
-  int32_t new_size = item_size * capacity + sizeof(msh_array_header_t);
-  void *p = (void*)realloc( (array ? ah : 0), new_size );
-  MSH_ASSERT(p);
+//   int32_t prev_count = array ? ah->len : 0;
+//   int32_t new_size = item_size * cap + sizeof(msh_array_hdr_t);
+//   void *p = (void*)realloc( (array ? ah : 0), new_size );
+//   MSH_ASSERT(p);
 
-  ah = (msh_array_header_t*)p;
-  ah->capacity = capacity;
-  ah->count    = prev_count;
-  if( ah->capacity < ah->count ) ah->count = ah->capacity;
+//   ah = (msh_array_hdr_t*)p;
+//   ah->cap = cap;
+//   ah->len    = prev_count;
+//   if( ah->cap < ah->len ) ah->len = ah->cap;
   
-  return (void*)(ah + 1);
-}
+//   return (void*)(ah + 1);
+// }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // ASSERT

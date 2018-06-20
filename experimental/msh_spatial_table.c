@@ -11,13 +11,12 @@
 
 
 // TODO: test SOA vs AOS -- no appreciable difference. Will need to benchmark this better.
-// TODO: Test with actual meshes.
-// TODO: Creation should aim at some set density of hash table, and then select cell size based on that.
-// TODO: Check what causes a slow down in terms of creating the table if cells are small
 // TODO: Add optional sorting
-// TODO: Allow searching over a number of pts.
+  // Sort will be easier wit AoS
+// TODO: Test with actual meshes.
 
-
+// TODO: Come up with a more thorough benchmarking strategy
+// TODO: Implement knn searches.
 
 
 typedef flann::Index<flann::L2_Simple<float>> flann_index_t;
@@ -46,7 +45,7 @@ typedef struct msh_spatial_table
   float _inv_cell_size;
 } msh_st_t;
 
-void msh_st_init( msh_st_t* st, const float* pts, const int n_pts, const float cell_size );
+void msh_st_init( msh_st_t* st, const float* pts, const int n_pts, const int density );
 void msh_st_term( msh_st_t* st );
 
 int
@@ -60,7 +59,7 @@ msh_st__bin_pt( const msh_st_t* st, v3_t pt )
 }
 
 void
-msh_st_init( msh_st_t* st, const float* pts, const int n_pts, const float cell_size )
+msh_st_init( msh_st_t* st, const float* pts, const int n_pts, const int density )
 {
   // build a bbox
   st->min_pt = (v3_t){ .x = 1e9, .y = 1e9, .z = 1e9 };
@@ -76,33 +75,23 @@ msh_st_init( msh_st_t* st, const float* pts, const int n_pts, const float cell_s
     st->max_pt.y = (st->max_pt.y < pt.y) ? pt.y : st->max_pt.y;
     st->max_pt.z = (st->max_pt.z < pt.z) ? pt.z : st->max_pt.z;
   }
-  // printf("  %f %f %f\n", st->min_pt.x, st->min_pt.y, st->min_pt.z );
-  // printf("  %f %f %f\n", st->max_pt.x, st->max_pt.y, st->max_pt.z );
-  // st->cell_size = cell_size;
-  // st->width     = (int)ceilf((float)(st->max_pt.x - st->min_pt.x) / st->cell_size);
-  // st->height    = (int)ceilf((float)(st->max_pt.y - st->min_pt.y) / st->cell_size);
-  // st->depth     = (int)ceilf((float)(st->max_pt.z - st->min_pt.z) / st->cell_size);
-  // printf("%f\n", st->max_pt.x - st->min_pt.x );
-  // printf("%d %d %d\n", st->width, st->height, st->depth );
 
-  // add padding
-  float eps = 0.001f;
-  st->min_pt.x -= (cell_size+eps);
-  st->min_pt.y -= (cell_size+eps);
-  st->min_pt.z -= (cell_size+eps);
-  st->max_pt.x += (cell_size+eps);
-  st->max_pt.y += (cell_size+eps);
-  st->max_pt.z += (cell_size+eps);
+  float dim_x = (st->max_pt.x - st->min_pt.x);
+  float dim_y = (st->max_pt.y - st->min_pt.y);
+  float dim_z = (st->max_pt.x - st->min_pt.z);
+  float dim = msh_max3( dim_x, dim_y, dim_z );
   
-  // printf("  %f %f %f\n", st->min_pt.x, st->min_pt.y, st->min_pt.z );
-  // printf("  %f %f %f\n", st->max_pt.x, st->max_pt.y, st->max_pt.z );
-
   // get with height and size
-  st->cell_size = cell_size;
+  st->cell_size = dim / density;
   st->width     = (int)ceilf((float)(st->max_pt.x - st->min_pt.x) / st->cell_size);
   st->height    = (int)ceilf((float)(st->max_pt.y - st->min_pt.y) / st->cell_size);
   st->depth     = (int)ceilf((float)(st->max_pt.z - st->min_pt.z) / st->cell_size);
-  
+
+  printf("  %f %f %f\n", st->min_pt.x, st->min_pt.y, st->min_pt.z );
+  printf("  %f %f %f\n", st->max_pt.x, st->max_pt.y, st->max_pt.z );
+  printf("  %f\n", st->cell_size );
+  printf("  %d %d %d\n", st->width, st->height, st->depth );
+
   st->_inv_cell_size = 1.0f / st->cell_size;
   st->_slab_size = st->height * st->width;
 
@@ -136,9 +125,12 @@ msh_st_init( msh_st_t* st, const float* pts, const int n_pts, const float cell_s
   
   // reorder the binned data into linear array for better cache friendliness
   int offset = 0;
+  int avg_n_pts = 0;
+  int valid_bins = 0;
   for( int i = 0; i < n_bins; ++i )
   {
     int n_bin_pts = st->binned_data[i].n_pts;
+    if( n_bin_pts ) { valid_bins++; avg_n_pts+=n_bin_pts; }
     for( int j = 0; j < n_bin_pts; ++j )
     {
       st->data[offset+j] = st->binned_data[i].pts[j];
@@ -151,6 +143,7 @@ msh_st_init( msh_st_t* st, const float* pts, const int n_pts, const float cell_s
       offset += n_bin_pts;
     }
   }
+  printf("AVG BIN: %f\n", (float)avg_n_pts/valid_bins);
 }
 
 
@@ -183,11 +176,21 @@ msh_st__find_neighbors_in_bin_flat( const msh_st_t* st, const uint32_t bin_idx, 
 }
 
 
+float *msh_st__dists;
+int dist_cmp (const void * a, const void * b) {
+   double diff = msh_st__dists[*(int*)a] - msh_st__dists[*(int*)b];
+  return  (0 < diff) - (diff < 0);
+}
+
+
 int
 msh_st_radius_search_flat( const msh_st_t* st, const float* query_pt, const float radius,
                       float* dists_sq, int* indices, int max_n_results )
 {
   v3_t pt = (v3_t){ .x = query_pt[0], .y = query_pt[1], .z = query_pt[2] };
+
+  // float* tmp_dists_sq = (float*)malloc(sizeof(float)*max_n_results);
+  // int* tmp_indices = (int*)malloc(sizeof(int)*max_n_results);
 
   // gather bins & number of points in them
   int ix = (int)( (pt.x - st->min_pt.x) * st->_inv_cell_size );
@@ -210,16 +213,20 @@ msh_st_radius_search_flat( const msh_st_t* st, const float* query_pt, const floa
   // printf("pt: %f %f %f | %f | (%d, %d) (%d, %d) (%d, %d)\n", pt.x, pt.y, pt.z, radius, onx, opx, ony, opy, onz, opz);
   int neigh_idx = 0;
   float radius_sq = radius * radius;
+  // int8_t o = radius * st->_inv_cell_size;
+  // for( int8_t oz = -o; oz <= o; ++oz )
   for( int8_t oz = onz; oz <= opz; ++oz )
   {
     uint32_t idx_z = (iz + oz) * st->_slab_size;
     if( iz + oz < 0) continue;
     if( iz + oz >= st->depth ) continue;
+    // for( int8_t oy = -o; oy <= o; ++oy )
     for( int8_t oy = ony; oy <= opy; ++oy )
     {
       uint32_t idx_y = (iy + oy) * st->width;
       if( iy + oy < 0) continue;
       if( iy + oy >= st->height ) continue;
+      // for( int8_t ox = -o; ox <= o; ++ox )
       for( int8_t ox = onx; ox <= opx; ++ox )
       { 
         // printf("%d %d %d\n", iz+oz, iy+oy, ix +oz);
@@ -231,7 +238,23 @@ msh_st_radius_search_flat( const msh_st_t* st, const float* query_pt, const floa
       }
     }
   }
-
+  
+  // NOTE(maciej): These allocs incur quite a penalty. I think I should just create custom sort function.
+  // int* search_ind = (int*)malloc( sizeof(int) * neigh_idx );
+  // for( int i = 0; i < neigh_idx; ++i )
+  // {
+  //   search_ind[i] = i;
+  // }
+  // msh_st__dists = tmp_dists_sq;
+  // qsort( search_ind, neigh_idx, sizeof(float), dist_cmp );
+  // for( int i = 0 ; i < neigh_idx; ++i )
+  // {
+  //   indices[i] = tmp_indices[ search_ind[i] ];
+  //   dists_sq[i] = tmp_dists_sq[ search_ind[i] ];
+  // }
+  // free( search_ind );
+  // free( tmp_indices );
+  // free( tmp_dists_sq );
   return neigh_idx;
 }
 
@@ -351,11 +374,10 @@ int main( int argc, char** argv )
   read_ply( argv[1], &pc );
   t2 = msh_time_now();
   printf("Reading ply file with %d pts took %fms.\n", pc.n_pts, msh_time_diff(MSHT_MILLISECONDS, t2, t1));
-  float cell_size = 0.01f; 
  
   msh_st_t spatial_table;
   t1 = msh_time_now();
-  msh_st_init( &spatial_table, (float*)&pc.pts[0], pc.n_pts, cell_size );
+  msh_st_init( &spatial_table, (float*)&pc.pts[0], pc.n_pts, 32 );
   t2 = msh_time_now();
   printf("Table creation: %fms.\n", msh_time_diff(MSHT_MILLISECONDS, t2, t1));
 
@@ -365,7 +387,6 @@ int main( int argc, char** argv )
   kdtree->buildIndex();
   t2 = msh_time_now();
   printf("KD-Tree creation: %fms.\n", msh_time_diff(MSHT_MILLISECONDS, t2, t1));
-
 
   int n_query_pts = 100;
   float* query_pts = (float*)malloc( n_query_pts * sizeof(float) * 3 );
@@ -384,7 +405,7 @@ int main( int argc, char** argv )
   // msh_st_knn_search_bin( &spatial_table, pt, k, dists, indices );
   // msh_st_knn_search_flat( &spatial_table, pt, k, dists, indices );
 
-  float radius = 0.02f;
+  float radius = 0.005f;
   float radius_sq = radius*radius;
   t1 = msh_time_now();
   int total_neigh_count = 0;
@@ -397,7 +418,14 @@ int main( int argc, char** argv )
     float* pt = &query_pts[3*i];
     neigh_count_a[i] = msh_st_radius_search_flat( &spatial_table, pt, radius, nn_dists, nn_inds, MAX_N_NEIGH );
     total_neigh_count += neigh_count_a[i];
-    
+    // for( int j = 0 ; j < neigh_count_a[i]; j++ )
+    // {
+    //   v3_t pt_a = (v3_t){ .x = pt[0], .y = pt[1], .z = pt[2] };
+    //   v3_t pt_b =  pc.pts[nn_inds[j]];
+    //   v3_t v = (v3_t){ .x = pt_a.x - pt_b.x, .y = pt_a.y -pt_b.y, .z = pt_a.z -pt_b.z };
+    //     double dist_sq = v.x * v.x + v.y * v.y + v.z * v.z;
+    //   printf("%d %f %f %d\n", j, sqrt(nn_dists[j]), sqrt(dist_sq), nn_inds[j] );
+    // }
   }
   t2 = msh_time_now();
   printf("Finding %d points using radius seach flat funct.: %fms.\n", total_neigh_count, 
