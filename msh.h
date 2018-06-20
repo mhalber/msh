@@ -226,14 +226,12 @@ void msh__assert_handler( char const *condition, char const *file, int32_t line,
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Array
+//
+// Credits
+//   Seat T. Barrett - idea of stretchy buffers (?)
+//   Per Vognsen - various improvements from his ion implementation
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// NOTE(maciej): This implementation is a mix between a SeanBaretts stretchy buffers and Per Vogsnen
-//               ion implementation
-// TODO(maciej): Check PerVogsnen explanation on some of the implementations
-// TODO(maciej): Small array optimization
-// TODO(maciej): Prepare Better docs
-// TODO(maciej): Test efficiency against std::vector/regular arrays. Investigate what might be 
-//               causing the slowdown. 
+// TODO(maciej): Prepare docs
 
 typedef struct msh_array_header
 {
