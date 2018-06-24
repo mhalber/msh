@@ -5,7 +5,7 @@
   
   A single header library for some standard library functionality, that is not
   present in C. This file is partially written by myself, but also includes a lot
-  of code copied/modified from other libraries. Please see credits for details.
+  of code copied / modified from other libraries. Please see credits for details.
 
   To use the library you simply add:
   
@@ -34,13 +34,16 @@
 
   CREDITS:
     Dynamic array based on                   stb.h      by Sean T. Barrett
+                                             common.h   by Per Vognsen
+    Hashtable based on                       common.h   by Per Vognsen
     Random number generation based on        rnd.h      by Mattias Gustavsson
     Time measurements based on               tinytime.h by Randy Gaul
     Assert handling based on                 gb.h       by Ginger Bill
-    
+
   ==============================================================================
   TODOs:
   [ ] Limits
+  [ ] Path manipulation
   [ ] Memory allocation
     [ ] Tracking memory allocs
     [ ] Alternative allocators
@@ -76,6 +79,7 @@ extern "C" {
 #include <string.h>
 #include <stdint.h>
 #include <stdarg.h>
+#include <stddef.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -87,11 +91,14 @@ extern "C" {
 
 #endif
 
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// Useful macros
+// Trying to overcome some c shortcomings.
+//
+// Credits
+//  Inline keywords from                      gb.h by Ginger Bill
+//  System and architecture detection from    gb.h by Ginger Bill
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-#define msh_count_of(x) ( ( MSH_SIZE_OF(x) / MSH_SIZE_OF( *x ) ) )
+#define msh_count_of(x) ( ( sizeof(x) / sizeof( *x ) ) )
 
 #ifdef MSH_STATIC
 #define MSHDEF static
@@ -103,78 +110,42 @@ extern "C" {
 #define msh_global          static // Global variables
 #define msh_internal        static // Internal linkage
 
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
-  #define MSH_FILE_SEPARATOR '\\'
-#else
-  #define MSH_FILE_SEPARATOR '/'
+#if !defined(__cplusplus)
+	#if defined(_MSC_VER) && _MSC_VER <= 1800
+	#define inline __inline
+	#elif !defined(__STDC_VERSION__)
+	#define inline __inline__
+	#else
+	#define inline 
+	#endif
 #endif
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Maths & stats helpers
-////////////////////////////////////////////////////////////////////////////////////////////////////
+#if defined(_WIN32) || defined(_WIN64)
+  #ifndef MSH_SYSTEM_WINDOWS
+  #define MSH_SYSTEM_WINDOWS 1
+  #endif
+#elif defined(__APPLE__) && defined(__MACH__)
+  #ifndef MSH_SYSTEM_OSX
+  #define MSH_SYSTEM_OSX 1
+  #endif
+#elif defined(__unix__)
+  #ifndef MSH_SYSTEM_UNIX
+  #define MSH_SYSTEM_UNIX 1
+  #endif
+#else
+  #error This operating system is not supported
+#endif
 
-#define MSH_PI          3.1415926535897932384626433832
-#define MSH_TWO_PI      6.2831853072
-#define MSH_INV_PI      0.3183098862
-#define MSH_PI_OVER_TWO 1.5707963268
+#if defined(_WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__64BIT__) || defined(__powerpc64__) || defined(__ppc64__)
+  #ifndef MSH_ARCH_64_BIT
+    #define MSH_ARCH_64_BIT 1
+  #endif
+#else
+  #ifndef MSH_ARCH_32_BIT
+    #define MSH_ARCH_32_BIT 1
+  #endif
+#endif
 
-#define msh_rad2deg(x) ((x) * 180.0 * MSH_INV_PI)
-#define msh_deg2rad(x) ((x) * 0.005555555556 * MSH_PI)
-#define msh_max(a, b) ((a) > (b) ? (a) : (b))
-#define msh_min(a, b) ((a) < (b) ? (a) : (b))
-#define msh_max3(a, b, c) msh_max(msh_max(a, b), c)
-#define msh_min3(a, b, c) msh_min(msh_min(a,b), c)
-#define msh_clamp(x, lower, upper) msh_min( msh_max((x), (lower)), (upper))
-#define msh_clamp01(x) msh_clamp((x), 0, 1)
-#define msh_within(x, lower, upper) ( ((x) >= (lower)) && ((x) <= (upper)) )
-#define msh_abs(x) ((x) < 0 ? -(x) : (x))
-
-static inline int    msh_sqi(int a)    { return a*a; }
-static inline float  msh_sqf(float a)  { return a*a; }
-static inline double msh_sqd(double a) { return a*a; }
-
-int32_t msh_accumulatei( const int32_t* vals, const int32_t n_vals );
-float msh_accumulatef( const float *vals, const int32_t n_vals );
-float msh_inner_product( const float *vals, const int n_vals );
-float msh_compute_mean( const float *vals, const int n_vals );
-float msh_compute_stddev( float mean, float *vals, int n_vals );
-float msh_gauss1d( float x, float mu, float sigma );
-void  msh_distrib2pdf( const float* dist, float* pdf, int n_vals );
-void  msh_pdf2cdf( const float* pdf, float* cdf, int n_vals );
-void  msh_invert_cdf( const float* cdf, float* invcdf, int n_vals);
-float msh_pdfsample( const float* pdf, float prob, int n_vals);
-float msh_gausspdf1d( float x, float mu, float sigma );
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Printing
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#define msh_cprintf(cond, fmt, ...) do {                      \
-    if(cond)                                                  \
-    {                                                         \
-      printf (fmt, ##__VA_ARGS__);                            \
-    }                                                         \
-  }                                                           \
-  while (0)
-
-#define msh_eprintf(fmt, ...) do {                            \
-    fprintf( stderr, fmt, ##__VA_ARGS__ );                    \
-  }                                                           \
-  while (0)
-#define msh_panic_eprintf(fmt, ...) do {                      \
-    fprintf( stderr, fmt, ##__VA_ARGS__ );                    \
-    exit( EXIT_FAILURE) ;                                     \
-  }                                                           \
-  while (0)
-#define msh_panic_ceprintf(cond, fmt, ...) do {               \
-    if(cond)                                                  \
-    {                                                         \
-      fprintf( stderr, fmt, ##__VA_ARGS__ );                  \
-      exit( EXIT_FAILURE );                                   \
-    }                                                         \
-  }                                                           \
-  while (0)
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -214,6 +185,42 @@ float msh_gausspdf1d( float x, float mu, float sigma );
 
 void msh__assert_handler( char const *condition, char const *file, int32_t line, char const *msg );
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Printing
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define msh_cprintf(cond, fmt, ...) do {                      \
+    if(cond)                                                  \
+    {                                                         \
+      printf (fmt, ##__VA_ARGS__);                            \
+    }                                                         \
+  }                                                           \
+  while (0)
+
+#define msh_eprintf(fmt, ...) do {                            \
+    fprintf( stderr, fmt, ##__VA_ARGS__ );                    \
+  }                                                           \
+  while (0)
+#define msh_panic_eprintf(fmt, ...) do {                      \
+    fprintf( stderr, fmt, ##__VA_ARGS__ );                    \
+    exit( EXIT_FAILURE) ;                                     \
+  }                                                           \
+  while (0)
+#define msh_panic_ceprintf(cond, fmt, ...) do {               \
+    if(cond)                                                  \
+    {                                                         \
+      fprintf( stderr, fmt, ##__VA_ARGS__ );                  \
+      exit( EXIT_FAILURE );                                   \
+    }                                                         \
+  }                                                           \
+  while (0)
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Memory
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Array
 //
@@ -222,7 +229,6 @@ void msh__assert_handler( char const *condition, char const *file, int32_t line,
 //   Per Vognsen - various improvements from his ion implementation
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // TODO(maciej): Prepare docs
-//
 
 typedef struct msh_array_header
 {
@@ -289,6 +295,12 @@ uint64_t* msh_map_get( msh_map_t* map, uint64_t key );
 // String and path manipulation
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
+  #define MSH_FILE_SEPARATOR '\\'
+#else
+  #define MSH_FILE_SEPARATOR '/'
+#endif
+
 char* msh_strdup( const char *src );
 
 // inline void
@@ -304,12 +316,12 @@ char* msh_strdup( const char *src );
 // inline void
 //
 
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // Time
 // 
 // Credits
 //   Based on Randy Gauls tinyheaders https://github.com/RandyGaul/tinyheaders
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 enum msh__time_units
 {
@@ -345,6 +357,75 @@ void        msh_rand_init( msh_rand_ctx_t* pcg, MSH_RND_U32 seed );
 MSH_RND_U32 msh_rand_next( msh_rand_ctx_t* pcg );
 float       msh_rand_nextf( msh_rand_ctx_t* pcg );
 int         msh_rand_range( msh_rand_ctx_t* pcg, int min, int max );
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Maths & stats helpers
+//
+// Credit:
+//    Limits from gb.h by Ginger Bill
+////////////////////////////////////////////////////////////////////////////////////////////////////
+#ifndef MSH_U8_MIN
+  #define MSH_U8_MIN 0u
+  #define MSH_U8_MAX 0xffu
+  #define MSH_I8_MIN (-0x7f - 1)
+  #define MSH_I8_MAX 0x7f
+
+  #define MSH_U16_MIN 0u
+  #define MSH_U16_MAX 0xffffu
+  #define MSH_I16_MIN (-0x7fff - 1)
+  #define MSH_I16_MAX 0x7fff
+
+  #define MSH_U32_MIN 0u
+  #define MSH_U32_MAX 0xffffffffu
+  #define MSH_I32_MIN (-0x7fffffff - 1)
+  #define MSH_I32_MAX 0x7fffffff
+
+  #define MSH_U64_MIN 0ull
+  #define MSH_U64_MAX 0xffffffffffffffffull
+  #define MSH_I64_MIN (-0x7fffffffffffffffll - 1)
+  #define MSH_I64_MAX 0x7fffffffffffffffll
+
+  #define MSH_F32_MIN 1.17549435e-38f
+  #define MSH_F32_MAX 3.40282347e+38f
+
+  #define MSH_F64_MIN 2.2250738585072014e-308
+  #define MSH_F64_MAX 1.7976931348623157e+308
+#endif
+
+#define MSH_PI          3.1415926535897932384626433832
+#define MSH_TWO_PI      6.2831853072
+#define MSH_INV_PI      0.3183098862
+#define MSH_PI_OVER_TWO 1.5707963268
+
+#define msh_rad2deg(x) ((x) * 180.0 * MSH_INV_PI)
+#define msh_deg2rad(x) ((x) * 0.005555555556 * MSH_PI)
+#define msh_max(a, b) ((a) > (b) ? (a) : (b))
+#define msh_min(a, b) ((a) < (b) ? (a) : (b))
+#define msh_max3(a, b, c) msh_max(msh_max(a, b), c)
+#define msh_min3(a, b, c) msh_min(msh_min(a,b), c)
+#define msh_clamp(x, lower, upper) msh_min( msh_max((x), (lower)), (upper))
+#define msh_clamp01(x) msh_clamp((x), 0, 1)
+#define msh_within(x, lower, upper) ( ((x) >= (lower)) && ((x) <= (upper)) )
+#define msh_abs(x) ((x) < 0 ? -(x) : (x))
+
+static inline int    msh_sqi(int a)    { return a*a; }
+static inline float  msh_sqf(float a)  { return a*a; }
+static inline double msh_sqd(double a) { return a*a; }
+
+int32_t msh_accumulatei( const int32_t* vals, const int32_t n_vals );
+float msh_accumulatef( const float *vals, const int32_t n_vals );
+float msh_inner_product( const float *vals, const int n_vals );
+float msh_compute_mean( const float *vals, const int n_vals );
+float msh_compute_stddev( float mean, float *vals, int n_vals );
+float msh_gauss1d( float x, float mu, float sigma );
+void  msh_distrib2pdf( const float* dist, float* pdf, int n_vals );
+void  msh_pdf2cdf( const float* pdf, float* cdf, int n_vals );
+void  msh_invert_cdf( const float* cdf, float* invcdf, int n_vals);
+float msh_pdfsample( const float* pdf, float prob, int n_vals);
+float msh_gausspdf1d( float x, float mu, float sigma );
+
+
+
 
 #ifdef __cplusplus
 }

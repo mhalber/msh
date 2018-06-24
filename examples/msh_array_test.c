@@ -3,8 +3,8 @@
 #define HASHTABLE_IMPLEMENTATION
 #include "msh.h"
 #include "hashtable/hashtable.h"
-#include <vector>
-#include <unordered_map>
+// #include <vector>
+// #include <unordered_map>
 
 ///-------------------------------------------------
 // STB hashtable
@@ -64,7 +64,7 @@ uint32 *hashFind(void *hash, uint32 key);
 uint32 *hashInsert(void *hash, uint32 key);
 int hashDelete(void *hash, uint32 key);
 int hashCount(void *hash);
-int hashMem(void *hash);
+inline int hashMem(void *hash);
 
 void *hashCreate(int size)
 {
@@ -214,7 +214,7 @@ int hashCount(void *hash)
    return h->population + h->has_key[KEY_NULL] + h->has_key[KEY_DELETED];
 }
 
-int hashMem(void *hash)
+inline int hashMem(void *hash)
 { 
     return sizeof(Hash) + sizeof(Item) * ((Hash *) hash)->data_len;
 }
@@ -265,17 +265,17 @@ main( int argc, char** argv )
     assert(buf_a[i] == i);
   }
 
-  std::vector<int> buf_b;
-  t1 = msh_time_now();
-  for( int i = 0; i < n; i++ )
-  {
-    buf_b.push_back(i);
-  }
-  t2 = msh_time_now();
-  printf("time to push %lu elements onto std::vector: %fus\n", buf_b.size(), msh_time_diff(MSHT_MICROSECONDS, t2, t1));
-  for (int32_t i = 0; i < buf_b.size(); i++) {
-    assert(buf_b[i] == i);
-  }
+  // std::vector<int> buf_b;
+  // t1 = msh_time_now();
+  // for( int i = 0; i < n; i++ )
+  // {
+  //   buf_b.push_back(i);
+  // }
+  // t2 = msh_time_now();
+  // printf("time to push %lu elements onto std::vector: %fus\n", buf_b.size(), msh_time_diff(MSHT_MICROSECONDS, t2, t1));
+  // for (int32_t i = 0; i < buf_b.size(); i++) {
+  //   assert(buf_b[i] == i);
+  // }
   ///===============================================================================================
   int m = pow(2, 19);
   uint64_t* keys = (uint64_t*)malloc(m*sizeof(uint64_t));
@@ -286,23 +286,23 @@ main( int argc, char** argv )
     vals[i] = rand() % m;
   }
 
-  std::unordered_map<uint64_t, uint64_t> std_map;
-  t1 = msh_time_now();
-  for( uint64_t i = 0; i < m; ++i )
-  {
-    std_map.insert( {keys[i], vals[i]} );
-  }
-  t2 = msh_time_now();
-  printf("time to insert %lu elements onto std::unordered_map: %fus\n", std_map.size(), msh_time_diff(MSHT_MICROSECONDS, t2, t1));
+  // std::unordered_map<uint64_t, uint64_t> std_map;
+  // t1 = msh_time_now();
+  // for( uint64_t i = 0; i < m; ++i )
+  // {
+  //   std_map.insert( {keys[i], vals[i]} );
+  // }
+  // t2 = msh_time_now();
+  // printf("time to insert %lu elements onto std::unordered_map: %fus\n", std_map.size(), msh_time_diff(MSHT_MICROSECONDS, t2, t1));
 
-  t1 = msh_time_now();
-  for( uint64_t i = 0; i < std_map.size(); ++i )
-  {
-    auto search = std_map.find( keys[i] );
-    assert( search->second == vals[i] );
-  }
-  t2 = msh_time_now();
-  printf("time to find  %lu elements in std::unordered_map: %fus\n", std_map.size(), msh_time_diff(MSHT_MICROSECONDS, t2, t1));
+  // t1 = msh_time_now();
+  // for( uint64_t i = 0; i < std_map.size(); ++i )
+  // {
+  //   auto search = std_map.find( keys[i] );
+  //   assert( search->second == vals[i] );
+  // }
+  // t2 = msh_time_now();
+  // printf("time to find  %lu elements in std::unordered_map: %fus\n", std_map.size(), msh_time_diff(MSHT_MICROSECONDS, t2, t1));
 
   //==================================
   msh_map_t map = {0};
