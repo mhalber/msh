@@ -3,8 +3,8 @@
   
   MSH_STD.H 
   
-  A single header library for some standard library functionality, that is not
-  present in C. This file is partially written by myself, but also includes a lot
+  A single header library for extending the C standard library.
+  This file is partially written by myself, but also includes a lot
   of code copied / modified from other libraries. Please see credits for details.
 
   To use the library you simply add:
@@ -42,7 +42,8 @@
 
   ==============================================================================
   TODOs:
-  [ ] Limits
+  [x] Limits
+  [ ] Static asserts
   [ ] Path manipulation
   [ ] Memory allocation
     [ ] Tracking memory allocs
@@ -83,6 +84,7 @@ extern "C" {
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <float.h>
 
 // system specific
 #ifdef __linux__ 
@@ -229,6 +231,7 @@ void msh__assert_handler( char const *condition, char const *file, int32_t line,
 //   Per Vognsen - various improvements from his ion implementation
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // TODO(maciej): Prepare docs
+// TODO(maciej): What about alignment?? http://pzemtsov.github.io/2016/11/06/bug-story-alignment-on-x86.html
 
 typedef struct msh_array_header
 {
@@ -257,7 +260,7 @@ void* msh_array_grow(const void *array, size_t new_len, size_t elem_size);
 #define msh_array_pop(a)              ((a) ? (msh_array__hdr((a))->len--) : 0)
 #define msh_array_clear(a)            ((a) ? (msh_array__hdr((a))->len = 0) : 0)
 
-#define msh_array_cpy( dst, src, n )  (msh_array_fit( (dst), (n) ), memcpy( (void*)(dst), (void*)(src), (n) * sizeof(*(dst))))
+#define msh_array_cpy( dst, src, n )  ( msh_array_fit( (dst), (n) ), msh_array__hdr((dst))->len = (n), memcpy( (void*)(dst), (void*)(src), (n) * sizeof(*(dst) )))
 #define msh_array_printf(b, ...)      ((b) = msh_array__printf((b), __VA_ARGS__))
 
 
@@ -405,7 +408,7 @@ int         msh_rand_range( msh_rand_ctx_t* pcg, int min, int max );
 #define msh_min3(a, b, c) msh_min(msh_min(a,b), c)
 #define msh_clamp(x, lower, upper) msh_min( msh_max((x), (lower)), (upper))
 #define msh_clamp01(x) msh_clamp((x), 0, 1)
-#define msh_within(x, lower, upper) ( ((x) >= (lower)) && ((x) <= (upper)) )
+#define msh_iswithin(x, lower, upper) ( ((x) >= (lower)) && ((x) <= (upper)) )
 #define msh_abs(x) ((x) < 0 ? -(x) : (x))
 
 static inline int    msh_sqi(int a)    { return a*a; }
