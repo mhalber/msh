@@ -252,11 +252,11 @@ void* msh_array_grow(const void *array, size_t new_len, size_t elem_size);
 #define msh_array_sizeof(a)           ((a) ? (msh_array__hdr((a))->len * sizeof(*(a))) : 0)
 #define msh_array_isempty(a)          ((a) ? (msh_array__hdr((a))->len <= 0) : 1)
 #define msh_array_front(a)            ((a) ? (a) : NULL)
-#define msh_array_back(a)             ((a) ? ((a) + msh_array_len(a)) : NULL)
+#define msh_array_back(a)             (msh_array_len((a)) ? ((a) + msh_array_len((a)) - 1 ) : NULL)
 
 #define msh_array_free(a)             ((a) ? (free(msh_array__hdr(a)), (a) = NULL) :0 )
 #define msh_array_fit(a, n)           ((n) <= msh_array_cap(a) ? (0) : ({ void** ta = (void**)&(a); (*ta) = msh_array_grow((a), (n), sizeof(*(a))); })) 
-#define msh_array_push(a, ...)        (msh_array_fit((a), 1 + msh_array_len(a)), (a)[msh_array__hdr(a)->len++] = (__VA_ARGS__))
+#define msh_array_push(a, ...)        (msh_array_fit((a), 1 + msh_array_len((a))), (a)[msh_array__hdr(a)->len++] = (__VA_ARGS__))
 #define msh_array_pop(a)              ((a) ? (msh_array__hdr((a))->len--) : 0)
 #define msh_array_clear(a)            ((a) ? (msh_array__hdr((a))->len = 0) : 0)
 

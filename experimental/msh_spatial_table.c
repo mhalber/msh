@@ -111,7 +111,6 @@ msh_st_init( msh_st_t* st, const float* pts, const int n_pts, const int density 
     v3_t pt = (v3_t){ .x = pts[3*i+0], .y = pts[3*i+1], .z = pts[3*i+2] };
     int bin_idx = msh_st__bin_pt( st, pt );
 
-    int n_pts = st->binned_data[bin_idx].n_pts;
     st->binned_data[bin_idx].n_pts += 1;
     msh_array_push( st->binned_data[bin_idx].pts, pt);
     msh_array_push( st->binned_data[bin_idx].ind, i);
@@ -158,7 +157,7 @@ msh_st__find_neighbors_in_bin_flat( const msh_st_t* st, const uint32_t bin_idx, 
   const v3_t* data = &st->data[bi.offset];
   const int* ind = &st->indices[bi.offset];
   // const pt_idx_t* data = &st->pt_idx_data[bi.offset];
-  for( uint32_t i = 0; i < bi.length; ++i ) 
+  for( int32_t i = 0; i < bi.length; ++i ) 
   { 
     v3_t v = { data[i].x - pt.x, data[i].y - pt.y, data[i].z - pt.z };
     // v3_t v = { data[i].pt.x - pt.x, data[i].pt.y - pt.y, data[i].pt.z - pt.z };
@@ -266,7 +265,7 @@ msh_st__find_neighbors_in_bin_bin( const msh_st_t* st, const uint32_t bin_idx, c
   if( !bi->n_pts ) { return; }
   if( (*n_neigh) >= max_n_neigh ) { return; }
 
-  for( uint32_t i = 0; i < bi->n_pts; ++i ) 
+  for( int32_t i = 0; i < bi->n_pts; ++i ) 
   { 
     v3_t v = { bi->pts[i].x - pt.x, bi->pts[i].y - pt.y, bi->pts[i].z - pt.z };
     float dist_sq = v.x * v.x + v.y * v.y + v.z * v.z;
@@ -330,7 +329,7 @@ msh_st_radius_search_bin( const msh_st_t* st, const float* query_pt, const float
 void
 msh_st_term( msh_st_t* st )
 {
-  int n_bins = st->width * st->height * st->depth;
+  // int n_bins = st->width * st->height * st->depth;
   // for( int i = 0 ; i < n_bins; ++i ) { free( st->binned_data[i] ); }
   // free( st->data );
   // free( st->binned_data );
@@ -370,8 +369,8 @@ int main( int argc, char** argv )
   printf("This program is an example of a spatial hashtable use\n");
   uint64_t t2, t1;
   t1 = msh_time_now();
-  PointCloud pc = {0};
-  read_ply( argv[1], &pc );
+  PointCloud pc = {};
+  read_ply( argv[argc-1], &pc );
   t2 = msh_time_now();
   printf("Reading ply file with %d pts took %fms.\n", pc.n_pts, msh_time_diff(MSHT_MILLISECONDS, t2, t1));
  
