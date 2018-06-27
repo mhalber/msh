@@ -1,5 +1,6 @@
 /*
 TODOs:
+[ ] Security - sscanf is insecure when scanning for strings. Can provide malicous ply file. Use fgets?
 [ ] Extensive testing
   [ ] Write tests for writing ply files
 [ ] Encoder / decorder split
@@ -326,9 +327,9 @@ int
 ply_file__parse_ply_cmd(char* line, ply_file_t* pf)
 {
   char cmd_str[PLY_FILE_MAX_STR_LEN];
-  if(sscanf(line, "%s", cmd_str))
+  if( sscanf(line, "%s", cmd_str) )
   { 
-    if(!strcmp(cmd_str, "ply"))
+    if( !strcmp(cmd_str, "ply") )
     {
       pf->valid = true; 
       return PLY_NO_ERRORS; 
@@ -421,7 +422,7 @@ ply_file_parse_header(ply_file_t* pf)
   int line_no = 0;
   char line[PLY_FILE_MAX_STR_LEN];
   int err_code = 0;
-  while(fgets(&line[0], PLY_FILE_MAX_STR_LEN, pf->_fp))
+  while( fgets( &line[0], PLY_FILE_MAX_STR_LEN, pf->_fp ) )
   {
     line_no++;
     char cmd[PLY_FILE_MAX_STR_LEN];
