@@ -521,9 +521,10 @@ void msh_map__grow( msh_map_t *map, size_t new_cap) {
   new_cap = msh_max( new_cap, 16 );
   msh_map_t new_map = 
   {
-    .keys = (uint64_t*)calloc( new_cap, sizeof(uint64_t) ),
-    .vals = (uint64_t*)malloc( new_cap * sizeof(uint64_t) ),
-    ._cap = new_cap,
+    /* .keys = */ (uint64_t*)calloc( new_cap, sizeof(uint64_t) ),
+    /* .vals = */ (uint64_t*)malloc( new_cap * sizeof(uint64_t) ),
+    /* ._len = */ 0,
+    /* ._cap = */ new_cap
   };
   for( size_t i = 0; i < map->_cap; i++ ) 
   {

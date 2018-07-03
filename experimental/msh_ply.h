@@ -13,7 +13,7 @@ TODOs:
 [ ] Optimize 
   [ ] Profile lucy writing, why is it showing a big slowdown.
 [ ] Fix the header names to be mply
-
+[ ] Skip if property is not found
 */
 
 // #include <stdlib.h>
@@ -82,7 +82,7 @@ typedef struct ply_element
 {
   char name[64];
   int count;
-  msh_array(ply_property_t) properties;
+  msh_array( ply_property_t ) properties;
   
   int file_anchor;
   void* data;
@@ -110,11 +110,12 @@ typedef struct ply_file
   int format_version;
   
   msh_array(ply_element_t) elements;
-  msh_array(ply_file_property_desc_t*) descriptors;
+  msh_array(ply_file_property_desc_t) descriptors;
 
   FILE* _fp;
   int _header_size;
   int _system_format;
+  int _parsed;
 } ply_file_t;
 
 
@@ -129,28 +130,28 @@ ply_file_get_property_from_element( ply_file_t* pf, ply_file_property_desc_t* de
 typedef enum ply_err
 {
   PLY_NO_ERRORS = 0, 
-  PLY_INVALID_FILE_ERR,
-  PLY_INVALID_FORMAT_ERR,
-  PLY_FILE_OPEN_ERR,
-  PLY_FILE_NOT_OPEN_ERR,
-  PLY_LINE_PARSE_ERR,
-  PLY_FORMAT_CMD_ERR,
-  PLY_ELEMENT_CMD_ERR,
-  PLY_PROPERTY_CMD_ERR,
-  PLY_ELEMENT_NOT_FOUND_ERR,
-  PLY_PROPERTY_NOT_FOUND_ERR,
-  PLY_REQUESTED_PROPERTY_NOT_A_LIST_ERR,
-  PLY_PARSE_ERROR,
-  PLY_BIG_ENDIAN_ERR,
-  PLY_BINARY_FILE_READ_ERR,
-  PLY_CONFLICTING_NUMBER_OF_ELEMENTS_ERR,
-  PLY_UNRECOGNIZED_FORMAT_ERR,
-  PLY_UNRECOGNIZED_CMD_ERR,
-  PLY_UNSUPPORTED_FORMAT_ERR,
-  PLY_REQUESTED_ELEMENT_IS_MISSING,
-  PLY_REQUESTED_PROPERTY_IS_MISSING,
-  PLY_NO_REQUESTS,
-  PLY_INVALID_LIST_TYPE_ERR 
+  PLY_INVALID_FILE_ERR = 1, 
+  PLY_INVALID_FORMAT_ERR = 2,
+  PLY_FILE_OPEN_ERR = 3,
+  PLY_FILE_NOT_OPEN_ERR = 4,
+  PLY_LINE_PARSE_ERR = 5,
+  PLY_FORMAT_CMD_ERR = 6,
+  PLY_ELEMENT_CMD_ERR = 7,
+  PLY_PROPERTY_CMD_ERR = 8,
+  PLY_ELEMENT_NOT_FOUND_ERR = 9,
+  PLY_PROPERTY_NOT_FOUND_ERR = 10,
+  PLY_REQUESTED_PROPERTY_NOT_A_LIST_ERR = 11,
+  PLY_PARSE_ERROR = 12,
+  PLY_BIG_ENDIAN_ERR = 13,
+  PLY_BINARY_FILE_READ_ERR = 14,
+  PLY_CONFLICTING_NUMBER_OF_ELEMENTS_ERR = 15,
+  PLY_UNRECOGNIZED_FORMAT_ERR = 16,
+  PLY_UNRECOGNIZED_CMD_ERR = 17,
+  PLY_UNSUPPORTED_FORMAT_ERR = 18,
+  PLY_REQUESTED_ELEMENT_IS_MISSING = 19,
+  PLY_REQUESTED_PROPERTY_IS_MISSING = 20,
+  PLY_NO_REQUESTS = 21,
+  PLY_INVALID_LIST_TYPE_ERR = 22 
 } ply_err_t;
 
 ply_property_t
@@ -360,7 +361,7 @@ ply_file__parse_element_cmd(char* line, ply_file_t* pf)
   ply_element_t el = ply_element_zero_init();
   el.properties = NULL;
   if(sscanf(line, "%s %s %d", &cmd[0], &el.name[0], &el.count) != 3) { return PLY_ELEMENT_CMD_ERR; }
-  msh_array_push(pf->elements, el);
+  msh_array_push( pf->elements, el );
   return PLY_NO_ERRORS;
 }
 
@@ -434,6 +435,7 @@ ply_file_parse_header(ply_file_t* pf)
     if( err_code ) break;
   }
   pf->_header_size = ftell(pf->_fp);
+  if( err_code == PLY_NO_ERRORS ) { pf->_parsed = 1; }
   return err_code;
 }
 
@@ -537,16 +539,19 @@ ply_file__can_precalculate_sizes( ply_element_t* el )
 int
 ply_file_parse_contents( ply_file_t* pf )
 {
+  uint64_t t1, t2;
   int err_code = PLY_NO_ERRORS;
   for( size_t i = 0; i < msh_array_len(pf->elements); ++i )
   {
+    t1 = msh_time_now();
     ply_element_t* el = &pf->elements[i];
     int num_properties = msh_array_len(el->properties);
+    if( el->count <= 0 || num_properties <= 0 ) { continue; }
     el->file_anchor = ftell(pf->_fp);
 
     // Determine if any of the properties in the element has list
     int can_precalculate_size = ply_file__can_precalculate_sizes( el );
-
+    printf("PLY FILE CAN PRECALCULATE SIZE: %d\n", can_precalculate_size );
     if( can_precalculate_size )
     {
       // This is a faster path, as we can just calculate the size required by element in one go.
@@ -577,6 +582,8 @@ ply_file_parse_contents( ply_file_t* pf )
       else                          { err_code = ply_file__calculate_elem_size_binary(pf, el); }
 
     }
+    t2 = msh_time_now();
+    printf("PLY FILE ELEMENT %s PARSE TIME: %fms.\n", el->name, msh_time_diff( MSHT_MILLISECONDS, t2, t1 ));
   }
 
   return err_code;
@@ -923,6 +930,7 @@ ply_file__data_assign_cast( void* dst, void* src, int32_t type_dst, int32_t type
         data = (double)(*((double*)(src)+c));
         break;
       default:
+        data = (double)(*((uint8_t*)(src)+c));
         break;
     }
 
@@ -954,6 +962,7 @@ ply_file__data_assign_cast( void* dst, void* src, int32_t type_dst, int32_t type
         *((double*)(dst)+c) = (double)data;
         break;
       default:
+        *((uint8_t*)(dst)+c) = (uint8_t)data;
         break;
     }
   }
@@ -988,7 +997,7 @@ ply_file__get_property_from_element( ply_file_t* pf, const char* element_name,
           ply_property_t* pr = &el->properties[i];
           const char* a = pr->name;
           const char* b = property_names[i];
-          if( strcmp(a,b) ) { can_simply_copy = 0; }
+          if( strcmp(a, b) ) { can_simply_copy = 0; }
           if( pr->type != requested_type ) { can_simply_copy = 0; }
           if( pr->list_type != PLY_INVALID ) { can_simply_copy = 0;}
         }
@@ -1634,6 +1643,8 @@ ply_file_write( const ply_file_t* pf )
 {
   int error = PLY_NO_ERRORS;
   //TODO( Maciej ): Add info from descriptors
+  
+  
   error = ply_file__write_header( pf );
   if( error ) { return error; }
   error = ply_file__write_data( pf );
@@ -1643,9 +1654,10 @@ ply_file_write( const ply_file_t* pf )
 int32_t 
 ply_file__synchronize_list_sizes( ply_file_t *pf )
 {
+  int error_code = PLY_NO_ERRORS;
   for( size_t k = 0; k < msh_array_len( pf->descriptors ); ++k )
   {
-    ply_file_property_desc_t* desc = pf->descriptors[k];
+    ply_file_property_desc_t* desc = &pf->descriptors[k];
     ply_element_t* el = NULL;
     for( size_t i = 0; i < msh_array_len(pf->elements); ++i )
     {
@@ -1656,7 +1668,7 @@ ply_file__synchronize_list_sizes( ply_file_t *pf )
         break;
       }
     }
-    if( el == NULL ) { return PLY_REQUESTED_ELEMENT_IS_MISSING; }
+    if( el == NULL ) { error_code = PLY_REQUESTED_ELEMENT_IS_MISSING; return error_code; }
     for( int32_t i = 0; i < desc->num_properties; ++i )
     {
       int32_t found = 0;
@@ -1679,7 +1691,7 @@ ply_file__synchronize_list_sizes( ply_file_t *pf )
           break;
         }
       }
-      if( !found ) { return PLY_REQUESTED_PROPERTY_IS_MISSING; }
+      if( !found ) { error_code = PLY_REQUESTED_PROPERTY_IS_MISSING; return error_code; }
     }
 
     // for( size_t i = 0; i < msh_array_len( el->properties ); ++i )
@@ -1693,7 +1705,7 @@ ply_file__synchronize_list_sizes( ply_file_t *pf )
 }
 
 int32_t 
-ply_file_add_descriptor( ply_file_t *pf, ply_file_property_desc_t* desc )
+ply_file_add_descriptor( ply_file_t *pf, ply_file_property_desc_t desc )
 {
   if( !pf ) { return PLY_FILE_NOT_OPEN_ERR; }
   msh_array_push( pf->descriptors, desc);
@@ -1706,21 +1718,29 @@ ply_file_print_header(ply_file_t* pf);
 int
 ply_file_read( ply_file_t* pf )
 {
+  uint64_t t1, t2;
   int error = PLY_NO_ERRORS;
   if( !pf->_fp ) { return PLY_FILE_NOT_OPEN_ERR; }
   if( msh_array_len( pf->descriptors ) == 0 ) { return PLY_NO_REQUESTS; }
-  error = ply_file_parse_header( pf );
+  if( !pf->_parsed ) { error = ply_file_parse_header( pf ); }
   if( error ) { return error; }
   error = ply_file__synchronize_list_sizes( pf ); 
   if( error ) { return error; }
+  t1 = msh_time_now();
   error = ply_file_parse_contents( pf );
+  t2 = msh_time_now();
+  printf("MSH_PLY PARSE TIME: %f\n", msh_time_diff(MSHT_MILLISECONDS, t2, t1) );
   if( error ) { return error; }
   
   for( size_t i = 0; i < msh_array_len( pf->descriptors ); ++i )
   {
-    ply_file_property_desc_t *desc = pf->descriptors[i];
+    ply_file_property_desc_t *desc = &pf->descriptors[i];
+    t1 = msh_time_now();
     error = ply_file_get_property_from_element( pf, desc );
+    t2 = msh_time_now();
+    printf("MSH_PLY PROPERTY GET TIME: %f\n", msh_time_diff(MSHT_MILLISECONDS, t2, t1) );
     if( error ) { return error; }
+
   }
 
   return error;
@@ -1797,6 +1817,7 @@ ply_file_open(const char* filename, const char* mode)
     pf->elements       = 0;
     pf->descriptors    = 0;
     pf->_fp            = fp;
+    pf->_parsed        = 0;
   
     // endianness check
     int n = 1;
