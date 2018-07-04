@@ -13,7 +13,6 @@ TODOs:
 [ ] Optimize 
   [ ] Profile lucy writing, why is it showing a big slowdown.
 [ ] Fix the header names to be mply
-[ ] Skip if property is not found
 */
 
 // #include <stdlib.h>
@@ -539,11 +538,9 @@ ply_file__can_precalculate_sizes( ply_element_t* el )
 int
 ply_file_parse_contents( ply_file_t* pf )
 {
-  uint64_t t1, t2;
   int err_code = PLY_NO_ERRORS;
   for( size_t i = 0; i < msh_array_len(pf->elements); ++i )
   {
-    t1 = msh_time_now();
     ply_element_t* el = &pf->elements[i];
     int num_properties = msh_array_len(el->properties);
     if( el->count <= 0 || num_properties <= 0 ) { continue; }
@@ -551,7 +548,6 @@ ply_file_parse_contents( ply_file_t* pf )
 
     // Determine if any of the properties in the element has list
     int can_precalculate_size = ply_file__can_precalculate_sizes( el );
-    printf("PLY FILE CAN PRECALCULATE SIZE: %d\n", can_precalculate_size );
     if( can_precalculate_size )
     {
       // This is a faster path, as we can just calculate the size required by element in one go.
@@ -582,8 +578,6 @@ ply_file_parse_contents( ply_file_t* pf )
       else                          { err_code = ply_file__calculate_elem_size_binary(pf, el); }
 
     }
-    t2 = msh_time_now();
-    printf("PLY FILE ELEMENT %s PARSE TIME: %fms.\n", el->name, msh_time_diff( MSHT_MILLISECONDS, t2, t1 ));
   }
 
   return err_code;
@@ -1718,7 +1712,6 @@ ply_file_print_header(ply_file_t* pf);
 int
 ply_file_read( ply_file_t* pf )
 {
-  uint64_t t1, t2;
   int error = PLY_NO_ERRORS;
   if( !pf->_fp ) { return PLY_FILE_NOT_OPEN_ERR; }
   if( msh_array_len( pf->descriptors ) == 0 ) { return PLY_NO_REQUESTS; }
@@ -1726,19 +1719,15 @@ ply_file_read( ply_file_t* pf )
   if( error ) { return error; }
   error = ply_file__synchronize_list_sizes( pf ); 
   if( error ) { return error; }
-  t1 = msh_time_now();
+
   error = ply_file_parse_contents( pf );
-  t2 = msh_time_now();
-  printf("MSH_PLY PARSE TIME: %f\n", msh_time_diff(MSHT_MILLISECONDS, t2, t1) );
+
   if( error ) { return error; }
   
   for( size_t i = 0; i < msh_array_len( pf->descriptors ); ++i )
   {
     ply_file_property_desc_t *desc = &pf->descriptors[i];
-    t1 = msh_time_now();
     error = ply_file_get_property_from_element( pf, desc );
-    t2 = msh_time_now();
-    printf("MSH_PLY PROPERTY GET TIME: %f\n", msh_time_diff(MSHT_MILLISECONDS, t2, t1) );
     if( error ) { return error; }
 
   }

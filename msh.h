@@ -148,7 +148,15 @@ extern "C" {
   #endif
 #endif
 
-
+#if MSH_SYSTEM_WINDOWS
+  #ifndef LLU_SYMBOL
+    #define LLU_SYMBOL "%I64d"
+  #endif
+#else
+  #ifndef LLU_SYMBOL
+    #define LLU_SYMBOL "%llu"
+  #endif
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Debug

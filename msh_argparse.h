@@ -357,9 +357,9 @@ msh__print_arguments( const msh_argparse_t * argparse,
     if ( argument->shorthand == NULL )
     {
       printf("|\t%-32s - %s <%zu %s>\n", argument->name,
-                                         argument->message,
-                                         argument->num_vals,
-                                         argparse->typenames[argument->type] );
+                                                    argument->message,
+                                                    argument->num_vals,
+                                                    argparse->typenames[argument->type] );
     }
     else
     {
@@ -367,9 +367,9 @@ msh__print_arguments( const msh_argparse_t * argparse,
       sprintf( name_and_shorthand, "%s, %s", argument->name, 
                                              argument->shorthand );
       printf("|\t%-32s - %s <%zu %s>\n", name_and_shorthand,
-                                         argument->message,
-                                         argument->num_vals,
-                                         argparse->typenames[argument->type] );
+                                                    argument->message,
+                                                    argument->num_vals,
+                                                    argparse->typenames[argument->type] );
     }
   }
 }
