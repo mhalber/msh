@@ -13,6 +13,7 @@ TODOs:
 [ ] Optimize 
   [ ] Profile lucy writing, why is it showing a big slowdown.
 [ ] Fix the header names to be mply
+[ ] Better C++ support.
 */
 
 // #include <stdlib.h>
@@ -1382,7 +1383,7 @@ ply_file__add_property_to_element(ply_file_t* pf, const char* element_name,
 }
 
 int
-ply_file__add_property_to_element( ply_file_t* pf, const ply_file_property_desc_t* desc )
+ply_file_add_property_to_element( ply_file_t* pf, const ply_file_property_desc_t* desc )
 {
   // TODO(maciej): Check for null ptrs etc.
   return ply_file__add_property_to_element( pf, desc->element_name, desc->property_names, 
@@ -1636,9 +1637,10 @@ int
 ply_file_write( const ply_file_t* pf )
 {
   int error = PLY_NO_ERRORS;
-  //TODO( Maciej ): Add info from descriptors
-  
-  
+  // TODO(maciej): Add info from descriptors
+  // TODO(maciej): What happens if two same descriptors are added?
+  if( msh_array_len(pf->elements) == 0 ) { return PLY_NO_REQUESTS; }
+
   error = ply_file__write_header( pf );
   if( error ) { return error; }
   error = ply_file__write_data( pf );
