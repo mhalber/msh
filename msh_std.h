@@ -9,7 +9,7 @@
 
   To use the library you simply add:
   
-  #define MSH_IMPLEMENTATION
+  #define MSH_STD_IMPLEMENTATION
   #include "msh.h"
 
   The define should only include once in your source. If you need to include 
@@ -19,7 +19,7 @@
 
   All functions can be made static by definining:
 
-  #ifdef MSH_STATIC
+  #ifdef MSH_STD_STATIC
 
   before including the "msh.h"
 
@@ -65,14 +65,14 @@
   [5] gb.h            https://github.com/gingerBill/gb
 */
 
-#ifndef MSH
-#define MSH
+#ifndef MSH_STD
+#define MSH_STD
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#ifndef MSH_NO_HEADERS
+#ifndef MSH_STD_INCLUDE_HEADERS
 
 // c stdlib
 #include <assert.h>
@@ -102,7 +102,7 @@ extern "C" {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 #define msh_count_of(x) ( ( sizeof(x) / sizeof( *x ) ) )
 
-#ifdef MSH_STATIC
+#ifdef MSH_STD_STATIC
 #define MSHDEF static
 #else
 #define MSHDEF extern
@@ -424,16 +424,16 @@ static inline float  msh_sqf(float a)  { return a*a; }
 static inline double msh_sqd(double a) { return a*a; }
 
 int32_t msh_accumulatei( const int32_t* vals, const int32_t n_vals );
-float msh_accumulatef( const float *vals, const int32_t n_vals );
-float msh_inner_product( const float *vals, const int n_vals );
-float msh_compute_mean( const float *vals, const int n_vals );
-float msh_compute_stddev( float mean, float *vals, int n_vals );
-float msh_gauss1d( float x, float mu, float sigma );
-void  msh_distrib2pdf( const float* dist, float* pdf, int n_vals );
-void  msh_pdf2cdf( const float* pdf, float* cdf, int n_vals );
-void  msh_invert_cdf( const float* cdf, float* invcdf, int n_vals);
-float msh_pdfsample( const float* pdf, float prob, int n_vals);
-float msh_gausspdf1d( float x, float mu, float sigma );
+float   msh_accumulatef( const float *vals, const int32_t n_vals );
+float   msh_inner_product( const float *vals, const int n_vals );
+float   msh_compute_mean( const float *vals, const int n_vals );
+float   msh_compute_stddev( float mean, float *vals, int n_vals );
+float   msh_gauss1d( float x, float mu, float sigma );
+void    msh_distrib2pdf( const float* dist, float* pdf, int n_vals );
+void    msh_pdf2cdf( const float* pdf, float* cdf, int n_vals );
+void    msh_invert_cdf( const float* cdf, float* invcdf, int n_vals);
+float   msh_pdfsample( const float* pdf, float prob, int n_vals);
+float   msh_gausspdf1d( float x, float mu, float sigma );
 
 
 
@@ -452,7 +452,7 @@ float msh_gausspdf1d( float x, float mu, float sigma );
 
 
 
-#ifdef MSH_IMPLEMENTATION
+#ifdef MSH_STD_IMPLEMENTATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // ARRAY
@@ -854,6 +854,7 @@ msh_pdf2cdf( const float* pdf, float* cdf, int n_vals )
   for( int32_t i = 0; i < n_vals; ++i ) { accum += pdf[i]; cdf[i] = accum;  };
 }
 
+// TODO(maciej): Finish this using demofox article
 // void
 // msh_invert_cdf( const float* cdf, float* invcdf, int n_vals)
 // {
@@ -892,4 +893,4 @@ msh_gausspdf1d( float x, float mu, float sigma )
 }
 
 
-#endif
+#endif /*MSH_STD_IMPLEMENTATION*/
