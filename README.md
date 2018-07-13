@@ -1,5 +1,7 @@
 # msh
 
+[Example repository](https://github.com/mhalber/msh_examples)
+
 Set of C99/C11 libraries under the public-domain / MIT license (please see particular files for details).  
 These are libraries that I use for daily development and intend to extend the set and improve them over time.
 
@@ -23,6 +25,8 @@ library                  |  version   | description                         | de
 :------------------------|:----------:|:-----------------------------------:|:-------
 **msh_cam.h**            |    0.2     | various types of camera controls    | msh_vec_math.h
 **msh_geometry.h**       |    0.01    | geometrical primitives manipulation | msh_vec_math.h
+
+
 
 ## Experimental folder
 Experimental folder contains some code that I am working on during my spare time, and is
