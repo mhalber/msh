@@ -20,24 +20,28 @@ TODOs:
 extern "C" {
 #endif
 
-#if defined(_MSC_VER)
-#define MSH_PLY_INLINE __forceinline
-#else
-#define MSH_PLY_INLINE inline /* __attribute__((always_inline)) inline */
-#endif
+typedef enum   ply_format            ply_format_t;
+typedef enum   ply_type_id           ply_type_id_t;
+typedef struct ply_property          ply_property_t;
+typedef struct ply_element           ply_element_t;
+typedef struct msh_ply_property_desc msh_ply_property_desc_t;
+typedef struct ply_file              msh_ply_t;
 
-#define MSH_PLY_FILE_MAX_STR_LEN 1024
-#define MSH_PLY_FILE_MAX_REQ_PROPERTIES 16
-#define MSH_PLY_FILE_MAX_PROPERTIES 128
+msh_ply_t* msh_ply_open( const char* filename, const char* mode );
+int msh_ply_close( msh_ply_t* pf );
 
-typedef enum ply_format
-{
-  MSH_PLY_ASCII = 0,
-  MSH_PLY_LITTLE_ENDIAN,
-  MSH_PLY_BIG_ENDIAN
-} ply_format_t;
+int msh_ply_read( msh_ply_t* pf );
+int msh_ply_get_property_from_element( msh_ply_t* pf, msh_ply_property_desc_t* desc );
 
-typedef enum ply_type_id
+int msh_ply_write( msh_ply_t* pf );
+int msh_ply_add_property_to_element( msh_ply_t* pf, const msh_ply_property_desc_t* desc );
+
+ply_element_t* msh_ply_find_element( const msh_ply_t* pf, const char* element_name );
+ply_property_t* msh_ply_find_property( const ply_element_t* el, const char* property_name);
+int msh_ply_add_element( msh_ply_t* pf, const char* element_name, const int element_count );
+
+
+enum ply_type_id
 {
   MSH_PLY_INVALID,
   MSH_PLY_INT8,
@@ -49,9 +53,16 @@ typedef enum ply_type_id
   MSH_PLY_FLOAT,
   MSH_PLY_DOUBLE,
   MSH_PLY_N_TYPES
-} ply_type_id_t;
+};
 
-typedef struct ply_property
+enum ply_format
+{
+  MSH_PLY_ASCII = 0,
+  MSH_PLY_LITTLE_ENDIAN,
+  MSH_PLY_BIG_ENDIAN
+};
+
+struct ply_property
 {
   int32_t list_count;
   int16_t byte_size;
@@ -72,9 +83,9 @@ typedef struct ply_property
   void* data;
   void* list_data;
 
-} ply_property_t;
+};
 
-typedef struct ply_element
+struct ply_element
 {
   char name[64];
   int count;
@@ -83,23 +94,9 @@ typedef struct ply_element
   int file_anchor;
   void* data;
   uint64_t data_size;
-} ply_element_t;
+};
 
-typedef struct msh_ply_property_desc
-{
-  char* element_name;
-  const char** property_names;
-  int32_t num_properties;
-  ply_type_id_t data_type;
-  ply_type_id_t list_type;
-  void* data;
-  void* list_data;
-  int32_t data_count;
-
-  int32_t list_size_hint;
-} msh_ply_property_desc_t;
-
-typedef struct ply_file
+struct ply_file
 {
   int valid;
   int format;
@@ -112,21 +109,32 @@ typedef struct ply_file
   int _header_size;
   int _system_format;
   int _parsed;
-} msh_ply_t;
+};
 
-// msh_ply_t* msh_ply_open( const char* filename, const char* mode );
-// int msh_ply_close( msh_ply_t* pf );
+struct msh_ply_property_desc
+{
+  char* element_name;
+  const char** property_names;
+  int32_t num_properties;
+  ply_type_id_t data_type;
+  ply_type_id_t list_type;
+  void* data;
+  void* list_data;
+  int32_t data_count;
 
-// int msh_ply_read( msh_ply_t* pf );
-// int msh_ply_get_property_from_element( msh_ply_t* pf, msh_ply_property_desc_t* desc );
+  int32_t list_size_hint;
+};
 
-// int msh_ply_write( const msh_ply_t* pf );
-// int msh_ply_add_property_to_element( msh_ply_t* pf, const msh_ply_property_desc_t* desc );
 
-// ply_element_t* msh_ply_find_element( const msh_ply_t* pf, const char* element_name );
-// ply_property_t* msh_ply_find_property( const ply_element_t* el, const char* property_name);
-// int msh_ply_add_element( msh_ply_t* pf, const char* element_name, const int element_count );
+#if defined(_MSC_VER)
+#define MSH_PLY_INLINE __forceinline
+#else
+#define MSH_PLY_INLINE inline /* __attribute__((always_inline)) inline */
+#endif
 
+#define MSH_PLY_FILE_MAX_STR_LEN 1024
+#define MSH_PLY_FILE_MAX_REQ_PROPERTIES 16
+#define MSH_PLY_FILE_MAX_PROPERTIES 128
 
 #ifdef __cplusplus
 }
@@ -136,6 +144,7 @@ typedef struct ply_file
 // Implementation
 ////////////////////////////////////////////////////////////////////////////////
 #ifdef MSH_PLY_IMPLEMENTATION
+
 
 typedef enum ply_err
 {
