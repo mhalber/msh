@@ -113,13 +113,13 @@ extern "C" {
 #define msh_internal        static // Internal linkage
 
 #if !defined(__cplusplus)
-	#if defined(_MSC_VER) && _MSC_VER <= 1800
-	#define inline __inline
-	#elif !defined(__STDC_VERSION__)
-	#define inline __inline__
-	#else
-	#define inline 
-	#endif
+  #if defined(_MSC_VER) && _MSC_VER <= 1800
+  #define inline __inline
+  #elif !defined(__STDC_VERSION__)
+  #define inline __inline__
+  #else
+  #define inline inline
+  #endif
 #endif
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -241,6 +241,7 @@ void msh__assert_handler( char const *condition, char const *file, int32_t line,
 // TODO(maciej): Prepare docs
 // TODO(maciej): What about alignment?? http://pzemtsov.github.io/2016/11/06/bug-story-alignment-on-x86.html
 
+
 typedef struct msh_array_header
 {
   size_t len;
@@ -270,7 +271,6 @@ void* msh_array_grow(const void *array, size_t new_len, size_t elem_size);
 
 #define msh_array_cpy( dst, src, n )  ( msh_array_fit( (dst), (n) ), msh_array__hdr((dst))->len = (n), memcpy( (void*)(dst), (void*)(src), (n) * sizeof(*(dst) )))
 #define msh_array_printf(b, ...)      ((b) = msh_array__printf((b), __VA_ARGS__))
-
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hash Table
@@ -457,6 +457,7 @@ float   msh_gausspdf1d( float x, float mu, float sigma );
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // ARRAY
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 MSHDEF void* 
 msh_array_grow(const void *array, size_t new_len, size_t elem_size) {

@@ -1,24 +1,58 @@
 /*
 TODOs:
-[ ] Extensive testing
-  [ ] Write tests for writing ply files
-[ ] Encoder / decorder split
-[ ] Error reporting
-[ ] Getting raw data for list property - different function.
-[ ] Inline msh_array if it is not available
-[ ] Code cleanup
-  [ ] Replace duplicated code
-  [ ] Replace syscalls with redefineable macros
+[ ] Write header to this file
 [ ] Optimize 
   [ ] Profile lucy writing, why is it showing a big slowdown.
-[ ] Fix the header names to be mply
-[ ] Better C++ support.
-[ ] Move enums to implementation
+[x] Encoder / decorder split
+[x] Error reporting
+  [ ] Revise when errors are reported. 
+[x] Inline msh_ply_array if it is not available
+[ ] Code cleanup
+  [x] Replace duplicated code
+  [x] Replace syscalls with redefineable macros
+
+[x] Fix the header names to be msh_ply
+[ ] Write C++ support.
+[ ] Add static function definition macro
+[ ] Getting raw data for list property - different function.
 */
+
+#if defined(MSH_PLY_INCLUDE_HEADERS)
+#include <stdlib.h>
+#include <stdint.h>
+#include <math.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdarg.h>
+#include <stdbool.h>
+#endif
+
+#ifndef MSH_PLY_MALLOC
+#define MSH_PLY_MALLOC(x) malloc((x))
+#endif
+
+#ifndef MSH_PLY_REALLOC
+#define MSH_PLY_REALLOC(x,y) realloc((x), (y))
+#endif
+
+#ifndef MSH_PLY_FREE
+#define MSH_PLY_FREE(x) free((x))
+#endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#if defined(_MSC_VER)
+#define MSH_PLY_INLINE __forceinline
+#else
+#define MSH_PLY_INLINE __attribute__((always_inline, unused)) inline
+#endif
+
+#define MSH_PLY_MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MSH_PLY_FILE_MAX_STR_LEN 1024
+#define MSH_PLY_FILE_MAX_REQ_PROPERTIES 16
+#define MSH_PLY_FILE_MAX_PROPERTIES 128
 
 typedef enum   ply_format            ply_format_t;
 typedef enum   ply_type_id           ply_type_id_t;
@@ -26,20 +60,6 @@ typedef struct ply_property          ply_property_t;
 typedef struct ply_element           ply_element_t;
 typedef struct msh_ply_property_desc msh_ply_property_desc_t;
 typedef struct ply_file              msh_ply_t;
-
-msh_ply_t* msh_ply_open( const char* filename, const char* mode );
-int msh_ply_close( msh_ply_t* pf );
-
-int msh_ply_read( msh_ply_t* pf );
-int msh_ply_get_property_from_element( msh_ply_t* pf, msh_ply_property_desc_t* desc );
-
-int msh_ply_write( msh_ply_t* pf );
-int msh_ply_add_property_to_element( msh_ply_t* pf, const msh_ply_property_desc_t* desc );
-
-ply_element_t* msh_ply_find_element( const msh_ply_t* pf, const char* element_name );
-ply_property_t* msh_ply_find_property( const ply_element_t* el, const char* property_name);
-int msh_ply_add_element( msh_ply_t* pf, const char* element_name, const int element_count );
-
 
 enum ply_type_id
 {
@@ -61,6 +81,78 @@ enum ply_format
   MSH_PLY_LITTLE_ENDIAN,
   MSH_PLY_BIG_ENDIAN
 };
+
+struct msh_ply_property_desc
+{
+  char* element_name;
+  const char** property_names;
+  int32_t num_properties;
+  ply_type_id_t data_type;
+  ply_type_id_t list_type;
+  void* data;
+  void* list_data;
+  int32_t data_count;
+
+  int32_t list_size_hint;
+};
+
+msh_ply_t*      msh_ply_open( const char* filename, const char* mode );
+void            msh_ply_print_header(msh_ply_t* pf);
+int32_t         msh_ply_add_descriptor( msh_ply_t *pf, msh_ply_property_desc_t *desc );
+ply_element_t*  msh_ply_find_element( const msh_ply_t* pf, const char* element_name );
+ply_property_t* msh_ply_find_property( const ply_element_t* el, const char* property_name);
+int32_t         msh_ply_close( msh_ply_t* pf );
+
+#ifndef MSH_PLY_ENCODER_ONLY
+
+int32_t msh_ply_read( msh_ply_t* pf );
+int32_t msh_ply_get_property_from_element( msh_ply_t* pf, msh_ply_property_desc_t* desc );
+
+#endif
+
+#ifndef MSH_PLY_DECODER_ONLY
+
+int32_t msh_ply_write( msh_ply_t* pf );
+int32_t msh_ply_add_property_to_element( msh_ply_t* pf, const msh_ply_property_desc_t* desc );
+
+#endif
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Below there is implementation and details only
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// THIS IS A SIMPLIFIED VERSION OF MSH_STD_ARRAY
+typedef struct msh_ply_array_header
+{
+  size_t len;
+  size_t cap;
+  char buf[];
+} msh_ply_array_hdr_t;
+
+#define msh_ply_array(T) T*
+
+void* msh_ply_array_grow(const void *array, size_t new_len, size_t elem_size);
+
+#define msh_ply_array__grow_formula(x)    ((1.6180339887498948482*(x)))
+#define msh_ply_array__hdr(a)             ((msh_ply_array_hdr_t *)((char *)(a) - offsetof(msh_ply_array_hdr_t, buf)))
+
+#define msh_ply_array_len(a)              ((a) ? (msh_ply_array__hdr((a))->len) : 0)
+#define msh_ply_array_cap(a)              ((a) ? (msh_ply_array__hdr((a))->cap) : 0)
+#define msh_ply_array_front(a)            ((a) ? (a) : NULL)
+#define msh_ply_array_back(a)             (msh_ply_array_len((a)) ? ((a) + msh_ply_array_len((a)) - 1 ) : NULL)
+
+#define msh_ply_array_free(a)             ((a) ? (MSH_PLY_FREE(msh_ply_array__hdr(a)), (a) = NULL) :0 )
+#define msh_ply_array_fit(a, n)           ((n) <= msh_ply_array_cap(a) ? (0) : ({ void** ta = (void**)&(a); (*ta) = msh_ply_array_grow((a), (n), sizeof(*(a))); })) 
+#define msh_ply_array_push(a, ...)        (msh_ply_array_fit((a), 1 + msh_ply_array_len((a))), (a)[msh_ply_array__hdr(a)->len++] = (__VA_ARGS__))
+// ARRAY END
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct ply_property
 {
@@ -89,7 +181,7 @@ struct ply_element
 {
   char name[64];
   int count;
-  msh_array( ply_property_t ) properties;
+  msh_ply_array( ply_property_t ) properties;
   
   int file_anchor;
   void* data;
@@ -102,8 +194,8 @@ struct ply_file
   int format;
   int format_version;
   
-  msh_array(ply_element_t) elements;
-  msh_array(msh_ply_property_desc_t*) descriptors;
+  msh_ply_array(ply_element_t) elements;
+  msh_ply_array(msh_ply_property_desc_t*) descriptors;
 
   FILE* _fp;
   int _header_size;
@@ -111,38 +203,14 @@ struct ply_file
   int _parsed;
 };
 
-struct msh_ply_property_desc
-{
-  char* element_name;
-  const char** property_names;
-  int32_t num_properties;
-  ply_type_id_t data_type;
-  ply_type_id_t list_type;
-  void* data;
-  void* list_data;
-  int32_t data_count;
-
-  int32_t list_size_hint;
-};
-
-
-#if defined(_MSC_VER)
-#define MSH_PLY_INLINE __forceinline
-#else
-#define MSH_PLY_INLINE inline /* __attribute__((always_inline)) inline */
-#endif
-
-#define MSH_PLY_FILE_MAX_STR_LEN 1024
-#define MSH_PLY_FILE_MAX_REQ_PROPERTIES 16
-#define MSH_PLY_FILE_MAX_PROPERTIES 128
-
 #ifdef __cplusplus
 }
 #endif
 
-////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // Implementation
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
 #ifdef MSH_PLY_IMPLEMENTATION
 
 
@@ -159,19 +227,54 @@ typedef enum ply_err
   MSH_PLY_PROPERTY_CMD_ERR = 8,
   MSH_PLY_ELEMENT_NOT_FOUND_ERR = 9,
   MSH_PLY_PROPERTY_NOT_FOUND_ERR = 10,
-  MSH_PLY_REQUESTED_PROPERTY_NOT_A_LIST_ERR = 11,
-  MSH_PLY_PARSE_ERROR = 12,
-  MSH_PLY_BIG_ENDIAN_ERR = 13,
-  MSH_PLY_BINARY_FILE_READ_ERR = 14,
-  MSH_PLY_CONFLICTING_NUMBER_OF_ELEMENTS_ERR = 15,
-  MSH_PLY_UNRECOGNIZED_FORMAT_ERR = 16,
-  MSH_PLY_UNRECOGNIZED_CMD_ERR = 17,
-  MSH_PLY_UNSUPPORTED_FORMAT_ERR = 18,
-  MSH_PLY_REQUESTED_ELEMENT_IS_MISSING = 19,
-  MSH_PLY_REQUESTED_PROPERTY_IS_MISSING = 20,
-  MSH_PLY_NO_REQUESTS = 21,
-  MSH_PLY_INVALID_LIST_TYPE_ERR = 22 
+  MSH_PLY_BINARY_PARSE_ERR = 11,
+  MSH_PLY_CONFLICTING_NUMBER_OF_ELEMENTS_ERR = 12,
+  MSH_PLY_UNRECOGNIZED_CMD_ERR = 13,
+  MSH_PLY_NO_REQUESTS = 14,
+  MSH_PLY_INVALID_LIST_TYPE_ERR = 15 
 } ply_err_t;
+
+static const char* msh_ply_error_msgs[16] = (const char*[]){
+  "No errors.", 
+  "Invalid ply file.", 
+  "Invalid format in ply file.", 
+  "Could not open file.", 
+  "File was not open. Please open file first.", 
+  "Could not parse line in a header. Probably invalid ply file.", 
+  "Format of ply command is invalid. Probably invalid ply file.", 
+  "Format of element command is invalid. Probably invalid ply file.", 
+  "Format of property command is invalid. Probably invalid ply file.", 
+  "Could not find requested element in input ply file.", 
+  "Could not find requested property in input ply file.", 
+  "Error reading binary file.", 
+  "Number of requested elements does not match the descriptor.",
+  "Unrecognized command in a ply file.", 
+  "There are no requested data to read or write.", 
+  "Incorrect list type. List type cannot be float or double." 
+};
+
+const char* 
+msh_ply_get_error_string( ply_err_t err )
+{
+  return msh_ply_error_msgs[ err ]; 
+}
+
+void* 
+msh_ply_array_grow(const void *array, size_t new_len, size_t elem_size) {
+  size_t old_cap = msh_ply_array_cap( array );
+  size_t new_cap = (size_t)msh_ply_array__grow_formula( old_cap );
+  new_cap = (size_t)MSH_PLY_MAX( new_cap, MSH_PLY_MAX(new_len, 16) );
+  size_t new_size = offsetof(msh_ply_array_hdr_t, buf) + new_cap * elem_size;
+  msh_ply_array_hdr_t *new_hdr;
+  if( array ) {
+    new_hdr = (msh_ply_array_hdr_t*)MSH_PLY_REALLOC( msh_ply_array__hdr( array ), new_size );
+  } else {
+    new_hdr = (msh_ply_array_hdr_t*)MSH_PLY_MALLOC( new_size );
+    new_hdr->len = 0;
+  }
+  new_hdr->cap = new_cap;
+  return new_hdr->buf;
+}
 
 ply_property_t
 ply_property_zero_init()
@@ -207,6 +310,40 @@ ply_element_zero_init()
   return el;
 }
 
+ply_element_t*
+msh_ply_find_element( const msh_ply_t* pf, const char* element_name )
+{
+  ply_element_t* el = NULL;
+  for( size_t i = 0; i < msh_ply_array_len(pf->elements); ++i )
+  {
+    if(!strcmp(element_name, pf->elements[i].name))
+    {
+      el = &pf->elements[i];
+      break;
+    }
+  }
+  return el;
+}
+
+ply_property_t*
+msh_ply_find_property( const ply_element_t* el, const char* property_name)
+{
+  ply_property_t* pr = NULL;
+  for( size_t i = 0; i < msh_ply_array_len(el->properties) ; ++i )
+  {
+    if(!strcmp(el->properties[i].name, property_name)) { pr = &el->properties[i]; break; }
+  }
+
+  return pr;
+}
+
+int32_t 
+msh_ply_add_descriptor( msh_ply_t *pf, msh_ply_property_desc_t *desc )
+{
+  if( !pf ) { return MSH_PLY_FILE_NOT_OPEN_ERR; }
+  msh_ply_array_push( pf->descriptors, desc);
+  return MSH_PLY_NO_ERRORS;
+}
 
 
 MSH_PLY_INLINE void 
@@ -222,33 +359,6 @@ msh_ply__swap_bytes( uint8_t* buffer, int32_t type_size, int32_t count )
       buffer[offset + type_size - 1 - j] = temp;
     }
   }
-}
-
-MSH_PLY_INLINE ply_element_t*
-msh_ply_find_element( const msh_ply_t* pf, const char* element_name )
-{
-  ply_element_t* el = NULL;
-  for( size_t i = 0; i < msh_array_len(pf->elements); ++i )
-  {
-    if(!strcmp(element_name, pf->elements[i].name))
-    {
-      el = &pf->elements[i];
-      break;
-    }
-  }
-  return el;
-}
-
-MSH_PLY_INLINE ply_property_t*
-msh_ply_find_property( const ply_element_t* el, const char* property_name)
-{
-  ply_property_t* pr = NULL;
-  for( size_t i = 0; i < msh_array_len(el->properties) ; ++i )
-  {
-    if(!strcmp(el->properties[i].name, property_name)) { pr = &el->properties[i]; break; }
-  }
-
-  return pr;
 }
 
 MSH_PLY_INLINE int
@@ -313,7 +423,8 @@ msh_ply__type_to_byte_size( ply_type_id_t type )
   return retval;
 }
 
-MSH_PLY_INLINE void msh_ply__property_type_to_string( ply_type_id_t type, char** string )
+MSH_PLY_INLINE void 
+msh_ply__property_type_to_string( ply_type_id_t type, char** string )
 {
   switch( type )
   {
@@ -332,19 +443,67 @@ MSH_PLY_INLINE void msh_ply__property_type_to_string( ply_type_id_t type, char**
 MSH_PLY_INLINE void
 msh_ply_string_to_property_type(char* type_str, ply_type_id_t* pr_type, int16_t* pr_size)
 {
-  if      (!strcmp("int8",    type_str) || !strcmp("char",   type_str)) {*pr_type=MSH_PLY_INT8;   *pr_size=1;} 
-  else if (!strcmp("uint8",   type_str) || !strcmp("uchar",  type_str)) {*pr_type=MSH_PLY_UINT8;  *pr_size=1;} 
-  else if (!strcmp("int16",   type_str) || !strcmp("short",  type_str)) {*pr_type=MSH_PLY_INT16;  *pr_size=2;} 
-  else if (!strcmp("uint16",  type_str) || !strcmp("ushort", type_str)) {*pr_type=MSH_PLY_UINT16; *pr_size=2;} 
-  else if (!strcmp("int32",   type_str) || !strcmp("int",    type_str)) {*pr_type=MSH_PLY_INT32;  *pr_size=4;} 
-  else if (!strcmp("uint32",  type_str) || !strcmp("uint",   type_str)) {*pr_type=MSH_PLY_UINT32; *pr_size=4;} 
-  else if (!strcmp("float32", type_str) || !strcmp("float",  type_str)) {*pr_type=MSH_PLY_FLOAT;  *pr_size=4;} 
-  else if (!strcmp("float64", type_str) || !strcmp("double", type_str)) {*pr_type=MSH_PLY_DOUBLE; *pr_size=8;} 
-  else { *pr_type = MSH_PLY_INVALID; *pr_size = 0;}
+  if     (!strcmp("int8",    type_str) || !strcmp("char",   type_str)) 
+                                                            {*pr_type=MSH_PLY_INT8;    *pr_size=1;} 
+  else if(!strcmp("uint8",   type_str) || !strcmp("uchar",  type_str)) 
+                                                            {*pr_type=MSH_PLY_UINT8;   *pr_size=1;} 
+  else if(!strcmp("int16",   type_str) || !strcmp("short",  type_str)) 
+                                                            {*pr_type=MSH_PLY_INT16;   *pr_size=2;} 
+  else if(!strcmp("uint16",  type_str) || !strcmp("ushort", type_str)) 
+                                                            {*pr_type=MSH_PLY_UINT16;  *pr_size=2;} 
+  else if(!strcmp("int32",   type_str) || !strcmp("int",    type_str)) 
+                                                            {*pr_type=MSH_PLY_INT32;   *pr_size=4;} 
+  else if(!strcmp("uint32",  type_str) || !strcmp("uint",   type_str)) 
+                                                            {*pr_type=MSH_PLY_UINT32;  *pr_size=4;} 
+  else if(!strcmp("float32", type_str) || !strcmp("float",  type_str)) 
+                                                            {*pr_type=MSH_PLY_FLOAT;   *pr_size=4;} 
+  else if(!strcmp("float64", type_str) || !strcmp("double", type_str)) 
+                                                            {*pr_type=MSH_PLY_DOUBLE;  *pr_size=8;} 
+  else 
+                                                            {*pr_type=MSH_PLY_INVALID; *pr_size=0;}
 }
 
+#define MSH_PLY__COPY_DATA_AS_TYPE(dst, src, T) do{   \
+    T* dst_ptr = (T*)(dst);                           \
+    T* src_ptr = (T*)(src);                           \
+    for( int32_t c = 0; c < a; c++ )                  \
+    {                                                 \
+      *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++;  \
+      *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++;  \
+      *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++;  \
+    }                                                 \
+    for( int32_t c = 0; c < b; c++ )                  \
+    {                                                 \
+      *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++;  \
+    }                                                 \
+  } while(0)
+
+void
+msh_ply__data_assign( void* dst, void* src, int32_t type, int32_t count )
+{
+  int32_t a = count / 3;
+  int32_t b = count % 3;
+  
+  switch( type )
+  {
+    case MSH_PLY_UINT8:  { MSH_PLY__COPY_DATA_AS_TYPE(dst, src, uint8_t);  break; }
+    case MSH_PLY_UINT16: { MSH_PLY__COPY_DATA_AS_TYPE(dst, src, uint16_t); break; }
+    case MSH_PLY_UINT32: { MSH_PLY__COPY_DATA_AS_TYPE(dst, src, uint32_t); break; }
+    case MSH_PLY_INT8:   { MSH_PLY__COPY_DATA_AS_TYPE(dst, src, int8_t);   break; }
+    case MSH_PLY_INT16:  { MSH_PLY__COPY_DATA_AS_TYPE(dst, src, int16_t);  break; }
+    case MSH_PLY_INT32:  { MSH_PLY__COPY_DATA_AS_TYPE(dst, src, int32_t);  break; }
+    case MSH_PLY_FLOAT:  { MSH_PLY__COPY_DATA_AS_TYPE(dst, src, float);    break; }
+    case MSH_PLY_DOUBLE: { MSH_PLY__COPY_DATA_AS_TYPE(dst, src, double);   break; }
+    default:
+      break;
+  }
+}
+#undef MSH_PLY__COPY_DATA_AS_TYPE
+
+#ifndef MSH_PLY_ENCODER_ONLY
+
 int
-msh_ply_parse_ply_cmd(char* line, msh_ply_t* pf)
+msh_ply__parse_ply_cmd(char* line, msh_ply_t* pf)
 {
   char cmd_str[MSH_PLY_FILE_MAX_STR_LEN];
   if( sscanf(line, "%s", cmd_str) )
@@ -359,33 +518,39 @@ msh_ply_parse_ply_cmd(char* line, msh_ply_t* pf)
 }
 
 int
-msh_ply_parse_format_cmd(char* line, msh_ply_t* pf)
+msh_ply__parse_format_cmd(char* line, msh_ply_t* pf)
 {
   char cmd[MSH_PLY_FILE_MAX_STR_LEN];
   char frmt_str[MSH_PLY_FILE_MAX_STR_LEN];
   char frmt_ver_str[MSH_PLY_FILE_MAX_STR_LEN];
-  if(sscanf(line, "%s %s %s", &cmd[0], &frmt_str[0], &frmt_ver_str[0]) != 3) { return MSH_PLY_FORMAT_CMD_ERR; } 
+  if(sscanf(line, "%s %s %s", &cmd[0], &frmt_str[0], &frmt_ver_str[0]) != 3) 
+  { 
+    return MSH_PLY_FORMAT_CMD_ERR; 
+  } 
   if(!strcmp("ascii", frmt_str)){ pf->format = (int)MSH_PLY_ASCII; }
   else if(!strcmp("binary_little_endian", frmt_str)){ pf->format = (int)MSH_PLY_LITTLE_ENDIAN; }
   else if(!strcmp("binary_big_endian", frmt_str)){ pf->format = (int)MSH_PLY_BIG_ENDIAN; }
-  else{ return MSH_PLY_UNRECOGNIZED_FORMAT_ERR; }
+  else{ return MSH_PLY_INVALID_FORMAT_ERR; }
   pf->format_version = atoi(frmt_ver_str);
   return MSH_PLY_NO_ERRORS;
 }
 
 int
-msh_ply_parse_element_cmd(char* line, msh_ply_t* pf)
+msh_ply__parse_element_cmd(char* line, msh_ply_t* pf)
 {
   char cmd[MSH_PLY_FILE_MAX_STR_LEN];
   ply_element_t el = ply_element_zero_init();
   el.properties = NULL;
-  if(sscanf(line, "%s %s %d", &cmd[0], &el.name[0], &el.count) != 3) { return MSH_PLY_ELEMENT_CMD_ERR; }
-  msh_array_push( pf->elements, el );
+  if(sscanf(line, "%s %s %d", &cmd[0], &el.name[0], &el.count) != 3)
+  { 
+    return MSH_PLY_ELEMENT_CMD_ERR; 
+  }
+  msh_ply_array_push( pf->elements, el );
   return MSH_PLY_NO_ERRORS;
 }
 
 int
-msh_ply_parse_property_cmd(char* line, msh_ply_t* pf)
+msh_ply__parse_property_cmd(char* line, msh_ply_t* pf)
 {
   char cmd[MSH_PLY_FILE_MAX_STR_LEN];
   char type_str[MSH_PLY_FILE_MAX_STR_LEN];
@@ -393,7 +558,7 @@ msh_ply_parse_property_cmd(char* line, msh_ply_t* pf)
   char list_type_str[MSH_PLY_FILE_MAX_STR_LEN];
   int valid_format = false;
   
-  ply_element_t* el = msh_array_back(pf->elements);
+  ply_element_t* el = msh_ply_array_back(pf->elements);
   ply_property_t pr = ply_property_zero_init();
   // Try to parse regular property format
   if(sscanf(line, "%s %s %s", &cmd[0], &type_str[0], (char*)&pr.name) == 3) 
@@ -407,7 +572,8 @@ msh_ply_parse_property_cmd(char* line, msh_ply_t* pf)
 
   // Try to parse list property format
   cmd[0] = 0; type_str[0] = 0; list_str[0] = 0; list_type_str[0] = 0;
-  if( sscanf(line, "%s %s %s %s %s", &cmd[0], &list_str[0], &list_type_str[0], &type_str[0], (char*)&pr.name) == 5)
+  if( sscanf(line, "%s %s %s %s %s", 
+                   &cmd[0], &list_str[0], &list_type_str[0], &type_str[0], (char*)&pr.name) == 5)
   {
     if( strcmp(list_str, "list") ) { return MSH_PLY_PROPERTY_CMD_ERR; }
     msh_ply_string_to_property_type(type_str, &pr.type, &pr.byte_size);
@@ -421,7 +587,7 @@ msh_ply_parse_property_cmd(char* line, msh_ply_t* pf)
   if(!valid_format) { return MSH_PLY_PROPERTY_CMD_ERR; }
 
   // Either succeded
-  msh_array_push(el->properties, pr);
+  msh_ply_array_push(el->properties, pr);
 
   return MSH_PLY_NO_ERRORS;
 }
@@ -429,10 +595,10 @@ msh_ply_parse_property_cmd(char* line, msh_ply_t* pf)
 int 
 msh_ply__parse_command(char* cmd, char* line, msh_ply_t* pf)
 {
-  if(!strcmp(cmd, "ply"))      { return msh_ply_parse_ply_cmd(line, pf); }
-  if(!strcmp(cmd, "format"))   { return msh_ply_parse_format_cmd(line, pf); }
-  if(!strcmp(cmd, "element"))  { return msh_ply_parse_element_cmd(line, pf); }
-  if(!strcmp(cmd, "property")) { return msh_ply_parse_property_cmd(line, pf); }
+  if(!strcmp(cmd, "ply"))      { return msh_ply__parse_ply_cmd(line, pf); }
+  if(!strcmp(cmd, "format"))   { return msh_ply__parse_format_cmd(line, pf); }
+  if(!strcmp(cmd, "element"))  { return msh_ply__parse_element_cmd(line, pf); }
+  if(!strcmp(cmd, "property")) { return msh_ply__parse_property_cmd(line, pf); }
   return MSH_PLY_UNRECOGNIZED_CMD_ERR;
 }
 
@@ -446,7 +612,7 @@ msh_ply_parse_header(msh_ply_t* pf)
   {
     line_no++;
     char cmd[MSH_PLY_FILE_MAX_STR_LEN];
-    if(sscanf(line, "%s", cmd)!=(unsigned) 1) { return MSH_PLY_LINE_PARSE_ERR; }
+    if( sscanf(line, "%s", cmd) != (unsigned) 1 ) { return MSH_PLY_LINE_PARSE_ERR; }
     if(!strcmp(cmd,"end_header")) break;
     if(!strcmp(cmd,"comment")) continue;
     if(!strcmp(cmd,"obj_info")) continue;
@@ -467,7 +633,7 @@ msh_ply__calculate_elem_size_ascii(msh_ply_t* pf, ply_element_t* el)
     char* cp_up  = &line[0];
     char* cp_low = &line[0];
 
-  for( size_t j = 0; j<msh_array_len(el->properties); ++j )
+  for( size_t j = 0; j<msh_ply_array_len(el->properties); ++j )
     {
       ply_property_t* pr = &el->properties[j];
       while( *cp_up != ' ' && *cp_up != '\n' ) { cp_up++; }
@@ -520,14 +686,14 @@ msh_ply__calculate_elem_size_binary(msh_ply_t* pf, ply_element_t* el)
 {
   for( int i = 0; i < el->count; ++i )
   {
-    for( size_t j = 0; j < msh_array_len(el->properties); ++j )
+    for( size_t j = 0; j < msh_ply_array_len(el->properties); ++j )
     {
       ply_property_t* pr = &el->properties[j];
       int count = 1;
       if( pr->list_type != MSH_PLY_INVALID ) 
       { 
-        int read_count = fread(&count, pr->list_byte_size, 1, pf->_fp);
-        if( read_count != 1) { return MSH_PLY_PARSE_ERROR;}
+        int read_count = fread( &count, pr->list_byte_size, 1, pf->_fp );
+        if( read_count != 1) { return MSH_PLY_BINARY_PARSE_ERR;}
         pr->total_byte_size += pr->list_byte_size;
       }
       fseek(pf->_fp, count * pr->byte_size, SEEK_CUR);
@@ -542,7 +708,7 @@ int32_t
 msh_ply__can_precalculate_sizes( ply_element_t* el )
 {
   int32_t can_precalculate = 1;
-  for( size_t i = 0; i < msh_array_len(el->properties); ++i )
+  for( size_t i = 0; i < msh_ply_array_len(el->properties); ++i )
   {
     ply_property_t* pr = &el->properties[i];
     if( pr->list_type != MSH_PLY_INVALID && pr->list_count == 0) 
@@ -559,10 +725,10 @@ int
 msh_ply_parse_contents( msh_ply_t* pf )
 {
   int err_code = MSH_PLY_NO_ERRORS;
-  for( size_t i = 0; i < msh_array_len(pf->elements); ++i )
+  for( size_t i = 0; i < msh_ply_array_len(pf->elements); ++i )
   {
     ply_element_t* el = &pf->elements[i];
-    int num_properties = msh_array_len(el->properties);
+    int num_properties = msh_ply_array_len(el->properties);
     if( el->count <= 0 || num_properties <= 0 ) { continue; }
     el->file_anchor = ftell(pf->_fp);
 
@@ -588,7 +754,10 @@ msh_ply_parse_contents( msh_ply_t* pf )
       else
       {
         char line[MSH_PLY_FILE_MAX_STR_LEN];
-        for( int j =0; j < el->count; ++j ) { fgets( &line[0], MSH_PLY_FILE_MAX_STR_LEN, pf->_fp ); }
+        for( int j =0; j < el->count; ++j ) 
+        { 
+          fgets( &line[0], MSH_PLY_FILE_MAX_STR_LEN, pf->_fp ); 
+        }
       }
     }
     else 
@@ -617,7 +786,7 @@ msh_ply__get_element_size( const ply_element_t *el, uint64_t* size )
   int err_code = MSH_PLY_NO_ERRORS;
   
   *size = 0;
-  for( size_t i = 0; i < msh_array_len( el->properties ); ++i )
+  for( size_t i = 0; i < msh_ply_array_len( el->properties ); ++i )
   {
     *size += el->properties[i].total_byte_size;
   }
@@ -625,44 +794,43 @@ msh_ply__get_element_size( const ply_element_t *el, uint64_t* size )
 }
 
 // NOTE(maciej): this works better with an assignment
-#define MSH_PLY_CONVERT_AND_ASSIGN(D, C, T, conv_funct) {\
+#define MSH_PLY__CONVERT_AND_ASSIGN(D, C, T, conv_funct) do {\
   T n = (T)conv_funct(C); \
   *((T*)(D)) = n; \
-  (D) += sizeof(T); }
+  (D) += sizeof(T); } while(0)
 
 MSH_PLY_INLINE void 
 msh_ply__ascii_to_value( char** dst, char* src, const int type )
 {
   switch(type)
   {
-    case MSH_PLY_INT8:   MSH_PLY_CONVERT_AND_ASSIGN(*dst, src, int8_t,   atoi); break;
-    case MSH_PLY_INT16:  MSH_PLY_CONVERT_AND_ASSIGN(*dst, src, int16_t,  atoi); break;
-    case MSH_PLY_INT32:  MSH_PLY_CONVERT_AND_ASSIGN(*dst, src, int32_t,  atoi); break;
-    case MSH_PLY_UINT8:  MSH_PLY_CONVERT_AND_ASSIGN(*dst, src, uint8_t,  atoi); break;
-    case MSH_PLY_UINT16: MSH_PLY_CONVERT_AND_ASSIGN(*dst, src, uint16_t, atoi); break;
-    case MSH_PLY_UINT32: MSH_PLY_CONVERT_AND_ASSIGN(*dst, src, uint32_t, atoi); break;
-    case MSH_PLY_FLOAT:  MSH_PLY_CONVERT_AND_ASSIGN(*dst, src, float,    atof); break;
-    case MSH_PLY_DOUBLE: MSH_PLY_CONVERT_AND_ASSIGN(*dst, src, double,   atof); break;
+    case MSH_PLY_INT8:   MSH_PLY__CONVERT_AND_ASSIGN(*dst, src, int8_t,   atoi); break;
+    case MSH_PLY_INT16:  MSH_PLY__CONVERT_AND_ASSIGN(*dst, src, int16_t,  atoi); break;
+    case MSH_PLY_INT32:  MSH_PLY__CONVERT_AND_ASSIGN(*dst, src, int32_t,  atoi); break;
+    case MSH_PLY_UINT8:  MSH_PLY__CONVERT_AND_ASSIGN(*dst, src, uint8_t,  atoi); break;
+    case MSH_PLY_UINT16: MSH_PLY__CONVERT_AND_ASSIGN(*dst, src, uint16_t, atoi); break;
+    case MSH_PLY_UINT32: MSH_PLY__CONVERT_AND_ASSIGN(*dst, src, uint32_t, atoi); break;
+    case MSH_PLY_FLOAT:  MSH_PLY__CONVERT_AND_ASSIGN(*dst, src, float,    atof); break;
+    case MSH_PLY_DOUBLE: MSH_PLY__CONVERT_AND_ASSIGN(*dst, src, double,   atof); break;
   }
 }
-
 
 int32_t
 msh_ply__get_element_data_ascii( msh_ply_t* pf, const ply_element_t* el, void** storage )
 {
   int32_t err_code = MSH_PLY_NO_ERRORS;
-  int32_t num_properties = msh_array_len( el->properties );
+  int32_t num_properties = msh_ply_array_len( el->properties );
 
   fseek(pf->_fp, el->file_anchor, SEEK_SET);
   char *dest = (char*)*storage;
-  for( int i = 0; i < el->count; ++i )
+  for( int32_t i = 0; i < el->count; ++i )
   {
     char line[MSH_PLY_FILE_MAX_STR_LEN];
     fgets(line, MSH_PLY_FILE_MAX_STR_LEN, pf->_fp);
     char* cp_up  = &line[0];
     char* cp_low = &line[0];
 
-    for( int j = 0; j < num_properties; ++j )
+    for( int32_t j = 0; j < num_properties; ++j )
     {
       ply_property_t* pr = &el->properties[j];
       while( *cp_up!=' ' && *cp_up!='\n' ) { cp_up++; }
@@ -682,7 +850,7 @@ msh_ply__get_element_data_ascii( msh_ply_t* pf, const ply_element_t* el, void** 
         *cp_up = tmp_cp_up;
         cp_low = cp_up;
         cp_up++;
-        for( int k = 0; k < pr->list_count; ++k) 
+        for( int32_t k = 0; k < pr->list_count; ++k) 
         {
           while(*cp_up!=' ' && *cp_up!='\n') {cp_up++;}
           tmp_cp_up = *cp_up;
@@ -714,16 +882,23 @@ msh_ply__get_element_data_binary( msh_ply_t* pf, const ply_element_t* el,
 {
   int err_code = MSH_PLY_NO_ERRORS;
   fseek( pf->_fp, el->file_anchor, SEEK_SET );
-  if( fread( *storage, storage_size, 1, pf->_fp ) != 1 ) { return MSH_PLY_PARSE_ERROR; }
+  if( fread( *storage, storage_size, 1, pf->_fp ) != 1 ) { return MSH_PLY_BINARY_PARSE_ERR; }
   return err_code;
 }
 
-MSH_PLY_INLINE int
-msh_ply__get_element_data(msh_ply_t* pf, const ply_element_t* el, void** storage, int64_t storage_size)
+int
+msh_ply__get_element_data(msh_ply_t* pf, const ply_element_t* el, 
+                          void** storage, int64_t storage_size)
 {
   int err_code = MSH_PLY_NO_ERRORS;
-  if(pf->format == MSH_PLY_ASCII)  { err_code = msh_ply__get_element_data_ascii( pf, el, storage ); }
-  else                         { err_code = msh_ply__get_element_data_binary( pf, el, storage, storage_size ); }
+  if(pf->format == MSH_PLY_ASCII) 
+  { 
+    err_code = msh_ply__get_element_data_ascii( pf, el, storage );
+  }
+  else
+  { 
+    err_code = msh_ply__get_element_data_binary( pf, el, storage, storage_size ); 
+  }
 
   return err_code;
 }
@@ -741,7 +916,7 @@ msh_ply__get_properties_byte_size( ply_element_t* el,
   int list_byte_size = msh_ply__type_to_byte_size( list_type );
   for( int i = 0; i < num_properties; ++i )
   {
-    for( size_t j = 0; j < msh_array_len( el->properties ); ++j )
+    for( size_t j = 0; j < msh_ply_array_len( el->properties ); ++j )
     {
       ply_property_t* pr = &el->properties[j];
       if( !strcmp(pr->name, properties_names[i]) )
@@ -762,227 +937,44 @@ msh_ply__get_properties_byte_size( ply_element_t* el,
   return MSH_PLY_NO_ERRORS;
 }
 
-MSH_PLY_INLINE void
-msh_ply__data_assign( void* dst, void* src, int32_t type, int32_t count )
-{
-  int32_t a = count / 3;
-  int32_t b = count % 3;
-  
-  switch( type )
-  {
-    case MSH_PLY_UINT8:
-    {
-      uint8_t* dst_ptr = (uint8_t*)dst;
-      uint8_t* src_ptr = (uint8_t*)src;
-      for( int32_t c = 0; c < a; c++ )
-      {
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++; 
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++; 
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++;   
-      }
-      for( int32_t c = 0; c < b; c++ )
-      {
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++; 
-      }
-      break;
-    }
-      
-    case MSH_PLY_UINT16:
-    {
-      uint16_t* dst_ptr = (uint16_t*)dst;
-      uint16_t* src_ptr = (uint16_t*)src;
-      for( int32_t c = 0; c < a; c++ )
-      {
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++; 
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++; 
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++;   
-      }
-      for( int32_t c = 0; c < b; c++ )
-      {
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++; 
-      }
-      break;
-    }
-      
-    case MSH_PLY_UINT32:
-    {
-      uint32_t* dst_ptr = (uint32_t*)dst;
-      uint32_t* src_ptr = (uint32_t*)src;
-      for( int32_t c = 0; c < a; c++ )
-      {
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++; 
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++; 
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++;   
-      }
-      for( int32_t c = 0; c < b; c++ )
-      {
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++; 
-      }
-      break;
-    }
-      
-    case MSH_PLY_INT8:
-    {
-      int8_t* dst_ptr = (int8_t*)dst;
-      int8_t* src_ptr = (int8_t*)src;
-      for( int32_t c = 0; c < a; c++ )
-      {
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++; 
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++; 
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++;   
-      }
-      for( int32_t c = 0; c < b; c++ )
-      {
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++; 
-      }
-      break;
-    }
-      
-    case MSH_PLY_INT16:
-    {
-      int16_t* dst_ptr = (int16_t*)dst;
-      int16_t* src_ptr = (int16_t*)src;
-      for( int32_t c = 0; c < a; c++ )
-      {
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++; 
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++; 
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++;   
-      }
-      for( int32_t c = 0; c < b; c++ )
-      {
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++;
-      }
-      break;
-    }
-      
-    case MSH_PLY_INT32:
-    {
-      int32_t* dst_ptr = (int32_t*)dst;
-      int32_t* src_ptr = (int32_t*)src;
-      for( int32_t c = 0; c < a; c++ )
-      {
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++; 
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++; 
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++;   
-      }
-      for( int32_t c = 0; c < b; c++ )
-      {
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++;
-      }
-      break;
-    }
-      
-    case MSH_PLY_FLOAT:
-    {
-      float* dst_ptr = (float*)dst;
-      float* src_ptr = (float*)src;
-      for( int32_t c = 0; c < a; c++ )
-      {
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++; 
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++; 
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++;   
-      }
-      for( int32_t c = 0; c < b; c++ )
-      {
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++;
-      }
-      break;
-    }
-      
-    case MSH_PLY_DOUBLE:
-    {
-      double* dst_ptr = (double*)dst;
-      double* src_ptr = (double*)src;
-      for( int32_t c = 0; c < a; c++ )
-      {
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++; 
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++; 
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++;   
-      }
-      for( int32_t c = 0; c < b; c++ )
-      {
-        *(dst_ptr) = *(src_ptr); dst_ptr++; src_ptr++; 
-      }
-      break;
-    }
-    default:
-      break;
-  }
-}
-
 // NOTE(maciej): See if we can vectorize this
-MSH_PLY_INLINE void
+void
 msh_ply__data_assign_cast( void* dst, void* src, int32_t type_dst, int32_t type_src, int32_t count )
 {
-  double data;
+  double data = 0;
   for( int32_t c = 0; c < count ; c++ )
   {
     switch( type_src )
     {
       // intermediate store
-      case MSH_PLY_UINT8:
-        data = (double)(*((uint8_t*)(src)+c));
-        break;
-      case MSH_PLY_UINT16:
-        data = (double)(*((uint16_t*)(src)+c));
-        break;
-      case MSH_PLY_UINT32:
-        data = (double)(*((uint32_t*)(src)+c));
-        break;
-      case MSH_PLY_INT8:
-        data = (double)(*((int8_t*)(src)+c));
-        break;
-      case MSH_PLY_INT16:
-        data = (double)(*((int16_t*)(src)+c));
-        break;
-      case MSH_PLY_INT32:
-        data = (double)(*((int32_t*)(src)+c));
-        break;
-      case MSH_PLY_FLOAT:
-        data = (double)(*((float*)(src)+c));
-        break;
-      case MSH_PLY_DOUBLE:
-        data = (double)(*((double*)(src)+c));
-        break;
-      default:
-        data = (double)(*((uint8_t*)(src)+c));
-        break;
+      case MSH_PLY_UINT8:  data = (double)(*((uint8_t*)(src)+c));  break;
+      case MSH_PLY_UINT16: data = (double)(*((uint16_t*)(src)+c)); break;
+      case MSH_PLY_UINT32: data = (double)(*((uint32_t*)(src)+c)); break;
+      case MSH_PLY_INT8:   data = (double)(*((int8_t*)(src)+c));   break;
+      case MSH_PLY_INT16:  data = (double)(*((int16_t*)(src)+c));  break;
+      case MSH_PLY_INT32:  data = (double)(*((int32_t*)(src)+c));  break;
+      case MSH_PLY_FLOAT:  data = (double)(*((float*)(src)+c));    break;
+      case MSH_PLY_DOUBLE: data = (double)(*((double*)(src)+c));   break;
+      default:             data = (double)(*((uint8_t*)(src)+c));  break;
     }
 
     // write
     switch( type_dst )
     {
-      case MSH_PLY_UINT8:
-        *((uint8_t*)(dst)+c) = (uint8_t)data;
-        break;
-      case MSH_PLY_UINT16:
-        *((uint16_t*)(dst)+c) = (uint16_t)data;
-        break;
-      case MSH_PLY_UINT32:
-        *((uint32_t*)(dst)+c) = (uint32_t)data;
-        break;
-      case MSH_PLY_INT8:
-        *((int8_t*)(dst)+c) = (int8_t)data;
-        break;
-      case MSH_PLY_INT16:
-        *((int16_t*)(dst)+c) = (int16_t)data;
-        break;
-      case MSH_PLY_INT32:
-        *((int32_t*)(dst)+c) = (int32_t)data;
-        break;
-      case MSH_PLY_FLOAT:
-        *((float*)(dst)+c) = (float)data;
-        break;
-      case MSH_PLY_DOUBLE:
-        *((double*)(dst)+c) = (double)data;
-        break;
-      default:
-        *((uint8_t*)(dst)+c) = (uint8_t)data;
-        break;
+      case MSH_PLY_UINT8:  *((uint8_t*)(dst)+c)  = (uint8_t)data;  break;
+      case MSH_PLY_UINT16: *((uint16_t*)(dst)+c) = (uint16_t)data; break;
+      case MSH_PLY_UINT32: *((uint32_t*)(dst)+c) = (uint32_t)data; break;
+      case MSH_PLY_INT8:   *((int8_t*)(dst)+c)   = (int8_t)data;   break;
+      case MSH_PLY_INT16:  *((int16_t*)(dst)+c)  = (int16_t)data;  break;
+      case MSH_PLY_INT32:  *((int32_t*)(dst)+c)  = (int32_t)data;  break;
+      case MSH_PLY_FLOAT:  *((float*)(dst)+c)    = (float)data;    break;
+      case MSH_PLY_DOUBLE: *((double*)(dst)+c)   = (double)data;   break;
+      default:             *((uint8_t*)(dst)+c) = (uint8_t)data;   break;
     }
   }
 }
 
+// TODO(maciej): This is gigantic function, can we break it down?
 int
 msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name, 
                                     const char** property_names, int num_requested_properties, 
@@ -998,7 +990,7 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
   else
   {
     // double pt1 = size_t MSHT_MILLISECONDS);
-    num_properties = msh_array_len(el->properties);
+    num_properties = msh_ply_array_len(el->properties);
     if( el->data == NULL )
     {
       // Check if data layouts agree - if so, we can just copy and return
@@ -1022,13 +1014,13 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
       {
         msh_ply__get_element_size( el, &el->data_size );
         *data_count = el->count;
-        *data = malloc(el->data_size);
+        *data = MSH_PLY_MALLOC(el->data_size);
         msh_ply__get_element_data( pf, el, &*data, el->data_size ); 
         return MSH_PLY_NO_ERRORS;
       }
       
       msh_ply__get_element_size( el, &el->data_size );
-      el->data = malloc( el->data_size );
+      el->data = MSH_PLY_MALLOC( el->data_size );
       msh_ply__get_element_data( pf, el, &el->data, el->data_size ); 
     }
     
@@ -1045,12 +1037,12 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
                                        &data_byte_size, &list_byte_size );
     if( data != NULL ) 
     { 
-      *data = malloc(data_byte_size); 
+      *data = MSH_PLY_MALLOC(data_byte_size); 
       dst_data = (uint8_t*)*data;
     }
     if( list_data != NULL  )
     { 
-      *list_data = malloc(list_byte_size);
+      *list_data = MSH_PLY_MALLOC(list_byte_size);
       dst_list = (uint8_t*)*list_data;
     }
     uint8_t* src = (uint8_t*)el->data;
@@ -1168,8 +1160,6 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
       }
     }
 
-    assert( pr_count == num_requested_properties );
-
     // Start copying
     for( int i = 0; i < el->count; ++i )
     {
@@ -1198,7 +1188,9 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
 
           if( pr->list_type != MSH_PLY_INVALID )
           {
-            pr->list_count = msh_ply__get_data_as_int(src+src_row_size, pr->list_type, swap_endianness);
+            pr->list_count = msh_ply__get_data_as_int( src + src_row_size, 
+                                                       pr->list_type, 
+                                                       swap_endianness );
           }
           dst_stride = pr->list_count * requested_byte_size;
 
@@ -1228,9 +1220,14 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
           {
             void* dst_ptr = (dst_data + dst_offset);
             void* src_ptr = (src + prh->offset);
-            msh_ply__data_assign_cast( dst_ptr, src_ptr, requested_type, prh->type, prh->list_count );
-            dst_offset += dst_stride; // NOTE(maciej): Would need to make per property to enable swizzle
-            if( swap_endianness ) msh_ply__swap_bytes( (uint8_t*)dst_ptr, requested_byte_size, prh->list_count );
+            msh_ply__data_assign_cast( dst_ptr, src_ptr, 
+                                       requested_type, prh->type, prh->list_count );
+            // NOTE(maciej): Would need to make per property to enable swizzle
+            dst_offset += dst_stride; 
+            if( swap_endianness ) 
+            {
+              msh_ply__swap_bytes( (uint8_t*)dst_ptr, requested_byte_size, prh->list_count );
+            }
           }
 
           if( dst_list )
@@ -1239,7 +1236,10 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
             void* src_ptr = (src + prh->list_offset);
             msh_ply__data_assign_cast( dst_ptr, src_ptr, requested_list_type, prh->list_type, 1 );
             dst_list_offset += requested_list_byte_size;
-            if( swap_endianness ) msh_ply__swap_bytes( (uint8_t*)dst_ptr, requested_list_byte_size, 1 );
+            if( swap_endianness ) 
+            {
+              msh_ply__swap_bytes( (uint8_t*)dst_ptr, requested_list_byte_size, 1 );
+            }
           }
         }
       }
@@ -1254,7 +1254,10 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
             void* src_ptr = (src + prh->offset);
             msh_ply__data_assign( dst_ptr, src_ptr, prh->type, prh->list_count );
             dst_offset += dst_stride;
-            if( swap_endianness ) msh_ply__swap_bytes( (uint8_t*)dst_ptr, requested_byte_size, prh->list_count );
+            if( swap_endianness ) 
+            {
+              msh_ply__swap_bytes( (uint8_t*)dst_ptr, requested_byte_size, prh->list_count );
+            }
           }
 
           if( dst_list )
@@ -1263,7 +1266,10 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
             void* src_ptr = (src + prh->list_offset);
             msh_ply__data_assign( dst_ptr, src_ptr, prh->list_type, 1 );
             dst_list_offset += requested_list_byte_size;
-            if( swap_endianness ) msh_ply__swap_bytes( (uint8_t*)dst_ptr, requested_list_byte_size, 1 );
+            if( swap_endianness ) 
+            {
+              msh_ply__swap_bytes( (uint8_t*)dst_ptr, requested_list_byte_size, 1 );
+            }
           }
         }
       }
@@ -1290,15 +1296,100 @@ msh_ply_get_property_from_element( msh_ply_t* pf, msh_ply_property_desc_t* desc 
 }
 
 
-// ENCODER
+
+
+int32_t 
+msh_ply__synchronize_list_sizes( msh_ply_t *pf )
+{
+  int error_code = MSH_PLY_NO_ERRORS;
+  for( size_t k = 0; k < msh_ply_array_len( pf->descriptors ); ++k )
+  {
+    msh_ply_property_desc_t* desc = pf->descriptors[k];
+    ply_element_t* el = NULL;
+    for( size_t i = 0; i < msh_ply_array_len(pf->elements); ++i )
+    {
+      ply_element_t* cur_el = &pf->elements[i];
+      if( !strcmp( desc->element_name, cur_el->name ) )
+      {
+        el = cur_el;
+        break;
+      }
+    }
+    if( el == NULL ) { error_code = MSH_PLY_ELEMENT_NOT_FOUND_ERR; return error_code; }
+    for( int32_t i = 0; i < desc->num_properties; ++i )
+    {
+      int32_t found = 0;
+      for( size_t j = 0; j < msh_ply_array_len( el->properties ); ++j )
+      {
+        ply_property_t* pr = &el->properties[j];
+        if( !strcmp( pr->name, desc->property_names[i] ) )
+        {
+          if( pr->list_type != MSH_PLY_INVALID ) 
+          { 
+            pr->list_count = desc->list_size_hint; 
+            if( desc->list_data == NULL ) { desc->list_type = pr->list_type; }
+          }
+          else 
+          { 
+            pr->list_count = 1; 
+            desc->list_size_hint = 1; 
+          }
+          found = 1;
+          break;
+        }
+      }
+      if( !found ) { error_code = MSH_PLY_PROPERTY_NOT_FOUND_ERR; return error_code; }
+    }
+
+    // for( size_t i = 0; i < msh_ply_array_len( el->properties ); ++i )
+    // {
+    //   printf("%s -> %d\n", el->properties[i].name, el->properties[i].list_count );
+    // }
+    // printf("\n");
+  }
+
+  return MSH_PLY_NO_ERRORS;
+}
+
 int
-msh_ply_add_element( msh_ply_t* pf, const char* element_name, const int element_count )
+msh_ply_read( msh_ply_t* pf )
+{
+  int error = MSH_PLY_NO_ERRORS;
+  if( !pf->_fp ) { return MSH_PLY_FILE_NOT_OPEN_ERR; }
+  if( msh_ply_array_len( pf->descriptors ) == 0 ) { return MSH_PLY_NO_REQUESTS; }
+  if( !pf->_parsed ) { error = msh_ply_parse_header( pf ); }
+  if( error ) { return error; }
+  error = msh_ply__synchronize_list_sizes( pf ); 
+  if( error ) { return error; }
+
+  error = msh_ply_parse_contents( pf );
+
+  if( error ) { return error; }
+  
+  for( size_t i = 0; i < msh_ply_array_len( pf->descriptors ); ++i )
+  {
+    msh_ply_property_desc_t *desc = pf->descriptors[i];
+    error = msh_ply_get_property_from_element( pf, desc );
+    if( error ) { return error; }
+
+  }
+
+  return error;
+}
+#endif /* MSH_PLY_ENCODER_ONLY */
+
+// ENCODER
+
+#ifndef MSH_PLY_DECODER_ONLY
+
+int
+msh_ply__add_element( msh_ply_t* pf, const char* element_name, const int element_count )
 {
   ply_element_t el = ply_element_zero_init();
   strncpy( &el.name[0], element_name, 64 );
   el.count = element_count;
   el.properties = NULL;
-  msh_array_push( pf->elements, el );
+  msh_ply_array_push( pf->elements, el );
   return MSH_PLY_NO_ERRORS;
 }
 
@@ -1308,14 +1399,14 @@ msh_ply__fprint_data_at_offset(const msh_ply_t* pf, const void* data, const int3
 {
   switch(type)
   {
-    case MSH_PLY_UINT8:  fprintf(pf->_fp,"%d ", *(uint8_t*)(data+offset)); break;
+    case MSH_PLY_UINT8:  fprintf(pf->_fp,"%d ", *(uint8_t*)(data+offset));  break;
     case MSH_PLY_UINT16: fprintf(pf->_fp,"%d ", *(uint16_t*)(data+offset)); break;
     case MSH_PLY_UINT32: fprintf(pf->_fp,"%d ", *(uint32_t*)(data+offset)); break;
-    case MSH_PLY_INT8:   fprintf(pf->_fp,"%d ", *(int8_t*)(data+offset)); break;
-    case MSH_PLY_INT16:  fprintf(pf->_fp,"%d ", *(int16_t*)(data+offset)); break;
-    case MSH_PLY_INT32:  fprintf(pf->_fp,"%d ", *(int32_t*)(data+offset)); break;
-    case MSH_PLY_FLOAT:  fprintf(pf->_fp,"%f ", *(float*)(data+offset)); break;
-    case MSH_PLY_DOUBLE: fprintf(pf->_fp,"%f ", *(double*)(data+offset)); break;
+    case MSH_PLY_INT8:   fprintf(pf->_fp,"%d ", *(int8_t*)(data+offset));   break;
+    case MSH_PLY_INT16:  fprintf(pf->_fp,"%d ", *(int16_t*)(data+offset));  break;
+    case MSH_PLY_INT32:  fprintf(pf->_fp,"%d ", *(int32_t*)(data+offset));  break;
+    case MSH_PLY_FLOAT:  fprintf(pf->_fp,"%f ", *(float*)(data+offset));    break;
+    case MSH_PLY_DOUBLE: fprintf(pf->_fp,"%f ", *(double*)(data+offset));   break;
   }
 }
 
@@ -1340,8 +1431,8 @@ msh_ply__add_property_to_element( msh_ply_t* pf, const char* element_name,
   ply_element_t* el = msh_ply_find_element(pf, element_name);
   if( !el )
   {
-    msh_ply_add_element(pf, element_name, element_count);
-    el = msh_array_back(pf->elements);
+    msh_ply__add_element(pf, element_name, element_count);
+    el = msh_ply_array_back(pf->elements);
   }
 
   if( el )
@@ -1377,7 +1468,8 @@ msh_ply__add_property_to_element( msh_ply_t* pf, const char* element_name,
         {
           // NOTE(list type needs to be dereferenced to correct type)
           int offset = (pr.list_offset + j * pr.list_stride);
-          int list_count = msh_ply__get_data_as_int((uint8_t*)list_data + offset, list_type, swap_endianness);
+          int list_count = msh_ply__get_data_as_int((uint8_t*)list_data + offset, 
+                                                    list_type, swap_endianness);
           pr.total_byte_size += pr.list_byte_size + list_count * pr.byte_size;
           if( j == 0 ) // We care only about initial offset, so first element of list counts
           {
@@ -1392,7 +1484,7 @@ msh_ply__add_property_to_element( msh_ply_t* pf, const char* element_name,
         pr.stride *= pr.list_count;
       }
 
-      msh_array_push( el->properties, pr );
+      msh_ply_array_push( el->properties, pr );
     }
   }
   else 
@@ -1416,25 +1508,26 @@ msh_ply_add_property_to_element( msh_ply_t* pf, const msh_ply_property_desc_t* d
 // NOTE(maciej): I don't really like how this works. Might need to redo it
 int
 msh_ply__calculate_list_property_stride( const ply_property_t* pr, 
-                                         msh_array(ply_property_t) el_properties,
+                                         msh_ply_array(ply_property_t) el_properties,
                                          int swap_endianness )
 {
   int64_t stride = 0;
   int64_t offsets[MSH_PLY_FILE_MAX_PROPERTIES] = {0};
-  for( size_t l = 0; l < msh_array_len(el_properties); ++l )
+  for( size_t l = 0; l < msh_ply_array_len(el_properties); ++l )
   {
     ply_property_t* qr = &el_properties[l];
     offsets[l] = qr->list_offset;
   }
 
-  for( size_t l = 0; l < msh_array_len(el_properties); ++l )
+  for( size_t l = 0; l < msh_ply_array_len(el_properties); ++l )
   {
 
     ply_property_t* qr = &el_properties[l];
    
     if( pr->data == qr->data )
     {
-      int32_t list_count = msh_ply__get_data_as_int((uint8_t*)qr->list_data + offsets[l], qr->list_type, swap_endianness );
+      int32_t list_count = msh_ply__get_data_as_int((uint8_t*)qr->list_data + offsets[l],
+                                                     qr->list_type, swap_endianness );
       stride += list_count * qr->byte_size;
       offsets[l] += qr->list_stride;
     }
@@ -1455,16 +1548,16 @@ msh_ply__write_header( const msh_ply_t* pf )
       case MSH_PLY_ASCII: { format_string = (char*)"ascii"; break; }
       case MSH_PLY_LITTLE_ENDIAN: { format_string = (char*)"binary_little_endian"; break; }
       case MSH_PLY_BIG_ENDIAN: { format_string = (char*)"binary_big_endian"; break;  }
-      default: { return MSH_PLY_UNRECOGNIZED_FORMAT_ERR; }
+      default: { return MSH_PLY_INVALID_FORMAT_ERR; }
     }
 
     fprintf(pf->_fp, "ply\nformat %s %2.1f\n", 
                       format_string, (float)pf->format_version);
-    for( size_t i = 0; i < msh_array_len(pf->elements); ++i )
+    for( size_t i = 0; i < msh_ply_array_len(pf->elements); ++i )
     {
       ply_element_t* el = &pf->elements[i];
       fprintf(pf->_fp, "element %s %d\n", el->name, el->count);
-      for( size_t j = 0; j < msh_array_len(el->properties); j++)
+      for( size_t j = 0; j < msh_ply_array_len(el->properties); j++)
       {
         ply_property_t* pr = &el->properties[j];
         char* pr_type_str = NULL;
@@ -1493,13 +1586,13 @@ msh_ply__write_header( const msh_ply_t* pf )
 int
 msh_ply__write_data_ascii( const msh_ply_t* pf )
 {
-  for( size_t i = 0; i < msh_array_len(pf->elements); ++i )
+  for( size_t i = 0; i < msh_ply_array_len(pf->elements); ++i )
   {
     ply_element_t* el = &pf->elements[i];
 
     for( int j = 0; j < el->count; ++j )
     {
-      for( size_t k = 0; k < msh_array_len(el->properties); ++k )
+      for( size_t k = 0; k < msh_ply_array_len(el->properties); ++k )
       {
         ply_property_t* pr = &el->properties[k];
         if( pr->list_type == MSH_PLY_INVALID )
@@ -1510,7 +1603,6 @@ msh_ply__write_data_ascii( const msh_ply_t* pf )
         else
         {
           // figure out stride.
-          // TODO(maciej): Check stride + hints to decide on fastest way of getting stride.
           int list_count = 0;
           if( pr->list_count != 0 )
           {
@@ -1520,7 +1612,8 @@ msh_ply__write_data_ascii( const msh_ply_t* pf )
           else
           {
             pr->stride = msh_ply__calculate_list_property_stride( pr, el->properties, 0 );
-            list_count = msh_ply__get_data_as_int( (uint8_t*)pr->list_data + pr->list_offset, pr->list_type, 0 );
+            list_count = msh_ply__get_data_as_int( (uint8_t*)pr->list_data + pr->list_offset, 
+                                                    pr->list_type, 0 );
             msh_ply__fprint_data_at_offset( pf, pr->list_data, pr->list_offset, pr->list_type );
           }
           pr->list_offset += pr->list_stride;
@@ -1545,33 +1638,21 @@ int
 msh_ply__write_data_binary( const msh_ply_t* pf )
 {
   int8_t swap_endianness = (pf->_system_format != pf->format);
-  for( size_t i = 0; i < msh_array_len(pf->elements); ++i )
+  for( size_t i = 0; i < msh_ply_array_len(pf->elements); ++i )
   {
     ply_element_t* el = &pf->elements[i];
     int32_t buffer_size = 0;
-    // uint32_t hinted_list_counts[MSH_PLY_FILE_MAX_PROPERTIES] = {0};
-    for( size_t j = 0; j < msh_array_len(el->properties); ++j )
+    for( size_t j = 0; j < msh_ply_array_len(el->properties); ++j )
     {
-      // ply_property_t* pr = &el->properties[j];
-      // if( pr->list_type != MSH_PLY_INVALID ) 
-      // {
-        // for( size_t k = 0; k < msh_array_len(pf->_hints); ++k)
-        // {
-          // if( !strcmp(pr->name, pf->_hints[k].property_name) ) 
-          // {
-            // hinted_list_counts[j] = pf->_hints[k].expected_size;
-          // }
-        // }
-      // }
       buffer_size += el->properties[j].total_byte_size;
     }
 
-    uint8_t* dst = (uint8_t*)malloc( buffer_size );
+    uint8_t* dst = (uint8_t*)MSH_PLY_MALLOC( buffer_size );
     int64_t dst_offset = 0;
     
     for( int j = 0; j < el->count; ++j )
     {
-      for( size_t k = 0; k < msh_array_len(el->properties); ++k )
+      for( size_t k = 0; k < msh_ply_array_len(el->properties); ++k )
       {
         ply_property_t* pr = &el->properties[k];
         if( pr->list_type == MSH_PLY_INVALID )
@@ -1582,13 +1663,16 @@ msh_ply__write_data_binary( const msh_ply_t* pf )
         }
         else
         {
-          // figure out stride. 
+          // figure out stride
           if( !pr->list_count )
           {
-            pr->stride = msh_ply__calculate_list_property_stride( pr, el->properties, swap_endianness );
-            pr->list_count = msh_ply__get_data_as_int((uint8_t*)pr->list_data + pr->list_offset, pr->list_type, swap_endianness );
+            pr->stride = msh_ply__calculate_list_property_stride( pr, el->properties, 
+                                                                 swap_endianness );
+            pr->list_count = msh_ply__get_data_as_int( (uint8_t*)pr->list_data + pr->list_offset, 
+                                                                 pr->list_type, swap_endianness );
             
-            msh_ply__data_assign( dst + dst_offset, (uint8_t*)pr->list_data + pr->list_offset, pr->list_type, 1 );
+            msh_ply__data_assign( dst + dst_offset, (uint8_t*)pr->list_data + pr->list_offset, 
+                                                              pr->list_type, 1 );
             pr->list_offset += pr->list_stride;
             dst_offset += pr->list_byte_size;
           }
@@ -1642,7 +1726,8 @@ msh_ply__write_data_binary( const msh_ply_t* pf )
             dst_offset += pr->list_byte_size;
           }
 
-          msh_ply__data_assign( dst + dst_offset, (uint8_t*)pr->data + pr->offset, pr->type, pr->list_count );
+          msh_ply__data_assign( dst + dst_offset, (uint8_t*)pr->data + pr->offset, 
+                                pr->type, pr->list_count );
           pr->offset += pr->stride;
           dst_offset += pr->byte_size * pr->list_count;
         }
@@ -1667,109 +1752,20 @@ msh_ply_write( msh_ply_t* pf )
 {
   int error = MSH_PLY_NO_ERRORS;
   
-  for( size_t i = 0; i < msh_array_len(pf->descriptors); ++i )
+  for( size_t i = 0; i < msh_ply_array_len(pf->descriptors); ++i )
   {
     msh_ply_add_property_to_element( pf, pf->descriptors[i] );
   }
 
   // TODO(maciej): What happens if two same descriptors are added?
-  if( msh_array_len(pf->elements) == 0 ) { return MSH_PLY_NO_REQUESTS; }
+  if( msh_ply_array_len(pf->elements) == 0 ) { return MSH_PLY_NO_REQUESTS; }
 
   error = msh_ply__write_header( pf );
   if( error ) { return error; }
   error = msh_ply__write_data( pf );
   return error;
 }
-
-int32_t 
-msh_ply_synchronize_list_sizes( msh_ply_t *pf )
-{
-  int error_code = MSH_PLY_NO_ERRORS;
-  for( size_t k = 0; k < msh_array_len( pf->descriptors ); ++k )
-  {
-    msh_ply_property_desc_t* desc = pf->descriptors[k];
-    ply_element_t* el = NULL;
-    for( size_t i = 0; i < msh_array_len(pf->elements); ++i )
-    {
-      ply_element_t* cur_el = &pf->elements[i];
-      if( !strcmp( desc->element_name, cur_el->name ) )
-      {
-        el = cur_el;
-        break;
-      }
-    }
-    if( el == NULL ) { error_code = MSH_PLY_REQUESTED_ELEMENT_IS_MISSING; return error_code; }
-    for( int32_t i = 0; i < desc->num_properties; ++i )
-    {
-      int32_t found = 0;
-      for( size_t j = 0; j < msh_array_len( el->properties ); ++j )
-      {
-        ply_property_t* pr = &el->properties[j];
-        if( !strcmp( pr->name, desc->property_names[i] ) )
-        {
-          if( pr->list_type != MSH_PLY_INVALID ) 
-          { 
-            pr->list_count = desc->list_size_hint; 
-            if( desc->list_data == NULL ) { desc->list_type = pr->list_type; }
-          }
-          else 
-          { 
-            pr->list_count = 1; 
-            desc->list_size_hint = 1; 
-          }
-          found = 1;
-          break;
-        }
-      }
-      if( !found ) { error_code = MSH_PLY_REQUESTED_PROPERTY_IS_MISSING; return error_code; }
-    }
-
-    // for( size_t i = 0; i < msh_array_len( el->properties ); ++i )
-    // {
-    //   printf("%s -> %d\n", el->properties[i].name, el->properties[i].list_count );
-    // }
-    // printf("\n");
-  }
-
-  return MSH_PLY_NO_ERRORS;
-}
-
-int32_t 
-msh_ply_add_descriptor( msh_ply_t *pf, msh_ply_property_desc_t *desc )
-{
-  if( !pf ) { return MSH_PLY_FILE_NOT_OPEN_ERR; }
-  msh_array_push( pf->descriptors, desc);
-  return MSH_PLY_NO_ERRORS;
-}
-
-void
-msh_ply_print_header(msh_ply_t* pf);
-
-int
-msh_ply_read( msh_ply_t* pf )
-{
-  int error = MSH_PLY_NO_ERRORS;
-  if( !pf->_fp ) { return MSH_PLY_FILE_NOT_OPEN_ERR; }
-  if( msh_array_len( pf->descriptors ) == 0 ) { return MSH_PLY_NO_REQUESTS; }
-  if( !pf->_parsed ) { error = msh_ply_parse_header( pf ); }
-  if( error ) { return error; }
-  error = msh_ply_synchronize_list_sizes( pf ); 
-  if( error ) { return error; }
-
-  error = msh_ply_parse_contents( pf );
-
-  if( error ) { return error; }
-  
-  for( size_t i = 0; i < msh_array_len( pf->descriptors ); ++i )
-  {
-    msh_ply_property_desc_t *desc = pf->descriptors[i];
-    error = msh_ply_get_property_from_element( pf, desc );
-    if( error ) { return error; }
-
-  }
-
-  return error;
-}
+#endif /* MSH_PLY_DECODER_ONLY */
 
 void
 msh_ply_print_header(msh_ply_t* pf)
@@ -1777,11 +1773,11 @@ msh_ply_print_header(msh_ply_t* pf)
   // Find property & element with longest name
   size_t max_pr_length = 0;
 
-  for( size_t i = 0; i < msh_array_len(pf->elements); ++i )
+  for( size_t i = 0; i < msh_ply_array_len(pf->elements); ++i )
   {
-    for( size_t j = 0; j < msh_array_len(pf->elements[i].properties); ++j )
+    for( size_t j = 0; j < msh_ply_array_len(pf->elements[i].properties); ++j )
     {
-      max_pr_length = msh_max(strlen(pf->elements[i].properties[j].name),
+      max_pr_length = MSH_PLY_MAX(strlen(pf->elements[i].properties[j].name),
                               max_pr_length);
     }
   }
@@ -1797,11 +1793,11 @@ msh_ply_print_header(msh_ply_t* pf)
   if(pf->format == MSH_PLY_LITTLE_ENDIAN) { format_str = (char*)"Binary Little Endian"; }
   if(pf->format == MSH_PLY_BIG_ENDIAN)    { format_str = (char*)"Binary Big Endian"; }
   printf("PLY: %s %d\n", format_str, pf->format_version);
-  for( size_t i = 0; i < msh_array_len(pf->elements); ++i )
+  for( size_t i = 0; i < msh_ply_array_len(pf->elements); ++i )
   {
     printf("   '%s' count: %d\n", pf->elements[i].name,
                                     pf->elements[i].count);
-    for( size_t j = 0; j < msh_array_len(pf->elements[i].properties); ++j )
+    for( size_t j = 0; j < msh_ply_array_len(pf->elements[i].properties); ++j )
     {
       size_t n_spaces = max_pr_length - strlen(pf->elements[i].properties[j].name);
       spaces[n_spaces] = 0;
@@ -1809,7 +1805,7 @@ msh_ply_print_header(msh_ply_t* pf)
       if(pf->elements[i].properties[j].list_type == MSH_PLY_INVALID)
       {
         printf("      '%s'%s | %7s(%d bytes)\n", pf->elements[i].properties[j].name,
-                                            spaces, type_str, pf->elements[i].properties[j].byte_size );
+                                        spaces, type_str, pf->elements[i].properties[j].byte_size );
       }
       else
       {
@@ -1835,7 +1831,7 @@ msh_ply_open( const char* filename, const char* mode )
   
   if( fp )
   {
-    pf                 = (msh_ply_t*)malloc(sizeof(msh_ply_t));
+    pf                 = (msh_ply_t*)MSH_PLY_MALLOC(sizeof(msh_ply_t));
     pf->valid          = 0;
     pf->format         = -1;
     pf->format_version = 0;
@@ -1865,16 +1861,16 @@ msh_ply_close( msh_ply_t* pf )
   // NOTE(maciej): When we drop dynamic arrays we will need to change this
   if(pf->elements)
   {
-    for( size_t i = 0; i < msh_array_len(pf->elements); ++i )
+    for( size_t i = 0; i < msh_ply_array_len(pf->elements); ++i )
     {
       ply_element_t* el = &pf->elements[i];
-      if(el->properties) { msh_array_free(el->properties); }
+      if(el->properties) { msh_ply_array_free(el->properties); }
       if(el->data) { free(el->data); }
     }
-    msh_array_free(pf->elements);
+    msh_ply_array_free(pf->elements);
   }
-  if(pf->descriptors) msh_array_free(pf->descriptors);
-  free(pf);
+  if(pf->descriptors) msh_ply_array_free(pf->descriptors);
+  MSH_PLY_FREE(pf);
   return 1;
 }
 
