@@ -1,31 +1,201 @@
 /*
-TODOs:
-[ ] Write header to this file
-[ ] Optimize 
-  [ ] Profile lucy writing, why is it showing a big slowdown.
-[x] Encoder / decorder split
-[x] Error reporting
-  [ ] Revise when errors are reported. 
-[x] Inline msh_ply_array if it is not available
-[ ] Code cleanup
-  [x] Replace duplicated code
-  [x] Replace syscalls with redefineable macros
+  ==============================================================================
+  
+  MSH_PLY.H 
+  
+  A single header library for reading and writing ply files.
 
-[x] Fix the header names to be msh_ply
-[ ] Write C++ support.
-[ ] Add static function definition macro
-[ ] Getting raw data for list property - different function.
+  To use the library you simply add:
+  
+  #define MSH_PLY_IMPLEMENTATION
+  #include "msh_ply.h"
+
+  The define should only include once in your source. If you need to include 
+  library in multiple places, simply use the include:
+
+  #include "msh_ply.h"
+
+  Additionally if for your purpose you might only need decoder or encoder, you
+  can disable compilation of unnecessary code by defining:
+
+  #define MSH_PLY_ENCODER_ONLY  - we only pull in writing functionality
+  #define MSH_PLY_DECODER_ONLY  - we only pull in reading functionality
+
+  By default this file uses malloc, realloc and free. You can provide your own
+  custom allocators by defining MSH_PLY_MALLOC, MSH_PLY_REALLOC, MSH_PLY_FREE
+  before including this file.
+
+  ==============================================================================
+  USAGE:
+  This library usage focuses around the concept of descriptors. User describes his/her/their 
+  data with a set of descriptors. Descriptors tell us what element and properties is
+  the data describing, what is the data type, as well as storing pointer to actual data.
+  Once descriptors are prepared they can be added to each of ply files and written out.
+  System for reading is exactly the same, but you'd be describing requested data.
+  Note that ply file does not own pointers to the data, so you will need to delete these
+  separately.   Additionally, every function returns an error code, which can be turned 
+  into string message using "msh_ply_get_error_string( ply_err_t err )" function. Not used
+  below for clarity.
+
+  ------------------------------
+  Writing example:
+
+  typedef struct TriMesh
+  {
+    Vec3f* vertices;
+    Vec3i* faces;
+    int n_vertices;
+    int n_faces;
+  } TriMesh_t;
+
+  TriMesh_t* meshes = NULL;
+  int n_meshes = 0;
+  your_function_to_initialize_n_meshes( meshes, &n_meshes );
+
+  msh_ply_property_desc_t descriptors[2];
+  descriptors[0] = { .element_name = "vertex",
+                     .property_names = (const char*[]){"x", "y", "z"},
+                     .num_properties = 3,
+                     .data_type = MSH_PLY_FLOAT };
+  descriptors[1] = { .element_name = "vertex",
+                     .property_names = (const char*[]){"vertex_indices"},
+                     .num_properties = 1,
+                     .data_type = MSH_PLY_INT32,
+                     .list_type = MSH_PLY_UINT8,
+                     .list_size_hint = 3 };
+
+  for( int i = 0; i < n_meshes; ++i )
+  {
+    // Create new ply file
+    msh_ply_t* ply_file = msh_ply_open( filenames[i], "wb" );
+
+    // Add data to descriptors
+    descriptors[0].data = (float*)meshes[i].vertices;
+    descriptors[0].data_count = &meshes[i].n_vertices;
+    descriptors[1].data = (int*)meshes[i].faces;
+    descriptors[1].data_count = &meshes[i].n_faces;
+
+    // Add descriptors to ply file
+    msh_ply_add_descriptor( ply_file, &descriptors[0] );
+    msh_ply_add_descriptor( ply_file, &descriptors[1] );
+
+    // Write data to disk
+    msh_ply_write( ply_file );
+
+    // Close ply file
+    msh_ply_close( ply_file );
+  }
+
+
+  ------------------------------
+  Reading example:
+
+  typedef struct TriMesh
+  {
+    Vec3f* vertices;
+    Vec3i* faces;
+    int n_vertices;
+    int n_faces;
+  } TriMesh_t;
+
+  TriMesh_t* meshes = NULL;
+  int n_meshes = 10;
+  for( int i = 0; i < n_meshes; ++i )
+  {
+    meshes[i].vertices   = NULL;
+    meshes[i].faces      = NULL;
+    meshes[i].n_faces    = 0;
+    meshes[i].n_vertices = 0;
+  }
+
+  msh_ply_property_desc_t descriptors[2];
+  descriptors[0] = { .element_name = "vertex",
+                     .property_names = (const char*[]){"x", "y", "z"},
+                     .num_properties = 3,
+                     .data_type = MSH_PLY_FLOAT };
+  descriptors[1] = { .element_name = "vertex",
+                     .property_names = (const char*[]){"vertex_indices"},
+                     .num_properties = 1,
+                     .data_type = MSH_PLY_INT32,
+                     .list_type = MSH_PLY_UINT8,
+                     .list_size_hint = 3 };
+
+  for( int i = 0; i < n_meshes; ++i )
+  {
+    // Create new ply file
+    msh_ply_t* ply_file = msh_ply_open( filenames[i], "wb" );
+
+    // Add data to descriptors
+    descriptors[0].data = (float*)meshes[i].vertices;
+    descriptors[0].data_count = &meshes[i].n_vertices;
+    descriptors[1].data = (int*)meshes[i].faces;
+    descriptors[1].data_count = &meshes[i].n_faces;
+
+    // Add descriptors to ply file
+    msh_ply_add_descriptor( ply_file, &descriptors[0] );
+    msh_ply_add_descriptor( ply_file, &descriptors[1] );
+
+    // Write data to disk
+    msh_ply_read( ply_file );
+
+    // Close ply file
+    msh_ply_close( ply_file );
+  }
+
+  ==============================================================================
+  DEPENDENCIES
+
+    This file requires following c stdlib headers:
+    - stdlib.h
+    - stdint.h
+    - string.h
+    - stdio.h
+    - stdbool.h
+    Note that this file will not pull them in automatically to prevent pulling same
+    files multiple time. If you do not like this behaviour and want this file to
+    pull in c headers, simply define following before including the library:
+
+    #define MSH_PLY_INCLUDE_HEADERS
+
+  ==============================================================================
+  AUTHORS:
+    Maciej Halber
+
+  CREDITS:
+    Inspiration for single header ply reader:   tinyply    by ddiakopoulos
+    Dynamic array based on                      stb.h      by Sean T. Barrett
+
+  ==============================================================================
+  TODOs:
+  [x] Write header to this file
+  [ ] Optimize 
+    [ ] Profile lucy writing, why is it showing a big slowdown.
+  [x] Encoder / decorder split
+  [x] Error reporting
+    [ ] Revise when errors are reported
+  [x] Inline msh_ply_array if it is not available
+  [x] Code cleanup
+    [x] Replace duplicated code
+    [x] Replace syscalls with redefineable macros
+
+  [x] Fix the header names to be msh_ply
+  [ ] Write C++ support
+  [ ] Add static function definition macro
+  [ ] Getting raw data for list property - different function.
+  ==============================================================================
+  REFERENCES:
+  [1] stretchy_buffer https://github.com/nothings/stb/blob/master/stretchy_buffer.h
 */
 
 #if defined(MSH_PLY_INCLUDE_HEADERS)
 #include <stdlib.h>
 #include <stdint.h>
-#include <math.h>
 #include <string.h>
 #include <stdio.h>
-#include <stdarg.h>
 #include <stdbool.h>
 #endif
+
+#if define
 
 #ifndef MSH_PLY_MALLOC
 #define MSH_PLY_MALLOC(x) malloc((x))
@@ -91,17 +261,18 @@ struct msh_ply_property_desc
   ply_type_id_t list_type;
   void* data;
   void* list_data;
-  int32_t data_count;
+  int32_t* data_count;
 
   int32_t list_size_hint;
 };
 
 msh_ply_t*      msh_ply_open( const char* filename, const char* mode );
-void            msh_ply_print_header(msh_ply_t* pf);
+void            msh_ply_print_header( msh_ply_t* pf );
 int32_t         msh_ply_add_descriptor( msh_ply_t *pf, msh_ply_property_desc_t *desc );
 ply_element_t*  msh_ply_find_element( const msh_ply_t* pf, const char* element_name );
-ply_property_t* msh_ply_find_property( const ply_element_t* el, const char* property_name);
+ply_property_t* msh_ply_find_property( const ply_element_t* el, const char* property_name );
 int32_t         msh_ply_close( msh_ply_t* pf );
+const char*     msh_ply_get_error_string( ply_err_t err )
 
 #ifndef MSH_PLY_ENCODER_ONLY
 
@@ -1292,7 +1463,7 @@ msh_ply_get_property_from_element( msh_ply_t* pf, msh_ply_property_desc_t* desc 
                                 desc->property_names, desc->num_properties, 
                                 desc->data_type, desc->list_type, 
                                 (void**)desc->data, (void**)desc->list_data, 
-                                &desc->data_count );
+                                desc->data_count );
 }
 
 
@@ -1501,7 +1672,7 @@ msh_ply_add_property_to_element( msh_ply_t* pf, const msh_ply_property_desc_t* d
   return msh_ply__add_property_to_element( pf, desc->element_name, desc->property_names, 
                                            desc->num_properties, desc->data_type, desc->list_type,
                                            desc->data, desc->list_data,
-                                           desc->data_count, desc->list_size_hint);
+                                           *desc->data_count, desc->list_size_hint);
 }
 
 
@@ -1864,8 +2035,7 @@ msh_ply_close( msh_ply_t* pf )
     for( size_t i = 0; i < msh_ply_array_len(pf->elements); ++i )
     {
       ply_element_t* el = &pf->elements[i];
-      if(el->properties) { msh_ply_array_free(el->properties); }
-      if(el->data) { free(el->data); }
+      if( el->properties ) { msh_ply_array_free(el->properties); }
     }
     msh_ply_array_free(pf->elements);
   }

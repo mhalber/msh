@@ -10,18 +10,18 @@
   To use the library you simply add:
   
   #define MSH_STD_IMPLEMENTATION
-  #include "msh.h"
+  #include "msh_std.h"
 
   The define should only include once in your source. If you need to include 
   library in multiple places, simply use the include:
 
-  #include "msh.h"
+  #include "msh_std.h"
 
   All functions can be made static by definining:
 
   #ifdef MSH_STD_STATIC
 
-  before including the "msh.h"
+  before including the "msh_std.h"
 
   ==============================================================================
   DEPENDENCIES
