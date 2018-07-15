@@ -195,8 +195,6 @@
 #include <stdbool.h>
 #endif
 
-#if define
-
 #ifndef MSH_PLY_MALLOC
 #define MSH_PLY_MALLOC(x) malloc((x))
 #endif
@@ -226,6 +224,7 @@ extern "C" {
 
 typedef enum   ply_format            ply_format_t;
 typedef enum   ply_type_id           ply_type_id_t;
+typedef enum   ply_err               ply_err_t;
 typedef struct ply_property          ply_property_t;
 typedef struct ply_element           ply_element_t;
 typedef struct msh_ply_property_desc msh_ply_property_desc_t;
@@ -272,7 +271,7 @@ int32_t         msh_ply_add_descriptor( msh_ply_t *pf, msh_ply_property_desc_t *
 ply_element_t*  msh_ply_find_element( const msh_ply_t* pf, const char* element_name );
 ply_property_t* msh_ply_find_property( const ply_element_t* el, const char* property_name );
 int32_t         msh_ply_close( msh_ply_t* pf );
-const char*     msh_ply_get_error_string( ply_err_t err )
+const char*     msh_ply_get_error_string( ply_err_t err );
 
 #ifndef MSH_PLY_ENCODER_ONLY
 
@@ -385,7 +384,7 @@ struct ply_file
 #ifdef MSH_PLY_IMPLEMENTATION
 
 
-typedef enum ply_err
+enum ply_err
 {
   MSH_PLY_NO_ERRORS = 0, 
   MSH_PLY_INVALID_FILE_ERR = 1, 
@@ -403,7 +402,7 @@ typedef enum ply_err
   MSH_PLY_UNRECOGNIZED_CMD_ERR = 13,
   MSH_PLY_NO_REQUESTS = 14,
   MSH_PLY_INVALID_LIST_TYPE_ERR = 15 
-} ply_err_t;
+};
 
 static const char* msh_ply_error_msgs[16] = (const char*[]){
   "No errors.", 

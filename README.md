@@ -1,6 +1,6 @@
 # msh
 
-[Example repository](https://github.com/mhalber/msh_examples)
+[Examples repository](https://github.com/mhalber/msh_examples)
 
 Set of C99/C11 libraries under the public-domain / MIT license (please see particular files for details).  
 These are libraries that I use for daily development and intend to extend the set and improve them over time.

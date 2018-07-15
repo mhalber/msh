@@ -91,12 +91,11 @@
   #define MSH_ARGPARSE_INCLUDE_HEADERS
 
   ==============================================================================
-  TODOs
-    1. Test on Unix and Windows
-    2. Can we figure out terminal width for nicer printing?
-    3. Default values
-    4. Check for the validity based on type 
-    5. C++ API 
+  TODOs:
+    [ ] Meta-variables 
+    [ ] Default values
+    [ ] Check for the validity based on type 
+    [ ] C++ API 
 
   ==============================================================================
   LICENSE
@@ -215,11 +214,11 @@ MSHAPDEF int msh_ap_display_help( msh_argparse_t *argparse );
 /* typename follows the convention of msh_typenames */
 #define MSH_AP_ADD_ARGUMENT(typename,val_t)                                     \
   MSHAPDEF int msh_ap_add_##typename##_argument( msh_argparse_t *argparse,       \
-                                              const char *name,               \
-                                              const char *shorthand,          \
-                                              const char *message,            \
-                                              val_t *value,                    \
-                                              const size_t num_vals  ); 
+                                                 const char *name,               \
+                                                 const char *shorthand,          \
+                                                 const char *message,            \
+                                                 val_t *value,                    \
+                                                 const size_t num_vals  ); 
 
 /* msh_add_bool_argument(...) */
 MSH_AP_ADD_ARGUMENT(bool, bool)
@@ -415,9 +414,9 @@ msh_ap__find_argument( const char * arg_name,
 #define MSH_AP__PARSE_ARGUMENT(typename, val_t, cfunc)                            \
   static int                                                                   \
   msh_ap__parse_##typename##_argument( msh_arg_t * arg,                           \
-                                    size_t argc,                               \
-                                    char **argv,                               \
-                                    size_t *argv_index )                       \
+                                       size_t argc,                               \
+                                       char **argv,                               \
+                                       size_t *argv_index )                       \
   {                                                                            \
     val_t * values = (val_t *)arg->values;                                     \
     if ( arg->num_vals <= 0 )                                                  \
@@ -456,9 +455,9 @@ MSH_AP__PARSE_ARGUMENT(string, char*, /*nothing*/ )
 
 static int 
 msh_ap__parse_argument( msh_arg_t * arg, 
-                     int argc, 
-                     char** argv, 
-                     size_t * argv_index )
+                        int argc, 
+                        char** argv, 
+                        size_t * argv_index )
 {
   /* NOTE(maciej): can i avoid this switch somehow...? */
   switch ( arg->type )
@@ -520,12 +519,12 @@ msh_ap__parse_argument( msh_arg_t * arg,
 
 #define MSH_AP_ADD_ARGUMENT_IMPL(typename, val_t)                                 \
   MSHAPDEF int                                                                    \
-  msh_add_##typename##_argument( msh_argparse_t * argparse,                       \
-                                 const char * name,                               \
-                                 const char * shorthand,                          \
-                                 const char * message,                            \
-                                 val_t *values,                                   \
-                                 const size_t num_vals  )                         \
+  msh_ap_add_##typename##_argument( msh_argparse_t * argparse,                    \
+                                    const char * name,                            \
+                                    const char * shorthand,                       \
+                                    const char * message,                         \
+                                    val_t *values,                                \
+                                    const size_t num_vals  )                      \
   {                                                                               \
     if ( !name )                                                                  \
     {                                                                             \
@@ -594,9 +593,9 @@ MSH_AP_ADD_ARGUMENT_IMPL(string, char*)
 
 
 MSHAPDEF int 
-msh_ap_init( const char * program_name,
-                   const char * program_description,
-                   msh_argparse_t * argparse )
+msh_ap_init( msh_argparse_t * argparse,
+             const char * program_name,
+             const char * program_description )
 {
 #ifndef MSH_AP_NO_DEBUG
   if( strlen(program_name) >= MSH_AP_MAX_NAME_LEN ) 
@@ -643,9 +642,9 @@ msh_ap_init( const char * program_name,
 }
 
 MSHAPDEF int
-msh_ap_parse( int argc, 
-                     char **argv, 
-                     msh_argparse_t * argparse )
+msh_ap_parse( msh_argparse_t * argparse,
+              int argc, 
+              char **argv )
 {
   /* sort arguments */
   qsort( argparse->args, 
