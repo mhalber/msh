@@ -92,7 +92,7 @@
 
   ==============================================================================
   TODOs:
-    [ ] Meta-variables 
+    [ ] Meta-variables
     [ ] Default values
     [ ] Check for the validity based on type 
     [ ] C++ API 

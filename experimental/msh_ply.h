@@ -48,31 +48,33 @@
     int n_faces;
   } TriMesh_t;
 
-  TriMesh_t* meshes = NULL;
-  int n_meshes = 0;
-  your_function_to_initialize_n_meshes( meshes, &n_meshes );
+  TriMesh_t mesh;
+  your_function_to_initialize_mesh( &mesh );
 
   msh_ply_property_desc_t descriptors[2];
   descriptors[0] = { .element_name = "vertex",
                      .property_names = (const char*[]){"x", "y", "z"},
                      .num_properties = 3,
-                     .data_type = MSH_PLY_FLOAT };
+                     .data_type = MSH_PLY_FLOAT,
+                     .data = &mesh->vertices,
+                     .data_count = &mesh->n_vertices };
+                     
   descriptors[1] = { .element_name = "vertex",
                      .property_names = (const char*[]){"vertex_indices"},
                      .num_properties = 1,
                      .data_type = MSH_PLY_INT32,
                      .list_type = MSH_PLY_UINT8,
+                     .data = &mesh->faces,
+                     .data_count = &mesh->n_faces,
                      .list_size_hint = 3 };
 
-  for( int i = 0; i < n_meshes; ++i )
-  {
-    // Create new ply file
-    msh_ply_t* ply_file = msh_ply_open( filenames[i], "wb" );
+  // Create new ply file
+  msh_ply_t* ply_file = msh_ply_open( filenames[i], "wb" );
 
-    // Add data to descriptors
-    descriptors[0].data = (float*)meshes[i].vertices;
+  // Add data to descriptors
+    descriptors[0].data = &meshes[i].vertices;
     descriptors[0].data_count = &meshes[i].n_vertices;
-    descriptors[1].data = (int*)meshes[i].faces;
+    descriptors[1].data = &meshes[i].faces;
     descriptors[1].data_count = &meshes[i].n_faces;
 
     // Add descriptors to ply file
@@ -126,9 +128,9 @@
     msh_ply_t* ply_file = msh_ply_open( filenames[i], "wb" );
 
     // Add data to descriptors
-    descriptors[0].data = (float*)meshes[i].vertices;
+    descriptors[0].data = &meshes[i].vertices;
     descriptors[0].data_count = &meshes[i].n_vertices;
-    descriptors[1].data = (int*)meshes[i].faces;
+    descriptors[1].data = &meshes[i].faces;
     descriptors[1].data_count = &meshes[i].n_faces;
 
     // Add descriptors to ply file
@@ -167,6 +169,7 @@
 
   ==============================================================================
   TODOs:
+  [x] Investigate why different pointers are needed for reading / writing
   [x] Write header to this file
   [ ] Optimize 
     [ ] Profile lucy writing, why is it showing a big slowdown.
@@ -178,7 +181,6 @@
     [x] Replace duplicated code
     [x] Replace syscalls with redefineable macros
 
-  [x] Fix the header names to be msh_ply
   [ ] Write C++ support
   [ ] Add static function definition macro
   [ ] Getting raw data for list property - different function.
@@ -401,10 +403,11 @@ enum ply_err
   MSH_PLY_CONFLICTING_NUMBER_OF_ELEMENTS_ERR = 12,
   MSH_PLY_UNRECOGNIZED_CMD_ERR = 13,
   MSH_PLY_NO_REQUESTS = 14,
-  MSH_PLY_INVALID_LIST_TYPE_ERR = 15 
+  MSH_PLY_DATA_PTR_NOT_INITIALIZED = 15,
+  MSH_PLY_INVALID_LIST_TYPE_ERR = 16
 };
 
-static const char* msh_ply_error_msgs[16] = (const char*[]){
+static const char* msh_ply_error_msgs[17] = (const char*[]){
   "No errors.", 
   "Invalid ply file.", 
   "Invalid format in ply file.", 
@@ -420,7 +423,8 @@ static const char* msh_ply_error_msgs[16] = (const char*[]){
   "Number of requested elements does not match the descriptor.",
   "Unrecognized command in a ply file.", 
   "There are no requested data to read or write.", 
-  "Incorrect list type. List type cannot be float or double." 
+  "Incorrect list type. List type cannot be float or double.",
+  "Data pointer was not initialized."
 };
 
 const char* 
@@ -1210,6 +1214,10 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
       *data = MSH_PLY_MALLOC(data_byte_size); 
       dst_data = (uint8_t*)*data;
     }
+    else
+    {
+      return MSH_PLY_DATA_PTR_NOT_INITIALIZED;
+    }
     if( list_data != NULL  )
     { 
       *list_data = MSH_PLY_MALLOC(list_byte_size);
@@ -1586,7 +1594,7 @@ int32_t
 msh_ply__add_property_to_element( msh_ply_t* pf, const char* element_name, 
                                   const char** property_names, int32_t num_properties,
                                   const ply_type_id_t data_type, const ply_type_id_t list_type, 
-                                  void* data, void* list_data, 
+                                  void** data, void** list_data, 
                                   int32_t element_count, int32_t size_hint )
 {
   // Check if list type is integral type
@@ -1594,7 +1602,6 @@ msh_ply__add_property_to_element( msh_ply_t* pf, const char* element_name,
   {
     return MSH_PLY_INVALID_LIST_TYPE_ERR;
   }
-
   int8_t swap_endianness = pf->format != MSH_PLY_ASCII ? (pf->_system_format != pf->format) : 0;
 
   // Find / Create element
@@ -1604,7 +1611,6 @@ msh_ply__add_property_to_element( msh_ply_t* pf, const char* element_name,
     msh_ply__add_element(pf, element_name, element_count);
     el = msh_ply_array_back(pf->elements);
   }
-
   if( el )
   {
     if( el->count != element_count ) 
@@ -1618,19 +1624,21 @@ msh_ply__add_property_to_element( msh_ply_t* pf, const char* element_name,
       ply_property_t pr;
       strncpy(&pr.name[0], property_names[i], 32);
 
+      if( data == NULL ) { return MSH_PLY_DATA_PTR_NOT_INITIALIZED; }
+
       pr.type = data_type;
       pr.list_type = list_type;
       pr.byte_size = msh_ply__type_to_byte_size( pr.type );
       pr.list_byte_size = msh_ply__type_to_byte_size( pr.list_type );
       pr.list_count = (list_type == MSH_PLY_INVALID) ? 1 : size_hint; // TODO(If se have a hint, set this to a hint)
-      pr.data = data;
-      pr.list_data = list_data;
+      pr.data = *data;
+      pr.list_data = (list_data != NULL) ? *list_data : NULL;
       pr.offset = pr.byte_size * i;
       pr.stride = pr.byte_size * num_properties;
       pr.list_offset = pr.list_byte_size * i;
       pr.list_stride = pr.list_byte_size * num_properties;
       pr.total_byte_size = (pr.list_byte_size + pr.list_count * pr.byte_size) * el->count;
-     
+
       if( pr.list_count == 0 ) // No hint was present
       {
         pr.total_byte_size = 0;
@@ -1638,14 +1646,13 @@ msh_ply__add_property_to_element( msh_ply_t* pf, const char* element_name,
         {
           // NOTE(list type needs to be dereferenced to correct type)
           int offset = (pr.list_offset + j * pr.list_stride);
-          int list_count = msh_ply__get_data_as_int((uint8_t*)list_data + offset, 
+          int list_count = msh_ply__get_data_as_int((uint8_t*)(*list_data) + offset, 
                                                     list_type, swap_endianness);
           pr.total_byte_size += pr.list_byte_size + list_count * pr.byte_size;
           if( j == 0 ) // We care only about initial offset, so first element of list counts
           {
             pr.offset = init_offset;
             init_offset += list_count * pr.byte_size;
-            // printf("Offset %lld\n", pr.offset);
           }
         }
       }
@@ -1661,6 +1668,7 @@ msh_ply__add_property_to_element( msh_ply_t* pf, const char* element_name,
   {
     return MSH_PLY_ELEMENT_NOT_FOUND_ERR;
   }
+
   return MSH_PLY_NO_ERRORS;
 }
 
@@ -1670,7 +1678,7 @@ msh_ply_add_property_to_element( msh_ply_t* pf, const msh_ply_property_desc_t* d
   // TODO(maciej): Check for null ptrs etc.
   return msh_ply__add_property_to_element( pf, desc->element_name, desc->property_names, 
                                            desc->num_properties, desc->data_type, desc->list_type,
-                                           desc->data, desc->list_data,
+                                           (void**)desc->data, (void**)desc->list_data,
                                            *desc->data_count, desc->list_size_hint);
 }
 
