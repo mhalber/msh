@@ -58,7 +58,7 @@
                      .data_type = MSH_PLY_FLOAT,
                      .data = &mesh->vertices,
                      .data_count = &mesh->n_vertices };
-                     
+
   descriptors[1] = { .element_name = "vertex",
                      .property_names = (const char*[]){"vertex_indices"},
                      .num_properties = 1,
@@ -71,22 +71,15 @@
   // Create new ply file
   msh_ply_t* ply_file = msh_ply_open( filenames[i], "wb" );
 
-  // Add data to descriptors
-    descriptors[0].data = &meshes[i].vertices;
-    descriptors[0].data_count = &meshes[i].n_vertices;
-    descriptors[1].data = &meshes[i].faces;
-    descriptors[1].data_count = &meshes[i].n_faces;
+  // Add descriptors to ply file
+  msh_ply_add_descriptor( ply_file, &descriptors[0] );
+  msh_ply_add_descriptor( ply_file, &descriptors[1] );
 
-    // Add descriptors to ply file
-    msh_ply_add_descriptor( ply_file, &descriptors[0] );
-    msh_ply_add_descriptor( ply_file, &descriptors[1] );
+  // Write data to disk
+  msh_ply_write( ply_file );
 
-    // Write data to disk
-    msh_ply_write( ply_file );
-
-    // Close ply file
-    msh_ply_close( ply_file );
-  }
+  // Close ply file
+  msh_ply_close( ply_file );
 
 
   ------------------------------
