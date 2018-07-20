@@ -112,16 +112,6 @@ extern "C" {
 #define msh_global          static // Global variables
 #define msh_internal        static // Internal linkage
 
-#if !defined(__cplusplus)
-  #if defined(_MSC_VER) && _MSC_VER <= 1800
-  #define inline __inline
-  #elif !defined(__STDC_VERSION__)
-  #define inline __inline__
-  #else
-  #define inline inline
-  #endif
-#endif
-
 #if defined(_WIN32) || defined(_WIN64)
   #ifndef MSH_SYSTEM_WINDOWS
   #define MSH_SYSTEM_WINDOWS 1
@@ -251,7 +241,7 @@ typedef struct msh_array_header
 
 #define msh_array(T) T*
 
-void* msh_array_grow(const void *array, size_t new_len, size_t elem_size);
+void* msh_array__grow(const void *array, size_t new_len, size_t elem_size);
 
 #define msh_array__grow_formula(x)    ((1.6180339887498948482*(x)))
 #define msh_array__hdr(a)             ((msh_array_hdr_t *)((char *)(a) - offsetof(msh_array_hdr_t, buf)))
@@ -264,10 +254,14 @@ void* msh_array_grow(const void *array, size_t new_len, size_t elem_size);
 #define msh_array_back(a)             (msh_array_len((a)) ? ((a) + msh_array_len((a)) - 1 ) : NULL)
 
 #define msh_array_free(a)             ((a) ? (free(msh_array__hdr(a)), (a) = NULL) :0 )
-#define msh_array_fit(a, n)           ((n) <= msh_array_cap(a) ? (0) : ({ void** ta = (void**)&(a); (*ta) = msh_array_grow((a), (n), sizeof(*(a))); })) 
-#define msh_array_push(a, ...)        (msh_array_fit((a), 1 + msh_array_len((a))), (a)[msh_array__hdr(a)->len++] = (__VA_ARGS__))
 #define msh_array_pop(a)              ((a) ? (msh_array__hdr((a))->len--) : 0)
 #define msh_array_clear(a)            ((a) ? (msh_array__hdr((a))->len = 0) : 0)
+
+// #define msh_array_fit(a, n)           ((n) <= msh_array_cap(a) ? (0) : ({ void** ta = (void**)&(a); (*ta) = msh_array__grow((a), (n), sizeof(*(a))); })) 
+// #define msh_array_push(a, ...)        (msh_array_fit((a), 1 + msh_array_len((a))), (a)[msh_array__hdr(a)->len++] = (__VA_ARGS__))
+#define msh_array_fit(a, n)           do{ if((n) <= msh_array_cap(a)){}else{ void** ta = (void**)&(a); (*ta) = msh_array__grow((a), (n), sizeof(*(a))); }} while(0)
+#define msh_array_push(a, ...)        do{ msh_array_fit((a), 1 + msh_array_len(a)); (a)[msh_array__hdr(a)->len++] = (__VA_ARGS__); }while(0)
+
 
 #define msh_array_cpy( dst, src, n )  ( msh_array_fit( (dst), (n) ), msh_array__hdr((dst))->len = (n), memcpy( (void*)(dst), (void*)(src), (n) * sizeof(*(dst) )))
 #define msh_array_printf(b, ...)      ((b) = msh_array__printf((b), __VA_ARGS__))
@@ -460,7 +454,7 @@ float   msh_gausspdf1d( float x, float mu, float sigma );
 
 
 MSHDEF void* 
-msh_array_grow(const void *array, size_t new_len, size_t elem_size) {
+msh_array__grow(const void *array, size_t new_len, size_t elem_size) {
   size_t old_cap = msh_array_cap( array );
   size_t new_cap = (size_t)msh_array__grow_formula( old_cap );
   new_cap = (size_t)msh_max( new_cap, msh_max(new_len, 16) );
@@ -485,14 +479,14 @@ msh_array__printf(char *buf, const char *fmt, ...) {
   size_t n = 1 + vsnprintf(msh_array_back(buf), cap, fmt, args);
   va_end(args);
   if (n > cap) {
-    msh_array_fit(buf, n + msh_array_len(buf));
+    msh_array_fit( buf, n + msh_array_len(buf) );
     va_start(args, fmt);
     size_t new_cap = msh_array_cap(buf) - msh_array_len(buf);
     n = 1 + vsnprintf(msh_array_back(buf), new_cap, fmt, args);
     assert(n <= new_cap);
     va_end(args);
   }
-  msh_array__hdr(buf)->len += n - 1;
+  msh_array__hdr(buf)->len += (n - 1);
   return buf;
 }
 
