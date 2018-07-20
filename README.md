@@ -22,7 +22,7 @@ library                  |  version   | description
 **msh_argparse.h**       |    0.75    | command-line argument parsing
 **msh_vec_math.h**       |    0.75    | glsl inspired vector math (vectors, matrices and quaternions)
 **msh_gfx.h**            |    0.35    | openGL wrapper
-**msh_ply.h**            |    0.5     | PLY File I/O
+**msh_ply.h**            |    0.6     | PLY File I/O
 
 
 ## TIER 2

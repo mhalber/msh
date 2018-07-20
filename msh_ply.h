@@ -1,7 +1,7 @@
 /*
   ==============================================================================
   
-  MSH_PLY.H 
+  MSH_PLY.H v0.6
   
   A single header library for reading and writing ply files.
 
@@ -51,7 +51,7 @@
   TriMesh_t mesh;
   your_function_to_initialize_mesh( &mesh );
 
-  msh_ply_property_desc_t descriptors[2];
+  msh_ply_desc_t descriptors[2];
   descriptors[0] = { .element_name = "vertex",
                      .property_names = (const char*[]){"x", "y", "z"},
                      .num_properties = 3,
@@ -103,7 +103,7 @@
     meshes[i].n_vertices = 0;
   }
 
-  msh_ply_property_desc_t descriptors[2];
+  msh_ply_desc_t descriptors[2];
   descriptors[0] = { .element_name = "vertex",
                      .property_names = (const char*[]){"x", "y", "z"},
                      .num_properties = 3,
@@ -213,19 +213,19 @@ extern "C" {
 #endif
 
 #define MSH_PLY_MAX(a, b) ((a) > (b) ? (a) : (b))
-#define MSH_PLY_FILE_MAX_STR_LEN 1024
-#define MSH_PLY_FILE_MAX_REQ_PROPERTIES 16
+#define MSH_PLY_MAX_STR_LEN 1024
+#define MSH_PLY_FILE_MAX_REQ_PROPERTIES 32
 #define MSH_PLY_FILE_MAX_PROPERTIES 128
 
-typedef enum   ply_format            ply_format_t;
-typedef enum   ply_type_id           ply_type_id_t;
-typedef enum   ply_err               ply_err_t;
-typedef struct ply_property          ply_property_t;
-typedef struct ply_element           ply_element_t;
-typedef struct msh_ply_property_desc msh_ply_property_desc_t;
-typedef struct ply_file              msh_ply_t;
+typedef enum   msh_ply_format     msh_ply_format_t;
+typedef enum   msh_ply_type_id    msh_ply_type_id_t;
+typedef enum   msh_ply_err        msh_ply_err_t;
+typedef struct msh_ply_property   msh_ply_property_t;
+typedef struct msh_ply_element    msh_ply_element_t;
+typedef struct msh_ply_desc       msh_ply_desc_t;
+typedef struct msh_ply_file       msh_ply_t;
 
-enum ply_type_id
+enum msh_ply_type_id
 {
   MSH_PLY_INVALID,
   MSH_PLY_INT8,
@@ -239,48 +239,75 @@ enum ply_type_id
   MSH_PLY_N_TYPES
 };
 
-enum ply_format
+enum msh_ply_format
 {
   MSH_PLY_ASCII = 0,
   MSH_PLY_LITTLE_ENDIAN,
   MSH_PLY_BIG_ENDIAN
 };
 
-struct msh_ply_property_desc
+struct msh_ply_desc
 {
-  char* element_name;
-  const char** property_names;
-  int32_t num_properties;
-  ply_type_id_t data_type;
-  ply_type_id_t list_type;
-  void* data;
-  void* list_data;
-  int32_t* data_count;
-
-  int32_t list_size_hint;
+  char*         element_name;
+  const char**  property_names;
+  int16_t       num_properties;
+  msh_ply_type_id_t data_type;
+  msh_ply_type_id_t list_type;
+  void*         data;
+  void*         list_data;
+  int32_t*      data_count;
+  uint8_t       list_size_hint;
 };
 
-msh_ply_t*      msh_ply_open( const char* filename, const char* mode );
-void            msh_ply_print_header( msh_ply_t* pf );
-int32_t         msh_ply_add_descriptor( msh_ply_t *pf, msh_ply_property_desc_t *desc );
-ply_element_t*  msh_ply_find_element( const msh_ply_t* pf, const char* element_name );
-ply_property_t* msh_ply_find_property( const ply_element_t* el, const char* property_name );
-int32_t         msh_ply_close( msh_ply_t* pf );
-const char*     msh_ply_get_error_string( ply_err_t err );
+/* Create a new ply file object.
+    # filename - name to the file we wish to read/write
+    # mode - what mode we want to use file in:
+      'r'  - read ASCII
+      'rb' - read binary
+      'w'  - write ASCII
+      'wb' - write binary(will write endianness based on your system) */
+msh_ply_t* msh_ply_open( const char* filename, const char* mode );
+
+/* Add data descriptor to ply file object, needed for both reading and writing
+   to let msh_ply know how your data is layed out */
+int32_t msh_ply_add_descriptor( msh_ply_t *pf, msh_ply_desc_t *desc );
 
 #ifndef MSH_PLY_ENCODER_ONLY
 
+/* Simple API for reading. Just call after adding descriptors. */
 int32_t msh_ply_read( msh_ply_t* pf );
-int32_t msh_ply_get_property_from_element( msh_ply_t* pf, msh_ply_property_desc_t* desc );
 
 #endif
 
 #ifndef MSH_PLY_DECODER_ONLY
 
+/* Simple API for writting. Just call after adding descriptors. */
 int32_t msh_ply_write( msh_ply_t* pf );
-int32_t msh_ply_add_property_to_element( msh_ply_t* pf, const msh_ply_property_desc_t* desc );
 
 #endif
+
+/* Parses just the header of the file. Needs to be called to programatically check what
+   contents file has, but will not read any of the actual data. */
+int32_t msh_ply_parse_header(msh_ply_t* pf);
+
+/* Returns pointer to element if element of given name has been found, NULL otherwise.
+   Can be used to check if a ply file contains given element. 
+   Can be called after header has been parsed */
+msh_ply_element_t*  msh_ply_find_element( const msh_ply_t* pf, const char* element_name );
+
+/* Returns pointer to property if property of given name has been found, NULL otherwise.
+   Can be used to check if a ply file contains given element. 
+   Can be called after header has been parsed */
+msh_ply_property_t* msh_ply_find_property( const msh_ply_element_t* el, const char* property_name );
+
+/* Close the ply file. Should be called by user if error is encountered */
+int32_t msh_ply_close( msh_ply_t* pf );
+
+/* Get error message from error code */
+const char* msh_ply_get_error_string( msh_ply_err_t err );
+
+/* Pretty print for header */
+void msh_ply_print_header( msh_ply_t* pf );
 
 
 
@@ -319,7 +346,7 @@ void* msh_ply_array_grow(const void *array, size_t new_len, size_t elem_size);
 // ARRAY END
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct ply_property
+struct msh_ply_property
 {
   int32_t list_count;
   int16_t byte_size;
@@ -329,43 +356,42 @@ struct ply_property
   int64_t list_offset;
   int64_t list_stride;
 
-  ply_type_id_t type;
-  ply_type_id_t list_type;
+  msh_ply_type_id_t type;
+  msh_ply_type_id_t list_type;
 
   int64_t total_count;
-  int total_byte_size;
+  int32_t total_byte_size;
 
   // Data storage
   char name[32];
   void* data;
   void* list_data;
-
 };
 
-struct ply_element
+struct msh_ply_element
 {
   char name[64];
-  int count;
-  msh_ply_array( ply_property_t ) properties;
+  int32_t count;
+  msh_ply_array( msh_ply_property_t ) properties;
   
-  int file_anchor;
+  uint64_t file_anchor;
   void* data;
   uint64_t data_size;
 };
 
-struct ply_file
+struct msh_ply_file
 {
-  int valid;
-  int format;
-  int format_version;
+  int32_t valid;
+  int32_t format;
+  int32_t format_version;
   
-  msh_ply_array(ply_element_t) elements;
-  msh_ply_array(msh_ply_property_desc_t*) descriptors;
+  msh_ply_array(msh_ply_element_t) elements;
+  msh_ply_array(msh_ply_desc_t*) descriptors;
 
   FILE* _fp;
-  int _header_size;
-  int _system_format;
-  int _parsed;
+  int32_t _header_size;
+  int32_t _system_format;
+  int32_t _parsed;
 };
 
 #ifdef __cplusplus
@@ -379,7 +405,7 @@ struct ply_file
 #ifdef MSH_PLY_IMPLEMENTATION
 
 
-enum ply_err
+enum msh_ply_err
 {
   MSH_PLY_NO_ERRORS = 0, 
   MSH_PLY_INVALID_FILE_ERR = 1, 
@@ -396,32 +422,50 @@ enum ply_err
   MSH_PLY_CONFLICTING_NUMBER_OF_ELEMENTS_ERR = 12,
   MSH_PLY_UNRECOGNIZED_CMD_ERR = 13,
   MSH_PLY_NO_REQUESTS = 14,
-  MSH_PLY_DATA_PTR_NOT_INITIALIZED = 15,
-  MSH_PLY_INVALID_LIST_TYPE_ERR = 16
+  MSH_PLY_NULL_DESCRIPTOR_ERR = 15,
+  MSH_PLY_NULL_ELEMENT_NAME_ERR = 16,
+  MSH_PLY_NULL_PROPERTY_NAMES_ERR = 17,
+  MSH_PLY_NULL_PROPERTY_NAME_ERR = 18,
+  MSH_PLY_NO_REQUESTED_PROPERTIES_ERR = 19,
+  MSH_PLY_NULL_DATA_PTR_ERR = 20,
+  MSH_PLY_NULL_DATA_COUNT_PTR_ERR = 21,
+  MSH_PLY_INVALID_DATA_TYPE_ERR = 22,
+  MSH_PLY_INVALID_LIST_TYPE_ERR = 23,
+  MSH_PLY_ASCII_FILE_READ_ERR = 24,
+  MSH_PLY_ASCII_FILE_EOF_ERR = 25,
 };
 
-static const char* msh_ply_error_msgs[17] = (const char*[]){
-  "No errors.", 
-  "Invalid ply file.", 
-  "Invalid format in ply file.", 
-  "Could not open file.", 
-  "File was not open. Please open file first.", 
-  "Could not parse line in a header. Probably invalid ply file.", 
-  "Format of ply command is invalid. Probably invalid ply file.", 
-  "Format of element command is invalid. Probably invalid ply file.", 
-  "Format of property command is invalid. Probably invalid ply file.", 
-  "Could not find requested element in input ply file.", 
-  "Could not find requested property in input ply file.", 
-  "Error reading binary file.", 
-  "Number of requested elements does not match the descriptor.",
-  "Unrecognized command in a ply file.", 
-  "There are no requested data to read or write.", 
-  "Incorrect list type. List type cannot be float or double.",
-  "Data pointer was not initialized."
+static const char* msh_ply_error_msgs[26] = (const char*[]){
+  "MSH_PLY: No errors.\n", 
+  "MSH_PLY: Invalid PLY file.\n", 
+  "MSH_PLY: Invalid PLY file: Invalid format in ply file.\n", 
+  "MSH_PLY: Could not open file.\n", 
+  "MSH_PLY: File was not open. Please open file first.\n", 
+  "MSH_PLY: Invalid PLY file: Could not parse line in a header.\n", 
+  "MSH_PLY: Invalid PLY file: Format of ply command is invalid.\n", 
+  "MSH_PLY: Invalid PLY file: Format of element command is invalid.\n", 
+  "MSH_PLY: Invalid PLY file: Format of property command is invalid.\n", 
+  "MSH_PLY: Could not find requested element in the input ply file.\n", 
+  "MSH_PLY: Could not find requested property in the input ply file.\n", 
+  "MSH_PLY: Error reading binary file.\n", 
+  "MSH_PLY: Number of requested elements does not match the descriptor.\n",
+  "MSH_PLY: Invalid PLY file: Unrecognized command in a ply file.\n", 
+  "MSH_PLY: There is no requests for data to be read or writen. Aborting reading.\n",
+  "MSH_PLY: Invalid descriptor: Desciptor pointer is NULL.\n",
+  "MSH_PLY: Invalid descriptor: Element name pointer is NULL.\n",
+  "MSH_PLY: Invalid descriptor: Property names pointer is NULL.\n",
+  "MSH_PLY: Invalid descriptor: One of the property names is NULL.\n",
+  "MSH_PLY: Invalid descriptor: Number of requested properties is zero or less than zero.\n",
+  "MSH_PLY: Invalid descriptor: Data pointer is NULL.\n",
+  "MSH_PLY: Invalid descriptor: Data Count pointer is NULL.\n",
+  "MSH_PLY: Invalid descriptor: Incorrect data type.\n",
+  "MSH_PLY: Invalid descriptor: Incorrect list type. List type cannot be float or double.\n",
+  "MSH_PLY: Error reading ASCII PLY file.\n",
+  "MSH_PLY: Reached EOF when reading ASCII PLY file.\n"
 };
 
 const char* 
-msh_ply_get_error_string( ply_err_t err )
+msh_ply_get_error_string( msh_ply_err_t err )
 {
   return msh_ply_error_msgs[ err ]; 
 }
@@ -443,10 +487,10 @@ msh_ply_array_grow(const void *array, size_t new_len, size_t elem_size) {
   return new_hdr->buf;
 }
 
-ply_property_t
+msh_ply_property_t
 ply_property_zero_init()
 {
-  ply_property_t pr = {   
+  msh_ply_property_t pr = {   
     .list_count = 0,
     .byte_size = 0,
     .offset = 0,
@@ -454,8 +498,8 @@ ply_property_zero_init()
     .list_byte_size = 0,
     .list_offset = 0,
     .list_stride = 0,
-    .type = (ply_type_id_t)0,
-    .list_type= (ply_type_id_t)0,
+    .type = (msh_ply_type_id_t)0,
+    .list_type= (msh_ply_type_id_t)0,
     .total_count = 0,
     .total_byte_size = 0,
     .name = {0},
@@ -465,22 +509,22 @@ ply_property_zero_init()
 }
 
 
-ply_element_t
+msh_ply_element_t
 ply_element_zero_init()
 {
-  ply_element_t el = { .name = {0},
-                       .count  = 0,
-                       .properties = NULL,
-                       .file_anchor = 0,
-                       .data = NULL,
-                       .data_size = 0 };
+  msh_ply_element_t el = { .name = {0},
+                           .count  = 0,
+                           .properties = NULL,
+                           .file_anchor = 0,
+                           .data = NULL,
+                           .data_size = 0 };
   return el;
 }
 
-ply_element_t*
+msh_ply_element_t*
 msh_ply_find_element( const msh_ply_t* pf, const char* element_name )
 {
-  ply_element_t* el = NULL;
+  msh_ply_element_t* el = NULL;
   for( size_t i = 0; i < msh_ply_array_len(pf->elements); ++i )
   {
     if(!strcmp(element_name, pf->elements[i].name))
@@ -492,10 +536,10 @@ msh_ply_find_element( const msh_ply_t* pf, const char* element_name )
   return el;
 }
 
-ply_property_t*
-msh_ply_find_property( const ply_element_t* el, const char* property_name)
+msh_ply_property_t*
+msh_ply_find_property( const msh_ply_element_t* el, const char* property_name)
 {
-  ply_property_t* pr = NULL;
+  msh_ply_property_t* pr = NULL;
   for( size_t i = 0; i < msh_ply_array_len(el->properties) ; ++i )
   {
     if(!strcmp(el->properties[i].name, property_name)) { pr = &el->properties[i]; break; }
@@ -504,10 +548,32 @@ msh_ply_find_property( const ply_element_t* el, const char* property_name)
   return pr;
 }
 
+int32_t msh_ply__validate_descriptor( const msh_ply_desc_t* desc )
+{
+  if( !desc ) { return MSH_PLY_NULL_DESCRIPTOR_ERR; }
+  if( !desc->element_name ) { return MSH_PLY_NULL_ELEMENT_NAME_ERR; }
+  if( !desc->property_names ) { return MSH_PLY_NULL_PROPERTY_NAMES_ERR; }
+  if( desc->num_properties <= 0 ) { return MSH_PLY_NO_REQUESTED_PROPERTIES_ERR; }
+  if( !desc->data ) { return MSH_PLY_NULL_DATA_PTR_ERR; }
+  if( !desc->data_count ) { return MSH_PLY_NULL_DATA_COUNT_PTR_ERR; }
+  if( desc->data_type <= MSH_PLY_INVALID || 
+      desc->data_type >= MSH_PLY_N_TYPES ) {return MSH_PLY_INVALID_DATA_TYPE_ERR; }
+  if( desc->list_type < MSH_PLY_INVALID || 
+      desc->list_type >= MSH_PLY_FLOAT ) {return MSH_PLY_INVALID_LIST_TYPE_ERR; }
+  for( int32_t i =0; i < desc->num_properties; ++i )
+  {
+    if( !desc->property_names[i] ) { return MSH_PLY_NULL_PROPERTY_NAME_ERR; }
+  }
+  return MSH_PLY_NO_ERRORS;
+}
+
 int32_t 
-msh_ply_add_descriptor( msh_ply_t *pf, msh_ply_property_desc_t *desc )
+msh_ply_add_descriptor( msh_ply_t* pf, msh_ply_desc_t* desc )
 {
   if( !pf ) { return MSH_PLY_FILE_NOT_OPEN_ERR; }
+  int desc_err = msh_ply__validate_descriptor( desc );
+  if( desc_err ) { return desc_err; }
+
   msh_ply_array_push( pf->descriptors, desc);
   return MSH_PLY_NO_ERRORS;
 }
@@ -572,7 +638,7 @@ msh_ply__get_data_as_int( void* data, int type, int8_t swap_endianness )
 
 
 MSH_PLY_INLINE int 
-msh_ply__type_to_byte_size( ply_type_id_t type )
+msh_ply__type_to_byte_size( msh_ply_type_id_t type )
 {
   int retval = 0;
   switch( type )
@@ -591,7 +657,7 @@ msh_ply__type_to_byte_size( ply_type_id_t type )
 }
 
 MSH_PLY_INLINE void 
-msh_ply__property_type_to_string( ply_type_id_t type, char** string )
+msh_ply__property_type_to_string( msh_ply_type_id_t type, char** string )
 {
   switch( type )
   {
@@ -608,7 +674,7 @@ msh_ply__property_type_to_string( ply_type_id_t type, char** string )
 }
 
 MSH_PLY_INLINE void
-msh_ply_string_to_property_type(char* type_str, ply_type_id_t* pr_type, int16_t* pr_size)
+msh_ply_string_to_property_type(char* type_str, msh_ply_type_id_t* pr_type, int16_t* pr_size)
 {
   if     (!strcmp("int8",    type_str) || !strcmp("char",   type_str)) 
                                                             {*pr_type=MSH_PLY_INT8;    *pr_size=1;} 
@@ -672,7 +738,7 @@ msh_ply__data_assign( void* dst, void* src, int32_t type, int32_t count )
 int
 msh_ply__parse_ply_cmd(char* line, msh_ply_t* pf)
 {
-  char cmd_str[MSH_PLY_FILE_MAX_STR_LEN];
+  char cmd_str[MSH_PLY_MAX_STR_LEN];
   if( sscanf(line, "%s", cmd_str) )
   { 
     if( !strcmp(cmd_str, "ply") )
@@ -687,9 +753,9 @@ msh_ply__parse_ply_cmd(char* line, msh_ply_t* pf)
 int
 msh_ply__parse_format_cmd(char* line, msh_ply_t* pf)
 {
-  char cmd[MSH_PLY_FILE_MAX_STR_LEN];
-  char frmt_str[MSH_PLY_FILE_MAX_STR_LEN];
-  char frmt_ver_str[MSH_PLY_FILE_MAX_STR_LEN];
+  char cmd[MSH_PLY_MAX_STR_LEN];
+  char frmt_str[MSH_PLY_MAX_STR_LEN];
+  char frmt_ver_str[MSH_PLY_MAX_STR_LEN];
   if(sscanf(line, "%s %s %s", &cmd[0], &frmt_str[0], &frmt_ver_str[0]) != 3) 
   { 
     return MSH_PLY_FORMAT_CMD_ERR; 
@@ -705,8 +771,8 @@ msh_ply__parse_format_cmd(char* line, msh_ply_t* pf)
 int
 msh_ply__parse_element_cmd(char* line, msh_ply_t* pf)
 {
-  char cmd[MSH_PLY_FILE_MAX_STR_LEN];
-  ply_element_t el = ply_element_zero_init();
+  char cmd[MSH_PLY_MAX_STR_LEN];
+  msh_ply_element_t el = ply_element_zero_init();
   el.properties = NULL;
   if(sscanf(line, "%s %s %d", &cmd[0], &el.name[0], &el.count) != 3)
   { 
@@ -719,14 +785,14 @@ msh_ply__parse_element_cmd(char* line, msh_ply_t* pf)
 int
 msh_ply__parse_property_cmd(char* line, msh_ply_t* pf)
 {
-  char cmd[MSH_PLY_FILE_MAX_STR_LEN];
-  char type_str[MSH_PLY_FILE_MAX_STR_LEN];
-  char list_str[MSH_PLY_FILE_MAX_STR_LEN];
-  char list_type_str[MSH_PLY_FILE_MAX_STR_LEN];
+  char cmd[MSH_PLY_MAX_STR_LEN];
+  char type_str[MSH_PLY_MAX_STR_LEN];
+  char list_str[MSH_PLY_MAX_STR_LEN];
+  char list_type_str[MSH_PLY_MAX_STR_LEN];
   int valid_format = false;
   
-  ply_element_t* el = msh_ply_array_back(pf->elements);
-  ply_property_t pr = ply_property_zero_init();
+  msh_ply_element_t* el = msh_ply_array_back(pf->elements);
+  msh_ply_property_t pr = ply_property_zero_init();
   // Try to parse regular property format
   if(sscanf(line, "%s %s %s", &cmd[0], &type_str[0], (char*)&pr.name) == 3) 
   {
@@ -759,7 +825,7 @@ msh_ply__parse_property_cmd(char* line, msh_ply_t* pf)
   return MSH_PLY_NO_ERRORS;
 }
 
-int 
+int32_t
 msh_ply__parse_command(char* cmd, char* line, msh_ply_t* pf)
 {
   if(!strcmp(cmd, "ply"))      { return msh_ply__parse_ply_cmd(line, pf); }
@@ -769,16 +835,16 @@ msh_ply__parse_command(char* cmd, char* line, msh_ply_t* pf)
   return MSH_PLY_UNRECOGNIZED_CMD_ERR;
 }
 
-int
+int32_t
 msh_ply_parse_header(msh_ply_t* pf)
 {
-  int line_no = 0;
-  char line[MSH_PLY_FILE_MAX_STR_LEN];
-  int err_code = 0;
-  while( fgets( &line[0], MSH_PLY_FILE_MAX_STR_LEN, pf->_fp ) )
+  int32_t line_no = 0;
+  char line[MSH_PLY_MAX_STR_LEN];
+  int32_t err_code = 0;
+  while( fgets( &line[0], MSH_PLY_MAX_STR_LEN, pf->_fp ) )
   {
     line_no++;
-    char cmd[MSH_PLY_FILE_MAX_STR_LEN];
+    char cmd[MSH_PLY_MAX_STR_LEN];
     if( sscanf(line, "%s", cmd) != (unsigned) 1 ) { return MSH_PLY_LINE_PARSE_ERR; }
     if(!strcmp(cmd,"end_header")) break;
     if(!strcmp(cmd,"comment")) continue;
@@ -792,17 +858,17 @@ msh_ply_parse_header(msh_ply_t* pf)
 }
 
 int 
-msh_ply__calculate_elem_size_ascii(msh_ply_t* pf, ply_element_t* el)
+msh_ply__calculate_elem_size_ascii(msh_ply_t* pf, msh_ply_element_t* el)
 {
-  char line[MSH_PLY_FILE_MAX_STR_LEN];
-  while(fgets(&line[0], MSH_PLY_FILE_MAX_STR_LEN, pf->_fp))
+  char line[MSH_PLY_MAX_STR_LEN];
+  while(fgets(&line[0], MSH_PLY_MAX_STR_LEN, pf->_fp))
   {
     char* cp_up  = &line[0];
     char* cp_low = &line[0];
 
   for( size_t j = 0; j<msh_ply_array_len(el->properties); ++j )
     {
-      ply_property_t* pr = &el->properties[j];
+      msh_ply_property_t* pr = &el->properties[j];
       while( *cp_up != ' ' && *cp_up != '\n' ) { cp_up++; }
       char tmp_cp_up = *cp_up;
       *cp_up = 0; //Fake string end;
@@ -849,13 +915,13 @@ msh_ply__calculate_elem_size_ascii(msh_ply_t* pf, ply_element_t* el)
 
 
 int 
-msh_ply__calculate_elem_size_binary(msh_ply_t* pf, ply_element_t* el)
+msh_ply__calculate_elem_size_binary(msh_ply_t* pf, msh_ply_element_t* el)
 {
   for( int i = 0; i < el->count; ++i )
   {
     for( size_t j = 0; j < msh_ply_array_len(el->properties); ++j )
     {
-      ply_property_t* pr = &el->properties[j];
+      msh_ply_property_t* pr = &el->properties[j];
       int count = 1;
       if( pr->list_type != MSH_PLY_INVALID ) 
       { 
@@ -872,12 +938,12 @@ msh_ply__calculate_elem_size_binary(msh_ply_t* pf, ply_element_t* el)
 }
 
 int32_t 
-msh_ply__can_precalculate_sizes( ply_element_t* el )
+msh_ply__can_precalculate_sizes( msh_ply_element_t* el )
 {
   int32_t can_precalculate = 1;
   for( size_t i = 0; i < msh_ply_array_len(el->properties); ++i )
   {
-    ply_property_t* pr = &el->properties[i];
+    msh_ply_property_t* pr = &el->properties[i];
     if( pr->list_type != MSH_PLY_INVALID && pr->list_count == 0) 
     { 
       can_precalculate = 0;
@@ -888,13 +954,64 @@ msh_ply__can_precalculate_sizes( ply_element_t* el )
   return can_precalculate;
 }
 
-int
+int32_t 
+msh_ply__synchronize_list_sizes( msh_ply_t *pf )
+{
+  int error_code = MSH_PLY_NO_ERRORS;
+  for( size_t k = 0; k < msh_ply_array_len( pf->descriptors ); ++k )
+  {
+    msh_ply_desc_t* desc = pf->descriptors[k];
+    msh_ply_element_t* el = NULL;
+    for( size_t i = 0; i < msh_ply_array_len(pf->elements); ++i )
+    {
+      msh_ply_element_t* cur_el = &pf->elements[i];
+      if( !strcmp( desc->element_name, cur_el->name ) )
+      {
+        el = cur_el;
+        break;
+      }
+    }
+    if( el == NULL ) { error_code = MSH_PLY_ELEMENT_NOT_FOUND_ERR; return error_code; }
+    for( int32_t i = 0; i < desc->num_properties; ++i )
+    {
+      int32_t found = 0;
+      for( size_t j = 0; j < msh_ply_array_len( el->properties ); ++j )
+      {
+        msh_ply_property_t* pr = &el->properties[j];
+        if( !strcmp( pr->name, desc->property_names[i] ) )
+        {
+          if( pr->list_type != MSH_PLY_INVALID ) 
+          { 
+            pr->list_count = desc->list_size_hint; 
+            if( desc->list_data == NULL ) { desc->list_type = pr->list_type; }
+          }
+          else 
+          { 
+            pr->list_count = 1; 
+            desc->list_size_hint = 1; 
+          }
+          found = 1;
+          break;
+        }
+      }
+      if( !found ) { error_code = MSH_PLY_PROPERTY_NOT_FOUND_ERR; return error_code; }
+    }
+  }
+
+  return MSH_PLY_NO_ERRORS;
+}
+
+
+int32_t
 msh_ply_parse_contents( msh_ply_t* pf )
 {
-  int err_code = MSH_PLY_NO_ERRORS;
+  int32_t err_code = MSH_PLY_NO_ERRORS;
+  err_code = msh_ply__synchronize_list_sizes( pf ); 
+  if( err_code ) { return err_code; }
+
   for( size_t i = 0; i < msh_ply_array_len(pf->elements); ++i )
   {
-    ply_element_t* el = &pf->elements[i];
+    msh_ply_element_t* el = &pf->elements[i];
     int num_properties = msh_ply_array_len(el->properties);
     if( el->count <= 0 || num_properties <= 0 ) { continue; }
     el->file_anchor = ftell(pf->_fp);
@@ -907,7 +1024,7 @@ msh_ply_parse_contents( msh_ply_t* pf )
       int elem_size = 0;
       for( int j = 0; j < num_properties; ++j ) 
       {
-        ply_property_t* pr = &el->properties[j];
+        msh_ply_property_t* pr = &el->properties[j];
         pr->total_byte_size = pr->byte_size * pr->list_count * el->count;
         elem_size += pr->byte_size * pr->list_count; 
         if(pr->list_type != MSH_PLY_INVALID )
@@ -917,13 +1034,19 @@ msh_ply_parse_contents( msh_ply_t* pf )
         }
         pr->total_count += pr->list_count * el->count;
       }
+
       if( pf->format != MSH_PLY_ASCII ) { fseek( pf->_fp, el->count * elem_size, SEEK_CUR ); }
       else
       {
-        char line[MSH_PLY_FILE_MAX_STR_LEN];
+        char line[MSH_PLY_MAX_STR_LEN];
         for( int j =0; j < el->count; ++j ) 
         { 
-          fgets( &line[0], MSH_PLY_FILE_MAX_STR_LEN, pf->_fp ); 
+          char* ret = fgets( &line[0], MSH_PLY_MAX_STR_LEN, pf->_fp );
+          if( !ret )
+          {
+            if( ferror(pf->_fp) ) { return MSH_PLY_ASCII_FILE_READ_ERR; }
+            if( feof(pf->_fp) )   { return MSH_PLY_ASCII_FILE_EOF_ERR; }
+          }
         }
       }
     }
@@ -940,7 +1063,7 @@ msh_ply_parse_contents( msh_ply_t* pf )
 }
 
 int
-msh_ply__get_element_count( const ply_element_t* el, int* count )
+msh_ply__get_element_count( const msh_ply_element_t* el, int* count )
 {
   int err_code = MSH_PLY_NO_ERRORS;
   *count = el->count;
@@ -948,7 +1071,7 @@ msh_ply__get_element_count( const ply_element_t* el, int* count )
 }
 
 int
-msh_ply__get_element_size( const ply_element_t *el, uint64_t* size )
+msh_ply__get_element_size( const msh_ply_element_t *el, uint64_t* size )
 {
   int err_code = MSH_PLY_NO_ERRORS;
   
@@ -983,7 +1106,7 @@ msh_ply__ascii_to_value( char** dst, char* src, const int type )
 }
 
 int32_t
-msh_ply__get_element_data_ascii( msh_ply_t* pf, const ply_element_t* el, void** storage )
+msh_ply__get_element_data_ascii( msh_ply_t* pf, const msh_ply_element_t* el, void** storage )
 {
   int32_t err_code = MSH_PLY_NO_ERRORS;
   int32_t num_properties = msh_ply_array_len( el->properties );
@@ -992,14 +1115,14 @@ msh_ply__get_element_data_ascii( msh_ply_t* pf, const ply_element_t* el, void** 
   char *dest = (char*)*storage;
   for( int32_t i = 0; i < el->count; ++i )
   {
-    char line[MSH_PLY_FILE_MAX_STR_LEN];
-    fgets(line, MSH_PLY_FILE_MAX_STR_LEN, pf->_fp);
+    char line[MSH_PLY_MAX_STR_LEN];
+    fgets(line, MSH_PLY_MAX_STR_LEN, pf->_fp);
     char* cp_up  = &line[0];
     char* cp_low = &line[0];
 
     for( int32_t j = 0; j < num_properties; ++j )
     {
-      ply_property_t* pr = &el->properties[j];
+      msh_ply_property_t* pr = &el->properties[j];
       while( *cp_up!=' ' && *cp_up!='\n' ) { cp_up++; }
       char tmp_cp_up = *cp_up;
       *cp_up = 0; // fake string end;
@@ -1044,7 +1167,7 @@ msh_ply__get_element_data_ascii( msh_ply_t* pf, const ply_element_t* el, void** 
 #undef MSH_PLY_CONVERT_AND_ASSIGN
 
 int
-msh_ply__get_element_data_binary( msh_ply_t* pf, const ply_element_t* el, 
+msh_ply__get_element_data_binary( msh_ply_t* pf, const msh_ply_element_t* el, 
                                    void** storage, int64_t storage_size )
 {
   int err_code = MSH_PLY_NO_ERRORS;
@@ -1054,7 +1177,7 @@ msh_ply__get_element_data_binary( msh_ply_t* pf, const ply_element_t* el,
 }
 
 int
-msh_ply__get_element_data(msh_ply_t* pf, const ply_element_t* el, 
+msh_ply__get_element_data(msh_ply_t* pf, const msh_ply_element_t* el, 
                           void** storage, int64_t storage_size)
 {
   int err_code = MSH_PLY_NO_ERRORS;
@@ -1071,9 +1194,9 @@ msh_ply__get_element_data(msh_ply_t* pf, const ply_element_t* el,
 }
 
 int
-msh_ply__get_properties_byte_size( ply_element_t* el, 
+msh_ply__get_properties_byte_size( msh_ply_element_t* el, 
                                    const char** properties_names, int num_properties,
-                                   ply_type_id_t type, ply_type_id_t list_type,
+                                   msh_ply_type_id_t type, msh_ply_type_id_t list_type,
                                    int* data_size, int* list_size )
 {
   int n_found              = 0;
@@ -1085,7 +1208,7 @@ msh_ply__get_properties_byte_size( ply_element_t* el,
   {
     for( size_t j = 0; j < msh_ply_array_len( el->properties ); ++j )
     {
-      ply_property_t* pr = &el->properties[j];
+      msh_ply_property_t* pr = &el->properties[j];
       if( !strcmp(pr->name, properties_names[i]) )
       {
         n_found++;
@@ -1145,13 +1268,13 @@ msh_ply__data_assign_cast( void* dst, void* src, int32_t type_dst, int32_t type_
 int
 msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name, 
                                     const char** property_names, int num_requested_properties, 
-                                    ply_type_id_t requested_type, ply_type_id_t requested_list_type, 
+                                    msh_ply_type_id_t requested_type, msh_ply_type_id_t requested_list_type, 
                                     void** data, void** list_data, int32_t *data_count )
 {
   // TODO(maciej): Errors!
   int8_t swap_endianness = pf->format != MSH_PLY_ASCII ? (pf->_system_format != pf->format) : 0;
   int32_t num_properties = -1;
-  ply_element_t* el = msh_ply_find_element(pf, element_name);
+  msh_ply_element_t* el = msh_ply_find_element(pf, element_name);
 
   if( !el ) { return MSH_PLY_ELEMENT_NOT_FOUND_ERR; }
   else
@@ -1168,7 +1291,7 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
       {
         for( int i = 0; i < num_properties; ++i )
         {
-          ply_property_t* pr = &el->properties[i];
+          msh_ply_property_t* pr = &el->properties[i];
           const char* a = pr->name;
           const char* b = property_names[i];
           if( strcmp(a, b) ) { can_simply_copy = 0; }
@@ -1209,7 +1332,7 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
     }
     else
     {
-      return MSH_PLY_DATA_PTR_NOT_INITIALIZED;
+      return MSH_PLY_NULL_DATA_PTR_ERR;
     }
     if( list_data != NULL  )
     { 
@@ -1224,7 +1347,7 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
 
     for( int i = 0; i < num_properties; ++i )
     {
-      ply_property_t* pr = &el->properties[i];
+      msh_ply_property_t* pr = &el->properties[i];
 
       for( int j = 0; j < num_requested_properties; ++j )
       {
@@ -1240,7 +1363,7 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
     int32_t num_groups = 0;
     for( int32_t i = 0; i < num_properties; ++i )
     {
-      ply_property_t* pr = &el->properties[i];
+      msh_ply_property_t* pr = &el->properties[i];
       int32_t k = i;
       
       for( int32_t j = 0; j < num_requested_properties; ++j )
@@ -1273,7 +1396,7 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
       // Determine data row sizes
       for( int32_t j = 0; j < num_properties; ++j )
       {
-        ply_property_t* pr = &el->properties[j];
+        msh_ply_property_t* pr = &el->properties[j];
     
         if( requested_group_size[j] )
         {
@@ -1315,7 +1438,7 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
     int32_t pr_count = 0;
     for( int32_t i = 0; i < num_properties; ++i )
     {
-      ply_property_t *pr = &el->properties[i];
+      msh_ply_property_t *pr = &el->properties[i];
       if( requested_group_size[i] )
       {
         requested_properties[pr_count].offset = pr->offset; 
@@ -1354,7 +1477,7 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
         int pr_count = 0;
         for( int j = 0; j < num_properties; ++j )
         {
-          ply_property_t* pr = &el->properties[j];
+          msh_ply_property_t* pr = &el->properties[j];
           pr->list_count = 1;
 
           if( pr->list_type != MSH_PLY_INVALID )
@@ -1455,72 +1578,17 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
   return MSH_PLY_NO_ERRORS;
 }
 
-int
-msh_ply_get_property_from_element( msh_ply_t* pf, msh_ply_property_desc_t* desc )
+int32_t
+msh_ply_get_property_from_element( msh_ply_t* pf, msh_ply_desc_t* desc )
 {
   // TODO(maciej): Check for null ptrs etc.
   return msh_ply__get_property_from_element( pf, desc->element_name, 
-                                desc->property_names, desc->num_properties, 
-                                desc->data_type, desc->list_type, 
-                                (void**)desc->data, (void**)desc->list_data, 
-                                desc->data_count );
+                                                desc->property_names, desc->num_properties, 
+                                                desc->data_type, desc->list_type, 
+                                                (void**)desc->data, (void**)desc->list_data, 
+                                                desc->data_count );
 }
 
-
-
-
-int32_t 
-msh_ply__synchronize_list_sizes( msh_ply_t *pf )
-{
-  int error_code = MSH_PLY_NO_ERRORS;
-  for( size_t k = 0; k < msh_ply_array_len( pf->descriptors ); ++k )
-  {
-    msh_ply_property_desc_t* desc = pf->descriptors[k];
-    ply_element_t* el = NULL;
-    for( size_t i = 0; i < msh_ply_array_len(pf->elements); ++i )
-    {
-      ply_element_t* cur_el = &pf->elements[i];
-      if( !strcmp( desc->element_name, cur_el->name ) )
-      {
-        el = cur_el;
-        break;
-      }
-    }
-    if( el == NULL ) { error_code = MSH_PLY_ELEMENT_NOT_FOUND_ERR; return error_code; }
-    for( int32_t i = 0; i < desc->num_properties; ++i )
-    {
-      int32_t found = 0;
-      for( size_t j = 0; j < msh_ply_array_len( el->properties ); ++j )
-      {
-        ply_property_t* pr = &el->properties[j];
-        if( !strcmp( pr->name, desc->property_names[i] ) )
-        {
-          if( pr->list_type != MSH_PLY_INVALID ) 
-          { 
-            pr->list_count = desc->list_size_hint; 
-            if( desc->list_data == NULL ) { desc->list_type = pr->list_type; }
-          }
-          else 
-          { 
-            pr->list_count = 1; 
-            desc->list_size_hint = 1; 
-          }
-          found = 1;
-          break;
-        }
-      }
-      if( !found ) { error_code = MSH_PLY_PROPERTY_NOT_FOUND_ERR; return error_code; }
-    }
-
-    // for( size_t i = 0; i < msh_ply_array_len( el->properties ); ++i )
-    // {
-    //   printf("%s -> %d\n", el->properties[i].name, el->properties[i].list_count );
-    // }
-    // printf("\n");
-  }
-
-  return MSH_PLY_NO_ERRORS;
-}
 
 int
 msh_ply_read( msh_ply_t* pf )
@@ -1530,8 +1598,6 @@ msh_ply_read( msh_ply_t* pf )
   if( msh_ply_array_len( pf->descriptors ) == 0 ) { return MSH_PLY_NO_REQUESTS; }
   if( !pf->_parsed ) { error = msh_ply_parse_header( pf ); }
   if( error ) { return error; }
-  error = msh_ply__synchronize_list_sizes( pf ); 
-  if( error ) { return error; }
 
   error = msh_ply_parse_contents( pf );
 
@@ -1539,7 +1605,7 @@ msh_ply_read( msh_ply_t* pf )
   
   for( size_t i = 0; i < msh_ply_array_len( pf->descriptors ); ++i )
   {
-    msh_ply_property_desc_t *desc = pf->descriptors[i];
+    msh_ply_desc_t *desc = pf->descriptors[i];
     error = msh_ply_get_property_from_element( pf, desc );
     if( error ) { return error; }
 
@@ -1556,7 +1622,7 @@ msh_ply_read( msh_ply_t* pf )
 int
 msh_ply__add_element( msh_ply_t* pf, const char* element_name, const int element_count )
 {
-  ply_element_t el = ply_element_zero_init();
+  msh_ply_element_t el = ply_element_zero_init();
   strncpy( &el.name[0], element_name, 64 );
   el.count = element_count;
   el.properties = NULL;
@@ -1586,7 +1652,7 @@ msh_ply__fprint_data_at_offset(const msh_ply_t* pf, const void* data, const int3
 int32_t
 msh_ply__add_property_to_element( msh_ply_t* pf, const char* element_name, 
                                   const char** property_names, int32_t num_properties,
-                                  const ply_type_id_t data_type, const ply_type_id_t list_type, 
+                                  const msh_ply_type_id_t data_type, const msh_ply_type_id_t list_type, 
                                   void** data, void** list_data, 
                                   int32_t element_count, int32_t size_hint )
 {
@@ -1598,7 +1664,7 @@ msh_ply__add_property_to_element( msh_ply_t* pf, const char* element_name,
   int8_t swap_endianness = pf->format != MSH_PLY_ASCII ? (pf->_system_format != pf->format) : 0;
 
   // Find / Create element
-  ply_element_t* el = msh_ply_find_element(pf, element_name);
+  msh_ply_element_t* el = msh_ply_find_element(pf, element_name);
   if( !el )
   {
     msh_ply__add_element(pf, element_name, element_count);
@@ -1614,10 +1680,10 @@ msh_ply__add_property_to_element( msh_ply_t* pf, const char* element_name,
     int init_offset = 0; // Helper variable for storing initial list offsets.
     for( int i = 0; i < num_properties; ++i )
     {
-      ply_property_t pr;
+      msh_ply_property_t pr;
       strncpy(&pr.name[0], property_names[i], 32);
 
-      if( data == NULL ) { return MSH_PLY_DATA_PTR_NOT_INITIALIZED; }
+      if( data == NULL ) { return MSH_PLY_NULL_DATA_PTR_ERR; }
 
       pr.type = data_type;
       pr.list_type = list_type;
@@ -1666,9 +1732,11 @@ msh_ply__add_property_to_element( msh_ply_t* pf, const char* element_name,
 }
 
 int
-msh_ply_add_property_to_element( msh_ply_t* pf, const msh_ply_property_desc_t* desc )
+msh_ply_add_property_to_element( msh_ply_t* pf, const msh_ply_desc_t* desc )
 {
-  // TODO(maciej): Check for null ptrs etc.
+  if( !pf ) { return MSH_PLY_FILE_NOT_OPEN_ERR; } 
+  int desc_err = msh_ply__validate_descriptor( desc );
+  if( desc_err ) { return desc_err; }
   return msh_ply__add_property_to_element( pf, desc->element_name, desc->property_names, 
                                            desc->num_properties, desc->data_type, desc->list_type,
                                            (void**)desc->data, (void**)desc->list_data,
@@ -1678,22 +1746,22 @@ msh_ply_add_property_to_element( msh_ply_t* pf, const msh_ply_property_desc_t* d
 
 // NOTE(maciej): I don't really like how this works. Might need to redo it
 int
-msh_ply__calculate_list_property_stride( const ply_property_t* pr, 
-                                         msh_ply_array(ply_property_t) el_properties,
+msh_ply__calculate_list_property_stride( const msh_ply_property_t* pr, 
+                                         msh_ply_array(msh_ply_property_t) el_properties,
                                          int swap_endianness )
 {
   int64_t stride = 0;
   int64_t offsets[MSH_PLY_FILE_MAX_PROPERTIES] = {0};
   for( size_t l = 0; l < msh_ply_array_len(el_properties); ++l )
   {
-    ply_property_t* qr = &el_properties[l];
+    msh_ply_property_t* qr = &el_properties[l];
     offsets[l] = qr->list_offset;
   }
 
   for( size_t l = 0; l < msh_ply_array_len(el_properties); ++l )
   {
 
-    ply_property_t* qr = &el_properties[l];
+    msh_ply_property_t* qr = &el_properties[l];
    
     if( pr->data == qr->data )
     {
@@ -1726,11 +1794,11 @@ msh_ply__write_header( const msh_ply_t* pf )
                       format_string, (float)pf->format_version);
     for( size_t i = 0; i < msh_ply_array_len(pf->elements); ++i )
     {
-      ply_element_t* el = &pf->elements[i];
+      msh_ply_element_t* el = &pf->elements[i];
       fprintf(pf->_fp, "element %s %d\n", el->name, el->count);
       for( size_t j = 0; j < msh_ply_array_len(el->properties); j++)
       {
-        ply_property_t* pr = &el->properties[j];
+        msh_ply_property_t* pr = &el->properties[j];
         char* pr_type_str = NULL;
         msh_ply__property_type_to_string( pr->type, &pr_type_str );
         
@@ -1759,13 +1827,13 @@ msh_ply__write_data_ascii( const msh_ply_t* pf )
 {
   for( size_t i = 0; i < msh_ply_array_len(pf->elements); ++i )
   {
-    ply_element_t* el = &pf->elements[i];
+    msh_ply_element_t* el = &pf->elements[i];
 
     for( int j = 0; j < el->count; ++j )
     {
       for( size_t k = 0; k < msh_ply_array_len(el->properties); ++k )
       {
-        ply_property_t* pr = &el->properties[k];
+        msh_ply_property_t* pr = &el->properties[k];
         if( pr->list_type == MSH_PLY_INVALID )
         {
           msh_ply__fprint_data_at_offset( pf, pr->data, pr->offset, pr->type );
@@ -1811,7 +1879,7 @@ msh_ply__write_data_binary( const msh_ply_t* pf )
   int8_t swap_endianness = (pf->_system_format != pf->format);
   for( size_t i = 0; i < msh_ply_array_len(pf->elements); ++i )
   {
-    ply_element_t* el = &pf->elements[i];
+    msh_ply_element_t* el = &pf->elements[i];
     int32_t buffer_size = 0;
     for( size_t j = 0; j < msh_ply_array_len(el->properties); ++j )
     {
@@ -1825,7 +1893,7 @@ msh_ply__write_data_binary( const msh_ply_t* pf )
     {
       for( size_t k = 0; k < msh_ply_array_len(el->properties); ++k )
       {
-        ply_property_t* pr = &el->properties[k];
+        msh_ply_property_t* pr = &el->properties[k];
         if( pr->list_type == MSH_PLY_INVALID )
         {
           msh_ply__data_assign( dst + dst_offset, (uint8_t*)pr->data + pr->offset, pr->type, 1 );
@@ -1955,9 +2023,9 @@ msh_ply_print_header(msh_ply_t* pf)
 
   char *type_str = NULL;
   char *list_type_str = NULL;
-  char spaces[MSH_PLY_FILE_MAX_STR_LEN];
-  for( int i = 0; i < MSH_PLY_FILE_MAX_STR_LEN; ++i ) { spaces[i] = ' ';}
-  spaces[MSH_PLY_FILE_MAX_STR_LEN-1] = 0;
+  char spaces[MSH_PLY_MAX_STR_LEN];
+  for( int i = 0; i < MSH_PLY_MAX_STR_LEN; ++i ) { spaces[i] = ' ';}
+  spaces[MSH_PLY_MAX_STR_LEN-1] = 0;
 
   char *format_str = NULL;
   if(pf->format == MSH_PLY_ASCII)         { format_str = (char*)"Ascii"; }
@@ -2034,7 +2102,7 @@ msh_ply_close( msh_ply_t* pf )
   {
     for( size_t i = 0; i < msh_ply_array_len(pf->elements); ++i )
     {
-      ply_element_t* el = &pf->elements[i];
+      msh_ply_element_t* el = &pf->elements[i];
       if( el->properties ) { msh_ply_array_free(el->properties); }
     }
     msh_ply_array_free(pf->elements);
