@@ -323,7 +323,6 @@ typedef struct msh_ply_array_header
 {
   size_t len;
   size_t cap;
-  char buf[]; //NOTE(maciej): MSVC returns a warning here in C++ mode
 } msh_ply_array_hdr_t;
 
 #define msh_ply_array(T) T*
@@ -331,19 +330,18 @@ typedef struct msh_ply_array_header
 void* msh_ply__array_grow(const void *array, size_t new_len, size_t elem_size);
 
 #define msh_ply_array__grow_formula(x)    ((1.6180339887498948482*(x)))
-#define msh_ply_array__hdr(a)             ((msh_ply_array_hdr_t *)((char *)(a) - offsetof(msh_ply_array_hdr_t, buf)))
+#define msh_ply_array__hdr(a)             ((msh_ply_array_hdr_t *)((char *)(a) - sizeof(msh_ply_array_hdr_t)))
 
 #define msh_ply_array_len(a)              ((a) ? (msh_ply_array__hdr((a))->len) : 0)
 #define msh_ply_array_cap(a)              ((a) ? (msh_ply_array__hdr((a))->cap) : 0)
 #define msh_ply_array_front(a)            ((a) ? (a) : NULL)
 #define msh_ply_array_back(a)             (msh_ply_array_len((a)) ? ((a) + msh_ply_array_len((a)) - 1 ) : NULL)
 
-#define msh_ply_array_free(a)             ((a) ? (MSH_PLY_FREE(msh_ply_array__hdr(a)), (a) = NULL) : 0 )
-#define msh_ply_array_fit(a, n)           do{ if((n) <= msh_ply_array_cap(a)){}else{ void** ta = (void**)&(a); (*ta) = msh_ply__array_grow((a), (n), sizeof(*(a))); }} while(0)
-#define msh_ply_array_push(a, ...)        do{ msh_ply_array_fit((a), 1 + msh_ply_array_len(a)); (a)[msh_ply_array__hdr(a)->len++] = (__VA_ARGS__); }while(0)
+#define msh_ply_array_free(a)             ((a) ? (MSH_PLY_FREE(msh_ply_array__hdr(a)), (a) = NULL) : 0 )                                  
+#define msh_ply_array_fit(a, n)           ((n) <= msh_ply_array_cap(a) ? (0) : ( *(void**)&(a) = msh_ply__array_grow((a), (n), sizeof(*(a))) )) 
+#define msh_ply_array_push(a, ...)        (msh_ply_array_fit((a), 1 + msh_ply_array_len((a))), (a)[msh_ply_array__hdr(a)->len++] = (__VA_ARGS__))
 
-// #define msh_ply_array_fit(a, n)           ((n) <= msh_ply_array_cap(a) ? (0) : ({ void** ta = (void**)&(a); (*ta) = msh_ply__array_grow((a), (n), sizeof(*(a))); })) 
-// #define msh_ply_array_push(a, ...)        (msh_ply_array_fit((a), 1 + msh_ply_array_len((a))), (a)[msh_ply_array__hdr(a)->len++] = (__VA_ARGS__))
+
 
 // ARRAY END
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -476,7 +474,7 @@ msh_ply__array_grow(const void *array, size_t new_len, size_t elem_size) {
   size_t old_cap = msh_ply_array_cap( array );
   size_t new_cap = (size_t)msh_ply_array__grow_formula( old_cap );
   new_cap = (size_t)MSH_PLY_MAX( new_cap, MSH_PLY_MAX(new_len, 16) );
-  size_t new_size = offsetof(msh_ply_array_hdr_t, buf) + new_cap * elem_size;
+  size_t new_size = sizeof(msh_ply_array_hdr_t) + new_cap * elem_size;
   msh_ply_array_hdr_t *new_hdr;
 
   if( array ) {
@@ -486,7 +484,7 @@ msh_ply__array_grow(const void *array, size_t new_len, size_t elem_size) {
     new_hdr->len = 0;
   }
   new_hdr->cap = new_cap;
-  return new_hdr->buf;
+  return (void*)((char*)new_hdr + sizeof(msh_ply_array_hdr_t));
 }
 
 msh_ply_property_t
@@ -570,7 +568,7 @@ msh_ply__swap_bytes( uint8_t* buffer, int32_t type_size, int32_t count )
     int32_t offset = i * type_size;  
     for( int32_t j = 0; j < type_size >> 1; ++j )
     {
-      int32_t temp = buffer[offset + j];
+      uint8_t temp = buffer[offset + j];
       buffer[offset + j] = buffer[offset + type_size - 1 - j];
       buffer[offset + type_size - 1 - j] = temp;
     }
@@ -620,10 +618,10 @@ msh_ply__get_data_as_int( void* data, int type, int8_t swap_endianness )
 }
 
 
-MSH_PLY_INLINE int 
+MSH_PLY_INLINE int16_t 
 msh_ply__type_to_byte_size( msh_ply_type_id_t type )
 {
-  int retval = 0;
+  int16_t retval = 0;
   switch( type )
   {
     case MSH_PLY_INT8:   { retval = 1; break; }
@@ -1455,7 +1453,7 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
       }
       else
       {
-        int pr_count = 0;
+        pr_count = 0;
         for( int j = 0; j < num_properties; ++j )
         {
           msh_ply_property_t* pr = &el->properties[j];
@@ -1728,7 +1726,7 @@ msh_ply_add_property_to_element( msh_ply_t* pf, const msh_ply_desc_t* desc )
 int32_t
 msh_ply__calculate_list_property_stride( const msh_ply_property_t* pr, 
                                          msh_ply_array(msh_ply_property_t) el_properties,
-                                         int swap_endianness )
+                                         int8_t swap_endianness )
 {
   int32_t stride = 0;
   int32_t offsets[MSH_PLY_FILE_MAX_PROPERTIES] = {0};
@@ -1745,8 +1743,7 @@ msh_ply__calculate_list_property_stride( const msh_ply_property_t* pr,
    
     if( pr->data == qr->data )
     {
-      int32_t list_count = msh_ply__get_data_as_int((uint8_t*)qr->list_data + offsets[l],
-                                                     qr->list_type, swap_endianness );
+      int32_t list_count = msh_ply__get_data_as_int( (uint8_t*)qr->list_data + offsets[l], qr->list_type, swap_endianness );
       stride += list_count * qr->byte_size;
       offsets[l] += qr->list_stride;
     }
@@ -1886,7 +1883,7 @@ msh_ply__write_data_binary( const msh_ply_t* pf )
           if( !pr->list_count )
           {
             pr->stride = msh_ply__calculate_list_property_stride( pr, el->properties, 
-                                                                 swap_endianness );
+                                                                  swap_endianness );
             pr->list_count = msh_ply__get_data_as_int( (uint8_t*)pr->list_data + pr->list_offset, 
                                                                  pr->list_type, swap_endianness );
             

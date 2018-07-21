@@ -236,35 +236,31 @@ typedef struct msh_array_header
 {
   size_t len;
   size_t cap;
-  char buf[];
 } msh_array_hdr_t;
 
 #define msh_array(T) T*
 
 void* msh_array__grow(const void *array, size_t new_len, size_t elem_size);
 
-#define msh_array__grow_formula(x)    ((1.6180339887498948482*(x)))
-#define msh_array__hdr(a)             ((msh_array_hdr_t *)((char *)(a) - offsetof(msh_array_hdr_t, buf)))
+#define msh_array__grow_formula(x)    ( (1.6180339887498948482*(x)))
+#define msh_array__hdr(a)             ( (msh_array_hdr_t *)((char *)(a) - sizeof(msh_array_hdr_t)))
 
-#define msh_array_len(a)              ((a) ? (msh_array__hdr((a))->len) : 0)
-#define msh_array_cap(a)              ((a) ? (msh_array__hdr((a))->cap) : 0)
-#define msh_array_sizeof(a)           ((a) ? (msh_array__hdr((a))->len * sizeof(*(a))) : 0)
-#define msh_array_isempty(a)          ((a) ? (msh_array__hdr((a))->len <= 0) : 1)
-#define msh_array_front(a)            ((a) ? (a) : NULL)
-#define msh_array_back(a)             (msh_array_len((a)) ? ((a) + msh_array_len((a)) - 1 ) : NULL)
+#define msh_array_len(a)              ( (a) ? (msh_array__hdr((a))->len) : 0)
+#define msh_array_cap(a)              ( (a) ? (msh_array__hdr((a))->cap) : 0)
+#define msh_array_sizeof(a)           ( (a) ? (msh_array__hdr((a))->len * sizeof(*(a))) : 0)
+#define msh_array_isempty(a)          ( (a) ? (msh_array__hdr((a))->len <= 0) : 1)
+#define msh_array_front(a)            ( (a) ? (a) : NULL)
+#define msh_array_back(a)             ( msh_array_len((a)) ? ((a) + msh_array_len((a)) - 1 ) : NULL)
 
-#define msh_array_free(a)             ((a) ? (free(msh_array__hdr(a)), (a) = NULL) :0 )
-#define msh_array_pop(a)              ((a) ? (msh_array__hdr((a))->len--) : 0)
-#define msh_array_clear(a)            ((a) ? (msh_array__hdr((a))->len = 0) : 0)
+#define msh_array_free(a)             ( (a) ? (free(msh_array__hdr(a)), (a) = NULL) :0 )
+#define msh_array_pop(a)              ( (a) ? (msh_array__hdr((a))->len--) : 0)
+#define msh_array_clear(a)            ( (a) ? (msh_array__hdr((a))->len = 0) : 0)
 
-// #define msh_array_fit(a, n)           ((n) <= msh_array_cap(a) ? (0) : ({ void** ta = (void**)&(a); (*ta) = msh_array__grow((a), (n), sizeof(*(a))); })) 
-// #define msh_array_push(a, ...)        (msh_array_fit((a), 1 + msh_array_len((a))), (a)[msh_array__hdr(a)->len++] = (__VA_ARGS__))
-#define msh_array_fit(a, n)           do{ if((n) <= msh_array_cap(a)){}else{ void** ta = (void**)&(a); (*ta) = msh_array__grow((a), (n), sizeof(*(a))); }} while(0)
-#define msh_array_push(a, ...)        do{ msh_array_fit((a), 1 + msh_array_len(a)); (a)[msh_array__hdr(a)->len++] = (__VA_ARGS__); }while(0)
-
+#define msh_array_fit(a, n)           ( (n) <= msh_array_cap(a) ? (0) : ( *(void**)&(a) = msh_array__grow((a), (n), sizeof(*(a))) )) 
+#define msh_array_push(a, ...)        ( msh_array_fit((a), 1 + msh_array_len((a))), (a)[msh_array__hdr(a)->len++] = (__VA_ARGS__))
 
 #define msh_array_cpy( dst, src, n )  ( msh_array_fit( (dst), (n) ), msh_array__hdr((dst))->len = (n), memcpy( (void*)(dst), (void*)(src), (n) * sizeof(*(dst) )))
-#define msh_array_printf(b, ...)      ((b) = msh_array__printf((b), __VA_ARGS__))
+#define msh_array_printf(b, ...)      ( (b) = msh_array__printf((b), __VA_ARGS__))
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hash Table
@@ -459,7 +455,7 @@ msh_array__grow(const void *array, size_t new_len, size_t elem_size) {
   size_t new_cap = (size_t)msh_array__grow_formula( old_cap );
   new_cap = (size_t)msh_max( new_cap, msh_max(new_len, 16) );
   assert(new_len <= new_cap);
-  size_t new_size = offsetof(msh_array_hdr_t, buf) + new_cap * elem_size;
+  size_t new_size = sizeof(msh_array_hdr_t) + new_cap * elem_size;
   msh_array_hdr_t *new_hdr;
   if( array ) {
     new_hdr = (msh_array_hdr_t*)realloc( msh_array__hdr( array ), new_size );
@@ -468,7 +464,7 @@ msh_array__grow(const void *array, size_t new_len, size_t elem_size) {
     new_hdr->len = 0;
   }
   new_hdr->cap = new_cap;
-  return new_hdr->buf;
+  return (void*)((char*)new_hdr + sizeof(msh_array_hdr_t));
 }
 
 MSHDEF char*
@@ -522,13 +518,12 @@ uint64_t msh_hash_str(char *str)
 
 void msh_map__grow( msh_map_t *map, size_t new_cap) {
   new_cap = msh_max( new_cap, 16 );
-  msh_map_t new_map = 
-  {
-    /* .keys = */ (uint64_t*)calloc( new_cap, sizeof(uint64_t) ),
-    /* .vals = */ (uint64_t*)malloc( new_cap * sizeof(uint64_t) ),
-    /* ._len = */ 0,
-    /* ._cap = */ new_cap
-  };
+  msh_map_t new_map;
+  new_map.keys = (uint64_t*)calloc( new_cap, sizeof(uint64_t) );
+  new_map.vals = (uint64_t*)malloc( new_cap * sizeof(uint64_t) );
+  new_map._len = 0;
+  new_map._cap = new_cap;
+
   for( size_t i = 0; i < map->_cap; i++ ) 
   {
     if (map->keys[i]) {
@@ -589,11 +584,10 @@ uint64_t* msh_map_get( msh_map_t* map, uint64_t key )
     } 
     else if( !map->keys[i] ) 
     {
-        return NULL;
+      return NULL;
     }
     i++;
   }
-  return NULL;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -883,7 +877,7 @@ msh_pdfsample( const float* pdf, float prob, int n_vals)
 float 
 msh_gausspdf1d( float x, float mu, float sigma )
 {
-  float scale = 1.0f * sigma * sqrtf(2.0f*MSH_PI);
+  float scale = 1.0f * sigma * sqrtf( 2.0f * (float)MSH_PI );
   float exponential = expf(-0.5f * msh_sqf((x-mu)/sigma));
   return scale*exponential;
 }

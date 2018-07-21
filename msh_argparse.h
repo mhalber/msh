@@ -355,20 +355,20 @@ msh_ap__print_arguments( const msh_argparse_t * argparse,
     const msh_arg_t * argument = &argparse->args[i];
     if ( argument->shorthand == NULL )
     {
-      printf("|\t%-32s - %s <%zu %s>\n", argument->name,
-                                                    argument->message,
-                                                    argument->num_vals,
-                                                    argparse->typenames[argument->type] );
+      printf("|\t%-32s - %s <%d %s>\n", argument->name,
+                                        argument->message,
+                                        (int)argument->num_vals,
+                                        argparse->typenames[argument->type] );
     }
     else
     {
       char name_and_shorthand[MSH_AP_MAX_NAME_LEN + 10];
       sprintf( name_and_shorthand, "%s, %s", argument->name, 
                                              argument->shorthand );
-      printf("|\t%-32s - %s <%zu %s>\n", name_and_shorthand,
-                                                    argument->message,
-                                                    argument->num_vals,
-                                                    argparse->typenames[argument->type] );
+      printf("|\t%-32s - %s <%d %s>\n", name_and_shorthand,
+                                        argument->message,
+                                        (int)argument->num_vals,
+                                        argparse->typenames[argument->type] );
     }
   }
 }
@@ -431,9 +431,9 @@ msh_ap__find_argument( const char * arg_name,
                                   !isdigit(argv[*argv_index][1]) ) )           \
       {                                                                        \
         fprintf( stderr, "Argparse Error: Wrong number of parameters "         \
-                         "for argument %s. Correct value is: %zu\n",           \
+                         "for argument %s. Correct value is: %d\n",            \
                          arg->name,                                            \
-                         arg->num_vals );                                      \
+                         (int)arg->num_vals );                                 \
         return 0;                                                              \
       }                                                                        \
       values[j] = (val_t)cfunc( argv[*argv_index] );                           \
@@ -548,7 +548,7 @@ msh_ap__parse_argument( msh_arg_t * arg,
       }                                                                           \
                                                                                   \
       /* create argument */                                                       \
-      msh_arg_t *argument = &(argparse->args[argparse->n_args++]);                \
+      argument = &(argparse->args[argparse->n_args++]);                           \
                                                                                   \
       /* is argument an option, or required? */                                   \
       argument->position = -1;                                                    \
