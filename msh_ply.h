@@ -166,6 +166,7 @@
   [x] Write header to this file
   [ ] Optimize 
     [ ] Profile lucy writing, why is it showing a big slowdown.
+    [ ] Find a fix for an extreme slowdown when trying to read incomplete description of a file.
   [x] Encoder / decorder split
   [x] Error reporting
     [ ] Revise when errors are reported
@@ -215,8 +216,9 @@ extern "C" {
 
 #define MSH_PLY_MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MSH_PLY_MAX_STR_LEN 1024
-#define MSH_PLY_FILE_MAX_REQ_PROPERTIES 32
-#define MSH_PLY_FILE_MAX_PROPERTIES 128
+#define MSH_PLY_MAX_REQ_PROPERTIES 32
+#define MSH_PLY_MAX_PROPERTIES 128
+#define MSH_PLY_MAX_LIST_ELEMENTS 1024
 
 typedef struct msh_ply_property   msh_ply_property_t;
 typedef struct msh_ply_element    msh_ply_element_t;
@@ -898,23 +900,27 @@ msh_ply__calculate_elem_size_ascii(msh_ply_t* pf, msh_ply_element_t* el)
 int 
 msh_ply__calculate_elem_size_binary(msh_ply_t* pf, msh_ply_element_t* el)
 {
-  for( int i = 0; i < el->count; ++i )
+  for( size_t j = 0; j < msh_ply_array_len( el->properties ); ++j )
   {
-    for( size_t j = 0; j < msh_ply_array_len(el->properties); ++j )
+    msh_ply_property_t* pr = &el->properties[j];
+    int32_t count = 1; 
+    double dummy_data[MSH_PLY_MAX_LIST_ELEMENTS] = {0};
+    for( int32_t i = 0; i < el->count; ++i )
     {
-      msh_ply_property_t* pr = &el->properties[j];
-      int count = 1;
-      if( pr->list_type != MSH_PLY_INVALID ) 
-      { 
-        size_t read_count = fread( &count, pr->list_byte_size, 1, pf->_fp );
-        if( read_count != 1) { return MSH_PLY_BINARY_PARSE_ERR;}
-        pr->total_byte_size += pr->list_byte_size;
-      }
-      fseek(pf->_fp, count * pr->byte_size, SEEK_CUR);
-      pr->total_byte_size += count * pr->byte_size;
+      size_t read_count = fread( &count, pr->list_byte_size, 1, pf->_fp );
+      if( read_count != 1) { return MSH_PLY_BINARY_PARSE_ERR;}
+
+      read_count = fread( &dummy_data[0], pr->byte_size, count, pf->_fp );
+      if( read_count != count ) { return MSH_PLY_BINARY_PARSE_ERR;}
+ 
+      //NOTE(maciej): This is bizzarly slower, than reading the data into dummy buffer.
+      // fseek(pf->_fp, count * pr->byte_size, SEEK_CUR);
+ 
       pr->total_count += count;
     }
+    pr->total_byte_size += el->count * pr->list_byte_size + pr->total_count * pr->byte_size;
   }
+
   return MSH_PLY_NO_ERRORS;
 }
 
@@ -990,8 +996,22 @@ msh_ply_parse_contents( msh_ply_t* pf )
   err_code = msh_ply__synchronize_list_sizes( pf ); 
   if( err_code ) { return err_code; }
 
-  for( size_t i = 0; i < msh_ply_array_len(pf->elements); ++i )
+  for( size_t i = 0; i < msh_ply_array_len( pf->elements ); ++i )
   {
+    // If suer did not ask for last element, we can skip reading it all together
+    int32_t can_skip = (i == msh_ply_array_len( pf->elements) - 1);
+    if( can_skip )
+    {
+      for( size_t j = 0; j < msh_ply_array_len( pf->descriptors ); ++j )
+      {
+        if( !strcmp( pf->descriptors[j]->element_name, pf->elements[i].name ) )
+        {
+          can_skip = 0;
+          break;
+        }
+      }
+    }
+    if( can_skip ) { continue; }
     msh_ply_element_t* el = &pf->elements[i];
     int num_properties = (int)msh_ply_array_len(el->properties);
     if( el->count <= 0 || num_properties <= 0 ) { continue; }
@@ -1240,7 +1260,7 @@ msh_ply__data_assign_cast( void* dst, void* src, int32_t type_dst, int32_t type_
       case MSH_PLY_INT32:  *((int32_t*)(dst)+c)  = (int32_t)data;  break;
       case MSH_PLY_FLOAT:  *((float*)(dst)+c)    = (float)data;    break;
       case MSH_PLY_DOUBLE: *((double*)(dst)+c)   = (double)data;   break;
-      default:             *((uint8_t*)(dst)+c) = (uint8_t)data;   break;
+      default:             *((uint8_t*)(dst)+c)  = (uint8_t)data;   break;
     }
   }
 }
@@ -1323,7 +1343,7 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
 
     // Check if need to cast
     int need_cast = 0;
-    int8_t requested_group_size[MSH_PLY_FILE_MAX_REQ_PROPERTIES] = {0};
+    int8_t requested_group_size[MSH_PLY_MAX_REQ_PROPERTIES] = {0};
 
     for( int i = 0; i < num_properties; ++i )
     {
@@ -1407,8 +1427,8 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
       int32_t list_offset;
     } ply_property_read_helper_t;
 
-    ply_property_read_helper_t requested_properties[MSH_PLY_FILE_MAX_REQ_PROPERTIES];
-    for( int32_t i = 0; i < MSH_PLY_FILE_MAX_REQ_PROPERTIES; ++i )
+    ply_property_read_helper_t requested_properties[MSH_PLY_MAX_REQ_PROPERTIES];
+    for( int32_t i = 0; i < MSH_PLY_MAX_REQ_PROPERTIES; ++i )
     {
       ply_property_read_helper_t prh = {0,0,0,0,0};
       requested_properties[i] = prh;
@@ -1587,8 +1607,8 @@ msh_ply_read( msh_ply_t* pf )
     msh_ply_desc_t *desc = pf->descriptors[i];
     error = msh_ply_get_property_from_element( pf, desc );
     if( error ) { return error; }
-
   }
+
 
   return error;
 }
@@ -1729,7 +1749,7 @@ msh_ply__calculate_list_property_stride( const msh_ply_property_t* pr,
                                          int8_t swap_endianness )
 {
   int32_t stride = 0;
-  int32_t offsets[MSH_PLY_FILE_MAX_PROPERTIES] = {0};
+  int32_t offsets[MSH_PLY_MAX_PROPERTIES] = {0};
   for( size_t l = 0; l < msh_ply_array_len(el_properties); ++l )
   {
     msh_ply_property_t* qr = &el_properties[l];
@@ -1850,6 +1870,7 @@ msh_ply__write_data_ascii( const msh_ply_t* pf )
 
 
 // TODO(maciej): Test if splitting into completly separate functions helps
+// TODO(maciej): Check if writing stuff to file directly ends up deing faster...
 int
 msh_ply__write_data_binary( const msh_ply_t* pf )
 {
@@ -2044,7 +2065,7 @@ msh_ply_open( const char* filename, const char* mode )
   if( mode[0] != 'r' && mode[0] != 'w' ) return NULL;
   FILE* fp = fopen(filename, mode);
   
-  
+
   if( fp )
   {
     pf                 = (msh_ply_t*)MSH_PLY_MALLOC(sizeof(msh_ply_t));
