@@ -10,9 +10,11 @@
 #include "msh/msh_ply.h"
 
 // TODOs
-// [ ] Finish sorting
+// [x] Finish sorting
 // [x] Test SOA vs AOS.
 // [ ] Implement knn searches
+//    [ ] Implement list traversal
+//    [ ] Figure out how to keep a list of k-closest for knn search
 // [ ] Clean up the datastructure contents
 // [ ] Work on the api
 
@@ -38,9 +40,6 @@ typedef struct msh_spatial_table
   int* indices;
   bin_info_t* offsets;
 
-  pt_idx_t* pt_idx_data; // this might end up being temporary
-
-  bin_data_t* binned_data; // this might end up being temporary
   int   _slab_size;
   float _inv_cell_size;
 } msh_st_t;
@@ -52,11 +51,9 @@ int
 msh_st__bin_pt( const msh_st_t* st, v3_t pt )
 {
   int ix = floor( (pt.x - st->min_pt.x ) / st->cell_size );
+  
   int iy = floor( (pt.y - st->min_pt.y ) / st->cell_size );
   int iz = floor( (pt.z - st->min_pt.z ) / st->cell_size );
-  if( ix >= st->width ) printf("Uh OH W %d %d | %f %f %f | %f %f %f\n", ix, st->width, pt.x, pt.y, pt.z, st->max_pt.x, st->max_pt.y, st->max_pt.z );
-  if( iy >= st->height ) printf("Uh OH H %d %d\n", ix, st->height );
-  if( iz >= st->depth ) printf("Uh OH D %d %d\n", ix, st->depth );
   int bin_idx = iz * st->_slab_size + iy * st->width + ix;
   return bin_idx;
 }
@@ -84,48 +81,37 @@ msh_st_init( msh_st_t* st, const float* pts, const int n_pts, const int density 
   float dim_z = (st->max_pt.x - st->min_pt.z);
   float dim = msh_max3( dim_x, dim_y, dim_z );
 
-  // get with height and size
-  // TODO( maciej ): Understand why we need that padding
+  // get width, height and depth
   st->cell_size = dim / density;
   st->width     = (int)(dim_x / st->cell_size + 1.0);
   st->height    = (int)(dim_y / st->cell_size + 1.0) ;
   st->depth     = (int)(dim_z / st->cell_size + 1.0) ;
 
-  // printf("  %f %f %f\n", st->min_pt.x, st->min_pt.y, st->min_pt.z );
-  // printf("  %f %f %f\n", st->max_pt.x, st->max_pt.y, st->max_pt.z );
-  // printf("  %f\n", st->cell_size );
-  printf("  %d %d %d\n", st->width, st->height, st->depth );
-
   st->_inv_cell_size = 1.0f / st->cell_size;
   st->_slab_size = st->height * st->width;
 
   // create tmp binned storage
-  // TODO(maciej): Use ion array here.
   int n_bins = st->width * st->height * st->depth;
-  st->binned_data = (bin_data_t*)malloc( n_bins * sizeof(bin_data_t) );
+  bin_data_t* binned_data = (bin_data_t*)malloc( n_bins * sizeof(bin_data_t) );
   for( int i = 0; i < n_bins; ++i )
   {
-    st->binned_data[i].pts = {0};
-    st->binned_data[i].ind = {0};
-    st->binned_data[i].n_pts = 0;
+    binned_data[i].pts   = {0};
+    binned_data[i].ind   = {0};
+    binned_data[i].n_pts = 0;
   }
 
   for( int i = 0 ; i < n_pts; ++i )
   {
     v3_t pt = (v3_t){ .x = pts[3*i+0], .y = pts[3*i+1], .z = pts[3*i+2] };
     int bin_idx = msh_st__bin_pt( st, pt );
-    v3_t pt_test = {0.060304, 0.065079, 0.009138};
-    int bin_idx_test = msh_st__bin_pt( st, pt_test );
-    // if( i == 12676 ) printf("Searching for pt. %f %f %f | %d| %d\n", pt.x, pt.y, pt.z, bin_idx, bin_idx_test );
-    st->binned_data[bin_idx].n_pts += 1;
-    msh_array_push( st->binned_data[bin_idx].pts, pt );
-    msh_array_push( st->binned_data[bin_idx].ind, i );
+    binned_data[bin_idx].n_pts += 1;
+    msh_array_push( binned_data[bin_idx].pts, pt );
+    msh_array_push( binned_data[bin_idx].ind, i );
   }
 
-  st->offsets = (bin_info_t*)malloc( n_bins * sizeof(bin_info_t) );
-  st->data = (v3_t*)malloc( n_pts * sizeof(v3_t) );
-  st->indices = (int*)malloc( n_pts * sizeof(int) );
-  st->pt_idx_data = (pt_idx_t*)malloc( n_pts * sizeof(pt_idx_t) );
+  st->offsets    = (bin_info_t*)malloc( n_bins * sizeof(bin_info_t) );
+  st->data       = (v3_t*)malloc( n_pts * sizeof(v3_t) );
+  st->indices    = (int*)malloc( n_pts * sizeof(int) );
   for( int i = 0; i < n_bins; ++i ) { st->offsets[i] = (bin_info_t){.offset = -1, .length = 0}; }
 
   // reorder the binned data into linear array for better cache friendliness
@@ -134,13 +120,12 @@ msh_st_init( msh_st_t* st, const float* pts, const int n_pts, const int density 
   int valid_bins = 0;
   for( int i = 0; i < n_bins; ++i )
   {
-    int n_bin_pts = st->binned_data[i].n_pts;
+    int n_bin_pts = binned_data[i].n_pts;
     if( n_bin_pts ) { valid_bins++; avg_n_pts+=n_bin_pts; }
     for( int j = 0; j < n_bin_pts; ++j )
     {
-      st->data[offset+j] = st->binned_data[i].pts[j];
-      st->indices[offset+j] = st->binned_data[i].ind[j];
-      st->pt_idx_data[offset+j] = (pt_idx_t){ .pt = st->binned_data[i].pts[j], .idx = st->binned_data[i].ind[j] };
+      st->data[offset+j] = binned_data[i].pts[j];
+      st->indices[offset+j] = binned_data[i].ind[j];
     }
     if( n_bin_pts )
     {
@@ -148,14 +133,38 @@ msh_st_init( msh_st_t* st, const float* pts, const int n_pts, const int density 
       offset += n_bin_pts;
     }
   }
-  // printf("AVG BIN: %f\n", (float)avg_n_pts/valid_bins);
+
+  for( int i = 0 ; i < n_bins; ++i ) 
+  { 
+    msh_array_free( binned_data[i].pts ); 
+    msh_array_free( binned_data[i].ind ); 
+  }
+  free( binned_data );
+}
+
+void
+msh_st_term( msh_st_t* st )
+{
+  st->width          = 0;
+  st->height         = 0;
+  st->depth          = 0;
+  st->cell_size      = 0.0f;
+  st->min_pt         = { 0.0f, 0.0f, 0.0f };
+  st->max_pt         = { 0.0f, 0.0f, 0.0f };
+  st->_slab_size     = 0.0f;
+  st->_inv_cell_size = 0.0f;
+
+  free( st->data );    st->data = NULL;
+  free( st->indices ); st->indices = NULL;
+  free( st->offsets ); st->offsets = NULL;
 }
 
 
 // NOTE(maciej): This implementation is a special case modification of a templated
 // sort by Sean T. Barret from stb.h. We simply want to allow sorting both the indices
 // and distances if user requested returning sorted results.
-static void msh_st__ins_sort( float *dists, int32_t* indices, int n )
+void 
+msh_st__ins_sort( float *dists, int32_t* indices, int n )
 {
    int i = 0;
    int j = 0;
@@ -180,7 +189,8 @@ static void msh_st__ins_sort( float *dists, int32_t* indices, int n )
    }
 }
 
-static void msh_st__quick_sort( float *dists, int32_t* indices, int n )
+void 
+msh_st__quick_sort( float *dists, int32_t* indices, int n )
 {
    /* threshhold for transitioning to insertion sort */
    while (n > 12) 
@@ -282,8 +292,9 @@ void msh_st__sort( float* dists, int32_t* indices, int n)
 
 
 inline void
-msh_st__find_neighbors_in_bin_flat( const msh_st_t* st, const uint32_t bin_idx, const double radius_sq,
-                                    const v3_t pt, float* dists_sq, int* indices, int* n_neigh, const int max_n_neigh, int logit )
+msh_st__find_neighbors_in_bin( const msh_st_t* st, const uint32_t bin_idx, const double radius_sq,
+                               const v3_t pt, float* dists_sq, int* indices, 
+                               int* n_neigh, const int max_n_neigh )
 {
   bin_info_t bi = st->offsets[bin_idx];
   if( !bi.length ) { return; }
@@ -306,28 +317,17 @@ msh_st__find_neighbors_in_bin_flat( const msh_st_t* st, const uint32_t bin_idx, 
   }
 }
 
-
-// stb_define_sort(stb_sort, float,  (*a < *b) );
-// float *msh_st__dists;
-// int dist_cmp (const void * a, const void * b) {
-//    double diff = msh_st__dists[*(int*)a] - msh_st__dists[*(int*)b];
-//   return  (0 < diff) - (diff < 0);
-// }
-
-
 int
-msh_st_radius_search_flat( const msh_st_t* st, const float* query_pt, const float radius,
-                           float* dists_sq, int* indices, int max_n_results, int sort, int logit )
+msh_st_radius_search( const msh_st_t* st, const float* query_pt, const float radius,
+                      float* dists_sq, int* indices, int max_n_results, int sort )
 {
 
   v3_t pt = (v3_t){ .x = query_pt[0], .y = query_pt[1], .z = query_pt[2] };
 
-  // gather bins & number of points in them
+  // get base bin idx for query pt
   int ix = (int)( (pt.x - st->min_pt.x) * st->_inv_cell_size );
   int iy = (int)( (pt.y - st->min_pt.y) * st->_inv_cell_size );
   int iz = (int)( (pt.z - st->min_pt.z) * st->_inv_cell_size );
-
-  // msh_cprintf( logit, "Query point  %f %f %f | %d \n",  pt.x, pt.y, pt.z, iz * st->_slab_size + iy*st->width + ix);
 
   int px = (int)( ((pt.x + radius) - st->min_pt.x) * st->_inv_cell_size );
   int nx = (int)( ((pt.x - radius) - st->min_pt.x) * st->_inv_cell_size );
@@ -360,9 +360,9 @@ msh_st_radius_search_flat( const msh_st_t* st, const float* query_pt, const floa
         if( ix + ox < 0) continue;
         if( ix + ox >= st->width ) continue;
         uint32_t bin_idx = idx_z + idx_y + (ix + ox);
-        msh_st__find_neighbors_in_bin_flat( st, bin_idx, radius_sq, pt,
-                                            dists_sq, indices, &neigh_idx,
-                                            max_n_results, logit );
+        msh_st__find_neighbors_in_bin( st, bin_idx, radius_sq, pt,
+                                       dists_sq, indices, &neigh_idx,
+                                       max_n_results );
         if( neigh_idx >= max_n_results ) { break; }
       }
       if( neigh_idx >= max_n_results ) { break; }
@@ -372,25 +372,129 @@ msh_st_radius_search_flat( const msh_st_t* st, const float* query_pt, const floa
 
   int32_t n_neigh = neigh_idx;
 
-  if( sort )
-  {
-    msh_st__sort( dists_sq, indices, n_neigh );
-  }
+  if( sort ) { msh_st__sort( dists_sq, indices, n_neigh ); }
 
   return n_neigh;
 }
 
-void
-msh_st_term( msh_st_t* st )
+typedef struct msh_st_dist_storage
 {
-  // int n_bins = st->width * st->height * st->depth;
-  // for( int i = 0 ; i < n_bins; ++i ) { free( st->binned_data[i] ); }
-  // free( st->data );
-  // free( st->binned_data );
-  st->width = -1;
-  st->height = -1;
-  st->depth = -1;
-  st->cell_size = 0.0f;
+  int32_t cap;
+  int32_t len;
+  int32_t max_dist_idx;
+  float   *dists;
+  int32_t *indices;
+} msh_st_dist_storage_t;
+
+void msh_st_dist_storage_init( msh_st_dist_storage_t* q, int k, float* dists, int32_t* indices )
+{
+  q->cap          = k;
+  q->len          = 0;
+  q->max_dist_idx = -1;
+  q->dists        = dists;
+  q->indices      = indices;
+}
+
+void msh_st_dist_storage_push( msh_st_dist_storage_t* q, float dist, int32_t idx )
+{
+  // We have storage left
+  if( q->len < q->cap )
+  {
+    // Push new element
+    q->dists[q->len]   = dist;
+    q->indices[q->len] = idx;
+    // bookkeep the index of max dist
+    if( q->max_dist_idx != -1 )
+    {
+      if( q->dists[q->max_dist_idx] < dist ) { q->max_dist_idx = q->len; }
+    }
+    else
+    {
+      q->max_dist_idx = q->len;
+    }
+    q->len++;
+  }
+  // we are at capacity. Only add if new is smaller than maximal dist.
+  else
+  {
+    if( q->dists[q->max_dist_idx] > dist )
+    {
+      q->dists[q->max_dist_idx] = dist;
+      q->indices[q->max_dist_idx] = idx;
+      // Make sure we are really looking at the highest element after replacement
+      for( int32_t i = 0; i < q->len; ++i )
+      {
+        if (q->dists[i] > q->dists[q->max_dist_idx] ) { q->max_dist_idx = i; }
+      }
+    }
+  }
+}
+
+
+inline void
+msh_st__add_bin_contents( const msh_st_t* st, const uint32_t bin_idx, const v3_t pt, msh_st_dist_storage_t* s )
+{
+  bin_info_t bi = st->offsets[bin_idx];
+  if( !bi.length ) { return; }
+  const v3_t* data = &st->data[bi.offset];
+  const int* ind = &st->indices[bi.offset];
+
+  for( int32_t i = 0; i < bi.length; ++i )
+  {
+    v3_t v = { data[i].x - pt.x, data[i].y - pt.y, data[i].z - pt.z };
+    double dist_sq = v.x * v.x + v.y * v.y + v.z * v.z;
+    msh_st_dist_storage_push( s, dist_sq, ind[i] );
+  }
+}
+
+int
+msh_st_knn_search( const msh_st_t* st, const float* query_pt, const int k,
+                   float* dists_sq, int* indices, int sort )
+{
+  msh_st_dist_storage_t storage;
+  msh_st_dist_storage_init( &storage, k, dists_sq, indices );
+
+  v3_t pt = (v3_t){ .x = query_pt[0], .y = query_pt[1], .z = query_pt[2] };
+
+  // get base bin for query
+  int32_t ix = (int)( (pt.x - st->min_pt.x) * st->_inv_cell_size );
+  int32_t iy = (int)( (pt.y - st->min_pt.y) * st->_inv_cell_size );
+  int32_t iz = (int)( (pt.z - st->min_pt.z) * st->_inv_cell_size );
+  
+  int32_t layer = 0;
+  int8_t should_break = 0;
+  while( true )
+  {
+    int32_t inc_x = 1;
+    for( int32_t oz = -layer; oz <= layer; oz++ )
+    {
+      uint32_t idx_z = (iz + oz) * st->_slab_size;
+      if( iz + oz < 0) continue;
+      if( iz + oz >= st->depth ) continue;
+      for( int32_t oy = -layer; oy <= layer; oy++ )
+      {
+        uint32_t idx_y = (iy + oy) * st->width;
+        if( iy + oy < 0) continue;
+        if( iy + oy >= st->height ) continue;
+        if( abs(oy) != layer && abs(oz) != layer ) { inc_x = 2*layer; }
+        else                                       { inc_x = 1; }
+        for( int32_t ox = -layer; ox <= layer; ox += inc_x )
+        {
+          if( ix + ox < 0) continue;
+          if( ix + ox >= st->width ) continue;
+          uint32_t bin_idx = idx_z + idx_y + (ix + ox);
+          msh_st__add_bin_contents( st, bin_idx, pt, &storage );
+        }
+      }
+    }
+    layer++;
+    if( should_break ) { break; }
+    if( storage.len >= k ) { should_break = 1;}
+  }
+
+  if( sort ) { msh_st__sort( dists_sq, indices, storage.len ); }
+
+  return storage.len;
 }
 
 
@@ -437,7 +541,7 @@ int main( int argc, char** argv )
 
   msh_st_t spatial_table;
   t1 = msh_time_now();
-  msh_st_init( &spatial_table, (float*)&pc.pts[0], pc.n_pts, 256 );
+  msh_st_init( &spatial_table, (float*)&pc.pts[0], pc.n_pts, 64 );
   t2 = msh_time_now();
   printf("Table creation: %fms.\n", msh_time_diff(MSHT_MILLISECONDS, t2, t1));
 
@@ -448,7 +552,7 @@ int main( int argc, char** argv )
   t2 = msh_time_now();
   printf("KD-Tree creation: %fms.\n", msh_time_diff(MSHT_MILLISECONDS, t2, t1));
 
-  int n_query_pts = 10000;
+  int n_query_pts = 10;
   float* query_pts = (float*)malloc( n_query_pts * sizeof(float) * 3 );
   for( int i = 0; i < n_query_pts; ++i )
   {
@@ -458,15 +562,6 @@ int main( int argc, char** argv )
     query_pts[3*i+2] = pc.pts[idx].z;
   }
 
-  // msh_st_radius_search_bin( &spatial_table, pt, radius_sq, dists, indices, max_n_results  );
-  // msh_st_radius_search_flat( &spatial_table, pt, radius_sq, dists, indices, max_n_results );
-
-  // KNN is much harder, because we need to do a form of breadth first search
-  // msh_st_knn_search_bin( &spatial_table, pt, k, dists, indices );
-  // msh_st_knn_search_flat( &spatial_table, pt, k, dists, indices );
-
-  // printf("TEST %d\n", n_query_pts);
-
   float radius = 0.05f;
   float radius_sq = radius*radius;
   t1 = msh_time_now();
@@ -474,8 +569,9 @@ int main( int argc, char** argv )
   int total_neigh_count_b = 0;
   int* neigh_count_a = (int*)malloc(n_query_pts * sizeof(int));
   int* neigh_count_b = (int*)malloc(n_query_pts * sizeof(int));
-#define MAX_N_NEIGH 2000
+  #define MAX_N_NEIGH 2000
   int nn_inds[MAX_N_NEIGH] = {-1}; float nn_dists[MAX_N_NEIGH] = {1e9};
+  int flann_inds[MAX_N_NEIGH] = {-1}; float flann_dists[MAX_N_NEIGH] = {1e9};\
 
   flann::SearchParams params = flann::SearchParams(128, 0, 1);
   params.max_neighbors = MAX_N_NEIGH;
@@ -487,13 +583,12 @@ int main( int argc, char** argv )
     uint64_t ct1, ct2;
     ct1 = msh_time_now();
     float* pt = &query_pts[3*i];
-    neigh_count_a[i] = msh_st_radius_search_flat( &spatial_table, pt, radius, nn_dists, nn_inds, MAX_N_NEIGH, 1, i==55 );
+    neigh_count_a[i] = msh_st_radius_search( &spatial_table, pt, radius, nn_dists, nn_inds, MAX_N_NEIGH, 1 );
     total_neigh_count_a += neigh_count_a[i];
     ct2 = msh_time_now();
     timers[0] += msh_time_diff(MSHT_MILLISECONDS, ct2, ct1 );
 
     ct1 = msh_time_now();
-    int flann_inds[MAX_N_NEIGH] = {-1}; float flann_dists[MAX_N_NEIGH] = {1e9};
     float *query = pt;
     flann::Matrix<float> query_mat(&query[0], 1, 3);
     flann::Matrix<int> indices_mat(&flann_inds[0], 1, MAX_N_NEIGH);
@@ -504,96 +599,52 @@ int main( int argc, char** argv )
     total_neigh_count_b += neigh_count_b[i];
     ct2 = msh_time_now();
     timers[1] += msh_time_diff(MSHT_MILLISECONDS, ct2, ct1 );
-
-      // for( int j = 0; j < neigh_count_b[i]; ++j )
-      // {
-      //     printf("%d | (%8.6f, %8.6f) | (%6d, %6d) \n", j, flann_dists[j], nn_dists[j], flann_inds[j], nn_inds[j]);
-      // }
-
   }
   t2 = msh_time_now();
-  printf("Finding %d points using hash_grid.: %fms.\n", total_neigh_count_a, timers[0]);
-  printf("Finding %d points using flann.: %fms.\n", total_neigh_count_b, timers[1]);
+  printf("RADIUS: Finding %d points using hash_grid.: %fms.\n", total_neigh_count_a, timers[0]);
+  printf("RADIUS: Finding %d points using flann.: %fms.\n", total_neigh_count_b, timers[1]);
+
+  total_neigh_count_a = 0;
+  total_neigh_count_b = 0;
+  int knn = 32;
+  timers[0] = timers[1] = 0;
+  for( int i = 0 ; i < n_query_pts; ++i )
+  {
+    uint64_t ct1, ct2;
+    ct1 = msh_time_now();
+    float* pt = &query_pts[3*i];
+    neigh_count_a[i] = msh_st_knn_search( &spatial_table, pt, knn, nn_dists, nn_inds, 1 );
+    total_neigh_count_a += neigh_count_a[i];
+    ct2 = msh_time_now();
+    timers[0] += msh_time_diff(MSHT_MILLISECONDS, ct2, ct1 );
+
+    float *query = pt;
+    flann::Matrix<float> query_mat(&query[0], 1, 3);
+    flann::Matrix<int> indices_mat(&flann_inds[0], 1, MAX_N_NEIGH);
+    flann::Matrix<float> dists_mat(&flann_dists[0], 1, MAX_N_NEIGH);
+    ct1 = msh_time_now();
+    neigh_count_b[i] = kdtree->knnSearch( query_mat, indices_mat,
+                                          dists_mat, knn,
+                                          params );
+    total_neigh_count_b += neigh_count_b[i];
+    ct2 = msh_time_now();
+    timers[1] += msh_time_diff(MSHT_MILLISECONDS, ct2, ct1 );
+    // if( neigh_count_b[i] != neigh_count_a[i] )
+    // {
+    //   printf("OOPS!\n");
+    // }
+    // else
+    // {
+    //   for( int k = 0; k < neigh_count_b[i]; ++k )
+    //   {
+    //     printf("(%d) %6d %6d | %f %f\n", (flann_inds[k]==nn_inds[k]),flann_inds[k], nn_inds[k], flann_dists[k], nn_dists[k] );
+    //   }
+    //   printf("----------\n");
+    // }
+  }
+  printf("KNN: Finding %d points using hash_grid.: %fms.\n", total_neigh_count_a, timers[0]);
+  printf("KNN: Finding %d points using flann.: %fms.\n", total_neigh_count_b, timers[1]);
 
   msh_st_term( &spatial_table );
   return 0;
 }
-
-
-
-// inline void
-// msh_st__find_neighbors_in_bin_bin( const msh_st_t* st, const uint32_t bin_idx, const float radius_sq,
-//                                    const v3_t pt, float* dists_sq, int* indices, int* n_neigh, const int max_n_neigh )
-// {
-//   const bin_data_t* bi = &st->binned_data[bin_idx];
-//   if( !bi->n_pts ) { return; }
-//   if( (*n_neigh) >= max_n_neigh ) { return; }
-
-//   for( int32_t i = 0; i < bi->n_pts; ++i )
-//   {
-//     v3_t v = { bi->pts[i].x - pt.x, bi->pts[i].y - pt.y, bi->pts[i].z - pt.z };
-//     float dist_sq = v.x * v.x + v.y * v.y + v.z * v.z;
-
-//     if( dist_sq <= radius_sq )
-//     {
-//       dists_sq[(*n_neigh)] = dist_sq;
-//       indices[(*n_neigh)]  = bi->ind[i];
-//       ++(*n_neigh);
-//       if( (*n_neigh) >= max_n_neigh ) { return; }
-//     }
-//   }
-// }
-
-// int
-// msh_st_radius_search_bin( const msh_st_t* st, const float* query_pt, const float radius,
-//                          float* dists_sq, int* indices, int max_n_results )
-// {
-//   v3_t pt = (v3_t){ .x = query_pt[0], .y = query_pt[1], .z = query_pt[2] };
-
-//   // gather bins & number of points in them
-//   int ix = (int)( (pt.x - st->min_pt.x) * st->_inv_cell_size );
-//   int iy = (int)( (pt.y - st->min_pt.y) * st->_inv_cell_size );
-//   int iz = (int)( (pt.z - st->min_pt.z) * st->_inv_cell_size );
-
-//   int px = (int)( ((pt.x + radius) - st->min_pt.x) * st->_inv_cell_size );
-//   int nx = (int)( ((pt.x - radius) - st->min_pt.x) * st->_inv_cell_size );
-//   int8_t opx = px - ix;
-//   int8_t onx = nx - ix;
-//   int py = (int)( ((pt.y + radius) - st->min_pt.y) * st->_inv_cell_size );
-//   int ny = (int)( ((pt.y - radius) - st->min_pt.y) * st->_inv_cell_size );
-//   int8_t opy = py - iy;
-//   int8_t ony = ny - iy;
-//   int pz = (int)( ((pt.z + radius) - st->min_pt.z) * st->_inv_cell_size );
-//   int nz = (int)( ((pt.z - radius) - st->min_pt.z) * st->_inv_cell_size );
-//   int8_t opz = pz - iz;
-//   int8_t onz = nz - iz;
-
-//   int neigh_idx = 0;
-//   float radius_sq = radius * radius;
-//   // printf("pt: %f %f %f | %f | (%d, %d) (%d, %d) (%d, %d)\n", pt.x, pt.y, pt.z, sqrt(radius_sq), onx, opx, ony, opy, onz, opz);
-//   for( int8_t oz = onz; oz <= opz; ++oz )
-//   {
-//     uint32_t idx_z = (iz + oz) * st->_slab_size;
-//     if( iz + oz < 0) continue;
-//     if( iz + oz >= st->depth ) continue;
-//     // for( int8_t oy = -o; oy <= o; ++oy )
-//     for( int8_t oy = ony; oy <= opy; ++oy )
-//     {
-//       uint32_t idx_y = (iy + oy) * st->width;
-//       if( iy + oy < 0) continue;
-//       if( iy + oy >= st->height ) continue;
-//       // for( int8_t ox = -o; ox <= o; ++ox )
-//       for( int8_t ox = onx; ox <= opx; ++ox )
-//       {
-//         // printf("%d %d %d\n", iz+oz, iy+oy, ix +oz);
-//         if( ix + ox < 0) continue;
-//         if( ix + ox >= st->width ) continue;
-//         uint32_t bin_idx = idx_z + idx_y + (ix + ox);
-//         msh_st__find_neighbors_in_bin_bin( st, bin_idx, radius_sq, pt,
-//                                            dists_sq, indices, &neigh_idx, max_n_results );
-//       }
-//     }
-//   }
-
-//   return neigh_idx;
-// }

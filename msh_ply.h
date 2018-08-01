@@ -166,7 +166,7 @@
   [x] Write header to this file
   [ ] Optimize 
     [ ] Profile lucy writing, why is it showing a big slowdown.
-    [ ] Find a fix for an extreme slowdown when trying to read incomplete description of a file.
+    [x] Find a fix for an extreme slowdown when trying to read incomplete description of a file.
   [x] Encoder / decorder split
   [x] Error reporting
     [ ] Revise when errors are reported
