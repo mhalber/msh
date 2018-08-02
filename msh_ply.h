@@ -183,6 +183,9 @@
   [1] stretchy_buffer https://github.com/nothings/stb/blob/master/stretchy_buffer.h
 */
 
+#ifndef MSH_PLY_H
+#define MSH_PLY_H
+
 #if defined(MSH_PLY_INCLUDE_HEADERS)
 #include <stdlib.h>
 #include <stdint.h>
@@ -310,12 +313,12 @@ const char* msh_ply_get_error_string( int32_t err );
 void msh_ply_print_header( msh_ply_t* pf );
 
 
-
+#endif /* MSH_PLY_H */
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// Below there is implementation and details only
+// IMPLEMENTATION
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
+#ifdef MSH_PLY_IMPLEMENTATION
 
 
 
@@ -400,11 +403,6 @@ struct msh_ply_file
 }
 #endif
 
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Implementation
-////////////////////////////////////////////////////////////////////////////////////////////////////
-#ifdef MSH_PLY_IMPLEMENTATION
 
 enum msh_ply_err
 {

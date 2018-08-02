@@ -23,6 +23,7 @@ library                  |  version   | description
 **msh_vec_math.h**       |    0.75    | glsl inspired vector math (vectors, matrices and quaternions)
 **msh_gfx.h**            |    0.35    | openGL wrapper
 **msh_ply.h**            |    0.6     | PLY File I/O
+**msh_hash_grid.h**      |    0.5     | Hash grid data structure for radius queries in 3D
 
 
 ## TIER 2
