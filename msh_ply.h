@@ -178,6 +178,7 @@
   [ ] Write C++ support
   [ ] Add static function definition macro
   [ ] Getting raw data for list property - different function.
+  [ ] Add 'msh_ply_find_properties' function
   ==============================================================================
   REFERENCES:
   [1] stretchy_buffer https://github.com/nothings/stb/blob/master/stretchy_buffer.h
@@ -312,6 +313,9 @@ const char* msh_ply_get_error_string( int32_t err );
 /* Pretty print for header */
 void msh_ply_print_header( msh_ply_t* pf );
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* MSH_PLY_H */
 
@@ -324,6 +328,11 @@ void msh_ply_print_header( msh_ply_t* pf );
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // THIS IS A SIMPLIFIED VERSION OF MSH_STD_ARRAY
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct msh_ply_array_header
 {
   size_t len;
@@ -346,7 +355,9 @@ void* msh_ply__array_grow(const void *array, size_t new_len, size_t elem_size);
 #define msh_ply_array_fit(a, n)           ((n) <= msh_ply_array_cap(a) ? (0) : ( *(void**)&(a) = msh_ply__array_grow((a), (n), sizeof(*(a))) )) 
 #define msh_ply_array_push(a, ...)        (msh_ply_array_fit((a), 1 + msh_ply_array_len((a))), (a)[msh_ply_array__hdr(a)->len++] = (__VA_ARGS__))
 
-
+#ifdef __cplusplus
+}
+#endif
 
 // ARRAY END
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -398,11 +409,6 @@ struct msh_ply_file
   int32_t _system_format;
   int32_t _parsed;
 };
-
-#ifdef __cplusplus
-}
-#endif
-
 
 enum msh_ply_err
 {
@@ -909,7 +915,7 @@ msh_ply__calculate_elem_size_binary(msh_ply_t* pf, msh_ply_element_t* el)
       if( read_count != 1) { return MSH_PLY_BINARY_PARSE_ERR;}
 
       read_count = fread( &dummy_data[0], pr->byte_size, count, pf->_fp );
-      if( read_count != count ) { return MSH_PLY_BINARY_PARSE_ERR;}
+      if( read_count != (size_t)count ) { return MSH_PLY_BINARY_PARSE_ERR;}
  
       //NOTE(maciej): This is bizzarly slower, than reading the data into dummy buffer.
       // fseek(pf->_fp, count * pr->byte_size, SEEK_CUR);
@@ -1986,17 +1992,14 @@ int
 msh_ply_write( msh_ply_t* pf )
 {
   int error = MSH_PLY_NO_ERRORS;
-  
-  for( size_t i = 0; i < msh_ply_array_len(pf->descriptors); ++i )
-  {
-    msh_ply_add_property_to_element( pf, pf->descriptors[i] );
-  }
 
   // TODO(maciej): What happens if two same descriptors are added?
   if( msh_ply_array_len(pf->elements) == 0 ) { return MSH_PLY_NO_REQUESTS; }
 
   error = msh_ply__write_header( pf );
-  if( error ) { return error; }
+  if( error ) { 
+    return error; 
+  }
   error = msh_ply__write_data( pf );
   return error;
 }
