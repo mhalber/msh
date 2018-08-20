@@ -308,6 +308,7 @@ MSHVMDEF msh_scalar_t msh_vec2_norm_sq( msh_vec2_t v );
 MSHVMDEF msh_scalar_t msh_vec3_norm_sq( msh_vec3_t v );
 MSHVMDEF msh_scalar_t msh_vec4_norm_sq( msh_vec4_t v );
 
+MSHVMDEF msh_scalar_t msh_scalar_lerp( msh_scalar_t a, msh_scalar_t b, msh_scalar_t t );
 MSHVMDEF msh_vec2_t msh_vec2_lerp( msh_vec2_t a, msh_vec2_t b, msh_scalar_t t );
 MSHVMDEF msh_vec3_t msh_vec3_lerp( msh_vec3_t a, msh_vec3_t b, msh_scalar_t t );
 MSHVMDEF msh_vec4_t msh_vec4_lerp( msh_vec4_t a, msh_vec4_t b, msh_scalar_t t );
@@ -984,6 +985,13 @@ MSHVMDEF msh_scalar_t
 msh_vec4_norm_sq( msh_vec4_t v )
 {
   return v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w; 
+}
+
+MSHVMDEF msh_scalar_t 
+msh_scalar_lerp( msh_scalar_t a, msh_scalar_t b, msh_scalar_t t )
+{
+  msh_scalar_t u = (msh_scalar_t)1.0 - t;
+  return t*b + u*a;
 }
 
 MSHVMDEF msh_vec2_t 
