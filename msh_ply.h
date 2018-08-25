@@ -343,7 +343,7 @@ typedef struct msh_ply_array_header
 
 void* msh_ply__array_grow(const void *array, size_t new_len, size_t elem_size);
 
-#define msh_ply_array__grow_formula(x)    ((1.6180339887498948482*(x)))
+#define msh_ply_array__grow_formula(x)    ((2*(x)+5))
 #define msh_ply_array__hdr(a)             ((msh_ply_array_hdr_t *)((char *)(a) - sizeof(msh_ply_array_hdr_t)))
 
 #define msh_ply_array_len(a)              ((a) ? (msh_ply_array__hdr((a))->len) : 0)
@@ -455,7 +455,7 @@ static const char* msh_ply_error_msgs[26] = {
   "MSH_PLY: Error reading binary file.", 
   "MSH_PLY: Number of requested elements does not match the descriptor.",
   "MSH_PLY: Invalid PLY file: Unrecognized command in a ply file.", 
-  "MSH_PLY: There is no requests for data to be read or writen. Aborting reading.",
+  "MSH_PLY: There is no requests for data to be read or writen. Aborting operation.",
   "MSH_PLY: Invalid descriptor: Desciptor pointer is NULL.",
   "MSH_PLY: Invalid descriptor: Element name pointer is NULL.",
   "MSH_PLY: Invalid descriptor: Property names pointer is NULL.",
@@ -552,6 +552,9 @@ int32_t msh_ply__validate_descriptor( const msh_ply_desc_t* desc )
   {
     if( !desc->property_names[i] ) { return MSH_PLY_NULL_PROPERTY_NAME_ERR; }
   }
+
+  // TODO(maciej): Add checking for duplicates
+
   return MSH_PLY_NO_ERRORS;
 }
 
@@ -727,7 +730,7 @@ msh_ply__parse_ply_cmd(char* line, msh_ply_t* pf)
 {
   char cmd_str[MSH_PLY_MAX_STR_LEN];
   if( sscanf(line, "%s", cmd_str) )
-  { 
+  {
     if( !strcmp(cmd_str, "ply") )
     {
       pf->valid = true; 
@@ -1993,8 +1996,19 @@ msh_ply_write( msh_ply_t* pf )
 {
   int error = MSH_PLY_NO_ERRORS;
 
-  // TODO(maciej): What happens if two same descriptors are added?
-  if( msh_ply_array_len(pf->elements) == 0 ) { return MSH_PLY_NO_REQUESTS; }
+  if( msh_ply_array_len(pf->descriptors) == 0 ) 
+  { 
+    return MSH_PLY_NO_REQUESTS;
+  }
+
+  if( msh_ply_array_len(pf->elements) == 0 )
+  {
+    for( size_t i = 0; i < msh_ply_array_len(pf->descriptors); ++i )
+    {
+      msh_ply_desc_t* desc  = pf->descriptors[i]; 
+      msh_ply_add_property_to_element( pf, desc );
+    }
+  }
 
   error = msh_ply__write_header( pf );
   if( error ) { 
@@ -2108,7 +2122,8 @@ msh_ply_close( msh_ply_t* pf )
   }
   if(pf->descriptors) msh_ply_array_free(pf->descriptors);
   MSH_PLY_FREE(pf);
-  return 1;
+
+  return MSH_PLY_NO_ERRORS;
 }
 
 #endif /* MSH_PLY_IMPLEMENTATION */

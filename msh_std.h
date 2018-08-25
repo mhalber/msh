@@ -61,7 +61,7 @@
   [1] stb.h           https://github.com/nothings/stb/blob/master/stb.h
   [2] gb.h            https://github.com/gingerBill/gb/blob/master/gb.h
   [3] stretchy_buffer https://github.com/nothings/stb/blob/master/stretchy_buffer.h
-  [4] tinyheaders     https://github.com/RandyGaul/tinyheaders
+  [4] cute_headers    https://github.com/RandyGaul/cute_headers
   [5] gb.h            https://github.com/gingerBill/gb
 */
 
@@ -72,7 +72,7 @@
 extern "C" {
 #endif
 
-#ifndef MSH_STD_INCLUDE_HEADERS
+#ifdef MSH_STD_INCLUDE_HEADERS
 
 // c stdlib
 #include <assert.h>
@@ -228,9 +228,11 @@ void msh__assert_handler( char const *condition, char const *file, int32_t line,
 //   Seat T. Barrett - idea of stretchy buffers (?)
 //   Per Vognsen - various improvements from his ion implementation
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// TODO(maciej): Prepare docs
-// TODO(maciej): What about alignment?? http://pzemtsov.github.io/2016/11/06/bug-story-alignment-on-x86.html
-
+/* TODOs 
+  [ ] Prepare docs
+  [ ] Replace malloc with jemalloc or TC malloc?
+  [ ] What about alignment issues ? http://pzemtsov.github.io/2016/11/06/bug-story-alignment-on-x86.html
+*/
 
 typedef struct msh_array_header
 {
@@ -242,7 +244,7 @@ typedef struct msh_array_header
 
 void* msh_array__grow(const void *array, size_t new_len, size_t elem_size);
 
-#define msh_array__grow_formula(x)    ( (1.6180339887498948482*(x)))
+#define msh_array__grow_formula(x)    ( (2.0*(x))+10 )
 #define msh_array__hdr(a)             ( (msh_array_hdr_t *)((char *)(a) - sizeof(msh_array_hdr_t)))
 
 #define msh_array_len(a)              ( (a) ? (msh_array__hdr((a))->len) : 0)
@@ -272,7 +274,9 @@ void* msh_array__grow(const void *array, size_t new_len, size_t elem_size);
 //   Niklas Frykholm - The Machinery Container system blog-series
 //   Per Vognsen - ion open-addressing, linear probing hashtable
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// TODO(maciej): Use msh_array internally
+/* TODOs
+  [ ] Use msh_array internally
+*/
 
 typedef struct msh_map
 {
@@ -288,6 +292,7 @@ uint64_t msh_hash_str(char *str);
 
 size_t msh_map_len( msh_map_t* map );
 size_t msh_map_cap( msh_map_t* map ); 
+void msh_map_free( msh_map_t* map );
 void msh_map_insert( msh_map_t* map, uint64_t key, uint64_t val );
 uint64_t* msh_map_get( msh_map_t* map, uint64_t key );
 
@@ -543,6 +548,14 @@ size_t msh_map_len( msh_map_t* map )
 size_t msh_map_cap( msh_map_t* map )
 {
   return map->_cap;
+}
+
+void msh_map_free( msh_map_t* map )
+{
+  free( map->keys );
+  free( map->vals );
+  map->_cap = 0;
+  map->_len = 0;
 }
 
 void 
