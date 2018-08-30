@@ -292,10 +292,9 @@ uint64_t msh_hash_str(char *str);
 
 size_t msh_map_len( msh_map_t* map );
 size_t msh_map_cap( msh_map_t* map ); 
-void msh_map_free( msh_map_t* map );
 void msh_map_insert( msh_map_t* map, uint64_t key, uint64_t val );
-uint64_t* msh_map_get( msh_map_t* map, uint64_t key );
-
+uint64_t* msh_map_get( const msh_map_t* map, uint64_t key );
+void msh_map_free( msh_map_t* map );
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // String and path manipulation
@@ -351,12 +350,13 @@ double msh_time_diff( int32_t unit, uint64_t new_time, uint64_t old_time );
 #ifndef MSH_RND_U32
     #define MSH_RND_U32 uint32_t
 #endif
+
 #ifndef MSH_RND_U64
     #define MSH_RND_U64 uint64_t
 #endif
 
 typedef struct msh_rand_ctx { 
-  MSH_RND_U64 state[ 2 ]; 
+  MSH_RND_U64 state[ 2 ];
 } msh_rand_ctx_t;
 
 void        msh_rand_init( msh_rand_ctx_t* pcg, MSH_RND_U32 seed );
@@ -418,16 +418,17 @@ static inline int    msh_sqi(int a)    { return a*a; }
 static inline float  msh_sqf(float a)  { return a*a; }
 static inline double msh_sqd(double a) { return a*a; }
 
-int32_t msh_accumulatei( const int32_t* vals, const int32_t n_vals );
-float   msh_accumulatef( const float *vals, const int32_t n_vals );
+int32_t msh_accumulatei( const int32_t* vals, const size_t n_vals );
+float   msh_accumulatef( const float *vals, const size_t n_vals );
+float   msh_accumulated( const double *vals, const size_t n_vals );
 float   msh_inner_product( const float *vals, const int n_vals );
 float   msh_compute_mean( const float *vals, const int n_vals );
 float   msh_compute_stddev( float mean, float *vals, int n_vals );
 float   msh_gauss1d( float x, float mu, float sigma );
-void    msh_distrib2pdf( const float* dist, float* pdf, int n_vals );
-void    msh_pdf2cdf( const float* pdf, float* cdf, int n_vals );
-void    msh_invert_cdf( const float* cdf, float* invcdf, int n_vals);
-float   msh_pdfsample( const float* pdf, float prob, int n_vals);
+// void    msh_distrib2pdf( const float* dist, float* pdf, int n_vals );
+// void    msh_pdf2cdf( const float* pdf, float* cdf, int n_vals );
+// void    msh_invert_cdf( const float* cdf, float* invcdf, int n_vals);
+// float   msh_pdfsample( const float* pdf, float prob, int n_vals);
 float   msh_gausspdf1d( float x, float mu, float sigma );
 
 
@@ -504,7 +505,7 @@ msh_hash_uint64(uint64_t x)
 
 uint64_t msh_hash_ptr(const void *ptr) 
 {
-    return msh_hash_uint64((uintptr_t)ptr);
+  return msh_hash_uint64((uintptr_t)ptr);
 }
 
 uint64_t msh_hash_str(char *str) 
@@ -531,7 +532,8 @@ void msh_map__grow( msh_map_t *map, size_t new_cap) {
 
   for( size_t i = 0; i < map->_cap; i++ ) 
   {
-    if (map->keys[i]) {
+    if (map->keys[i]) 
+    {
       msh_map_insert( &new_map, map->keys[i], map->vals[i] );
     }
   }
@@ -548,14 +550,6 @@ size_t msh_map_len( msh_map_t* map )
 size_t msh_map_cap( msh_map_t* map )
 {
   return map->_cap;
-}
-
-void msh_map_free( msh_map_t* map )
-{
-  free( map->keys );
-  free( map->vals );
-  map->_cap = 0;
-  map->_len = 0;
 }
 
 void 
@@ -584,9 +578,9 @@ msh_map_insert( msh_map_t* map, uint64_t key, uint64_t val )
   }
 }
 
-uint64_t* msh_map_get( msh_map_t* map, uint64_t key )
+uint64_t* msh_map_get( const msh_map_t* map, uint64_t key )
 {
-  if (map->_len == 0) { return 0; }
+  if (map->_len == 0) { return NULL; }
   size_t i = (size_t)msh_hash_uint64(key);
   assert(map->_len < map->_cap);
   for (;;) {
@@ -602,6 +596,16 @@ uint64_t* msh_map_get( msh_map_t* map, uint64_t key )
     i++;
   }
 }
+
+
+void msh_map_free( msh_map_t* map )
+{
+  free( map->keys );
+  free( map->vals );
+  map->_cap = 0;
+  map->_len = 0;
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // ASSERT
@@ -636,7 +640,6 @@ msh_strdup(const char *src)
 // TIME
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// Convert a randomized MSH_RND_U32 value to a float value x in the range 0.0f <= x < 1.0f. Contributed by Jonatan Hedborg
 MSHDEF float 
 msh_rand__float_normalized_from_u32( MSH_RND_U32 value )
 {
@@ -648,7 +651,6 @@ msh_rand__float_normalized_from_u32( MSH_RND_U32 value )
   return fresult - 1.0f;
 }
 
-
 MSHDEF MSH_RND_U32 
 msh_rand__murmur3_avalanche32( MSH_RND_U32 h )
 {
@@ -659,7 +661,6 @@ msh_rand__murmur3_avalanche32( MSH_RND_U32 h )
   h ^= h >> 16;
   return h;
 }
-
 
 MSHDEF MSH_RND_U64 
 msh_rand__murmur3_avalanche64( MSH_RND_U64 h )
@@ -695,20 +696,18 @@ msh_rand_next( msh_rand_ctx_t* pcg )
   return ( xorshifted >> rot ) | ( xorshifted << ( ( -(int) rot ) & 31 ) );
 }
 
-
-float 
+float
 msh_rand_nextf( msh_rand_ctx_t* pcg )
 {
   return msh_rand__float_normalized_from_u32( msh_rand_next( pcg ) );
 }
 
-
-int 
-msh_rand_range( msh_rand_ctx_t* pcg, int min, int max )
+int32_t 
+msh_rand_range( msh_rand_ctx_t* pcg, int32_t min, int32_t max )
 {
-  int const range = ( max - min ) + 1;
+  int32_t const range = ( max - min ) + 1;
   if( range <= 0 ) return min;
-  int const value = (int) ( msh_rand_nextf( pcg ) * range );
+  int32_t const value = (int32_t)(msh_rand_nextf( pcg ) * range);
   return min + value; 
 }
 
@@ -786,10 +785,10 @@ uint64_t msh_time_now()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 inline int32_t
-msh_accumulatei( const int32_t* vals, const int32_t n_vals )
+msh_accumulatei( const int32_t* vals, const size_t n_vals )
 {
   int32_t accum = 0;
-  for( int32_t i = 0; i < n_vals; ++i )
+  for( size_t i = 0; i < n_vals; ++i )
   {
     accum += vals[i];
   }
@@ -797,10 +796,21 @@ msh_accumulatei( const int32_t* vals, const int32_t n_vals )
 }
 
 float 
-msh_accumulatef( const float *vals, const int32_t n_vals )
+msh_accumulatef( const float *vals, const size_t n_vals )
 {
   float accum = 0;
-  for ( int32_t i = 0 ; i < n_vals ; ++i )
+  for ( size_t i = 0 ; i < n_vals ; ++i )
+  {
+    accum += vals[i];
+  }
+  return accum;
+}
+
+float 
+msh_accumulated( const double *vals, const size_t n_vals )
+{
+  double accum = 0;
+  for ( size_t i = 0 ; i < n_vals ; ++i )
   {
     accum += vals[i];
   }
@@ -832,59 +842,12 @@ msh_compute_stddev( float mean, float *vals, int n_vals )
   return sqrtf( sq_sum / (float)n_vals - mean * mean );
 }
 
+// TODO(maciej): More analytical distributions in the future, like Poisson etc.
 float 
 msh_gauss1d( float x, float mu, float sigma )
 {
   float exponential = expf(-0.5f * msh_sqf((x-mu)/sigma));
   return exponential;
-}
-
-
-void 
-msh_distrib2pdf( const float* dist, float* pdf, int n_vals )
-{ 
-  float sum = msh_accumulatef(dist, n_vals);
-  if( sum <= 0.00000001f ) return;
-  float inv_sum = 1.0f / sum;
-  for( int32_t i = 0 ; i < n_vals; ++i ) { pdf[i] = (dist[i] * inv_sum); }
-}
-
-void
-msh_pdf2cdf( const float* pdf, float* cdf, int n_vals )
-{
-  float accum = 0.0;
-  for( int32_t i = 0; i < n_vals; ++i ) { accum += pdf[i]; cdf[i] = accum;  };
-}
-
-// TODO(maciej): Finish this using demofox article
-
-// void
-// msh_invert_cdf( const float* cdf, float* invcdf, int n_vals)
-// {
-  // int prev_idx = 0;
-  // for(int i = 0 ; i < n_vals; ++i)
-  // {
-  //   float likelihood = cdf[i];
-  //   int idx = (int)floorf(likelihood*(n_vals)); 
-  //   for( int j = prev_idx; j < idx; j++ )
-  //   {
-  //     invcdf[j] = (float)floorf(i);
-  //   }
-  //   prev_idx = idx;
-  // }
-// }
-
-
-float
-msh_pdfsample( const float* pdf, float prob, int n_vals)
-{
-  int sample_idx = 0;
-  while ( sample_idx < n_vals && prob > pdf[sample_idx])
-  {
-    prob -= pdf[sample_idx];
-    sample_idx++;
-  }
-  return (float)sample_idx;
 }
 
 float 
@@ -894,6 +857,152 @@ msh_gausspdf1d( float x, float mu, float sigma )
   float exponential = expf(-0.5f * msh_sqf((x-mu)/sigma));
   return scale*exponential;
 }
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Alias method, after description and Java implementation by Keith Schwarz:
+ * http://www.keithschwarz.com/darts-dice-coins/
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+void 
+msh_distrib2pdf( const double* dist, double* pdf, size_t n_vals )
+{ 
+  double sum = msh_accumulated(dist, n_vals);
+  if( sum <= 0.00000001 ) return;
+  double inv_sum = 1.0 / sum;
+  for( size_t i = 0 ; i < n_vals; ++i ) { pdf[i] = (dist[i] * inv_sum); }
+}
+
+void
+msh_pdf2cdf( const double* pdf, double* cdf, size_t n_vals )
+{
+  double accum = 0.0;
+  for( size_t i = 0; i < n_vals; ++i ) { accum += pdf[i]; cdf[i] = accum; };
+}
+
+// TODO(maciej): Implement log(n) search?
+
+typedef struct discrete_distribution_sampler
+{
+  double* prob;
+  int* alias;
+  size_t n_weights;
+  msh_rand_ctx_t rand_gen;
+} msh_discrete_distrib_t;
+
+void msh_discrete_distribution_init( msh_discrete_distrib_t* ctx, double* weights, size_t n_weights, size_t seed );
+void msh_discrete_distribution_free( msh_discrete_distrib_t* ctx );
+// Prob is expected to be a random 
+int  msh_discrete_distribution_sample( msh_discrete_distrib_t* ctx );
+
+void
+msh_discrete_distribution_init( msh_discrete_distrib_t* ctx, double* weights, size_t n_weights, size_t seed )
+{
+  msh_rand_init( &ctx->rand_gen, seed );
+  ctx->n_weights = n_weights;
+  ctx->prob  = (double*)malloc( ctx->n_weights * sizeof(double) );
+  ctx->alias = (int*)malloc( ctx->n_weights * sizeof(int) );
+  
+  double *pdf = (double*)malloc( ctx->n_weights * sizeof(double) );
+  msh_distrib2pdf(weights, pdf, ctx->n_weights );
+
+  double avg_prob = 1.0 / (double)ctx->n_weights;
+  // Do we really need msh array here?
+  msh_array(int) small = {0};
+  msh_array(int) large = {0};
+
+  for( size_t i = 0; i < ctx->n_weights; ++i )
+  {
+    if( pdf[i] >= avg_prob ) { msh_array_push(large, i); }
+    else                     { msh_array_push(small, i); }
+  }
+
+  // Start building the alias table.
+  while( !msh_array_isempty(small) && !msh_array_isempty(large) )
+  {
+    int l = small[ msh_array_len(small)-1 ];
+    int g = large[ msh_array_len(large)-1 ];
+    msh_array_pop(small);
+    msh_array_pop(large);
+
+    ctx->prob[l] = pdf[l] * ctx->n_weights;
+    ctx->alias[l] = g;
+  
+    pdf[g] = (pdf[g] + pdf[l]) - avg_prob;
+    if( pdf[g] >= avg_prob ) { msh_array_push( large, g ); }
+    else                     { msh_array_push( small, g ); }
+  }
+
+  while( !msh_array_isempty(small) )
+  {
+    int i = small[ msh_array_len(small)-1 ];
+    msh_array_pop(small);
+    ctx->prob[i] = 1.0;
+  }
+  while( !msh_array_isempty(large) )
+  {
+    int i = large[ msh_array_len(large)-1 ];
+    msh_array_pop(large);
+    ctx->prob[i] = 1.0;
+  }
+
+  msh_array_free(small);
+  msh_array_free(large);
+  free(pdf);
+}
+
+void 
+msh_discrete_distribution_free( msh_discrete_distrib_t* ctx )
+{
+  free( ctx->prob );
+  free( ctx->alias );
+  ctx->n_weights = 0;
+}
+
+int 
+msh_discrete_distribution_sample( msh_discrete_distrib_t* ctx )
+{
+  int column = msh_rand_range( &ctx->rand_gen, 0, ctx->n_weights - 1 );
+  int coin_toss = msh_rand_nextf( &ctx->rand_gen ) < ctx->prob[column];
+  return coin_toss ? column : ctx->alias[column];
+}
+
+
+
+void
+msh_invert_cdf( const double* cdf, size_t n_vals, double* invcdf, size_t n_invcdf_bins )
+{
+  size_t prev_x = 0;
+  for( size_t i = 0 ; i < n_vals; ++i )
+  {
+    size_t cur_x = (size_t)(cdf[i] * (n_invcdf_bins-1));
+    for( size_t x = prev_x; x <= cur_x; ++x )
+    {
+      invcdf[ x ] = i;
+    }
+    prev_x = cur_x;
+  }
+}
+
+int
+msh_pdfsample_invcdf( const double* invcdf, double prob, int n_vals )
+{
+  int cdf_idx = prob * n_vals;
+  double sample_idx = invcdf[cdf_idx];
+  return (int)sample_idx;
+}
+
+int
+msh_pdfsample_linear( const double* pdf, double prob, int n_vals)
+{
+  int sample_idx = 0;
+  while ( sample_idx < n_vals && prob > pdf[sample_idx])
+  {
+    prob -= pdf[sample_idx];
+    sample_idx++;
+  }
+  return sample_idx;
+}
+
 
 
 #endif /*MSH_STD_IMPLEMENTATION*/

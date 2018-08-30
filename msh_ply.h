@@ -292,7 +292,13 @@ int32_t msh_ply_write( msh_ply_t* pf );
 
 /* Parses just the header of the file. Needs to be called to programatically check what
    contents file has, but will not read any of the actual data. */
-int32_t msh_ply_parse_header(msh_ply_t* pf);
+int32_t msh_ply_parse_header( msh_ply_t* pf );
+
+
+/* Returns true if the ply file contains properties contained in descriptors
+   Preffered method to check whether some property exist in ply file
+   Can be called after header has been parsed */
+bool msh_ply_has_properties( const msh_ply_t* pf, const msh_ply_desc_t* desc );
 
 /* Returns pointer to element if element of given name has been found, NULL otherwise.
    Can be used to check if a ply file contains given element. 
@@ -438,9 +444,11 @@ enum msh_ply_err
   MSH_PLY_INVALID_LIST_TYPE_ERR = 23,
   MSH_PLY_ASCII_FILE_READ_ERR = 24,
   MSH_PLY_ASCII_FILE_EOF_ERR = 25,
+  MSH_PLY_REQUIRED_PROPERTY_IS_MISSING = 26,
+  MSH_PLY_NUM_OF_ERRORS
 };
 
-static const char* msh_ply_error_msgs[26] = { 
+static const char* msh_ply_error_msgs[MSH_PLY_NUM_OF_ERRORS] = { 
   "MSH_PLY: No errors.", 
   "MSH_PLY: Invalid PLY file.", 
   "MSH_PLY: Invalid PLY file: Invalid format in ply file.", 
@@ -467,6 +475,7 @@ static const char* msh_ply_error_msgs[26] = {
   "MSH_PLY: Invalid descriptor: Incorrect list type. List type cannot be float or double.",
   "MSH_PLY: Error reading ASCII PLY file.",
   "MSH_PLY: Reached EOF when reading ASCII PLY file."
+  "MSH_PLY: Required property not found in the input file"
 };
 
 const char* 
@@ -522,6 +531,32 @@ msh_ply_find_element( const msh_ply_t* pf, const char* element_name )
     }
   }
   return el;
+}
+
+bool
+msh_ply_has_properties( const msh_ply_t* pf, const msh_ply_desc_t* desc )
+{
+  msh_ply_element_t* el = msh_ply_find_element( pf, desc->element_name );
+  if( !el )
+  {
+    return false;
+  }
+
+  for( int32_t i = 0; i < desc->num_properties; ++i )
+  {
+    const char* property_name = desc->property_names[i];
+    bool found = false;
+    for( size_t j = 0; j < msh_ply_array_len(el->properties); ++j )
+    {
+      if( !strcmp(el->properties[j].name, property_name) )
+      { 
+        found = true; break; 
+      }
+    }
+    if( !found ) { return false; }
+  }
+
+  return true;
 }
 
 msh_ply_property_t*
@@ -1602,6 +1637,7 @@ msh_ply_read( msh_ply_t* pf )
   int error = MSH_PLY_NO_ERRORS;
   if( !pf->_fp ) { return MSH_PLY_FILE_NOT_OPEN_ERR; }
   if( msh_ply_array_len( pf->descriptors ) == 0 ) { return MSH_PLY_NO_REQUESTS; }
+  
   if( !pf->_parsed ) { error = msh_ply_parse_header( pf ); }
   if( error ) { return error; }
 
