@@ -407,8 +407,8 @@ int         msh_rand_range( msh_rand_ctx_t* pcg, int min, int max );
 #define msh_deg2rad(x) ((x) * 0.005555555556 * MSH_PI)
 #define msh_max(a, b) ((a) > (b) ? (a) : (b))
 #define msh_min(a, b) ((a) < (b) ? (a) : (b))
-#define msh_max3(a, b, c) msh_max(msh_max(a, b), c)
-#define msh_min3(a, b, c) msh_min(msh_min(a,b), c)
+#define msh_max3(a, b, c) msh_max(msh_max((a), (b)), (c))
+#define msh_min3(a, b, c) msh_min(msh_min((a), (b)), (c))
 #define msh_clamp(x, lower, upper) msh_min( msh_max((x), (lower)), (upper))
 #define msh_clamp01(x) msh_clamp((x), 0, 1)
 #define msh_iswithin(x, lower, upper) ( ((x) >= (lower)) && ((x) <= (upper)) )
@@ -421,15 +421,28 @@ static inline double msh_sqd(double a) { return a*a; }
 int32_t msh_accumulatei( const int32_t* vals, const size_t n_vals );
 float   msh_accumulatef( const float *vals, const size_t n_vals );
 float   msh_accumulated( const double *vals, const size_t n_vals );
+
 float   msh_inner_product( const float *vals, const int n_vals );
 float   msh_compute_mean( const float *vals, const int n_vals );
 float   msh_compute_stddev( float mean, float *vals, int n_vals );
-float   msh_gauss1d( float x, float mu, float sigma );
-// void    msh_distrib2pdf( const float* dist, float* pdf, int n_vals );
-// void    msh_pdf2cdf( const float* pdf, float* cdf, int n_vals );
-// void    msh_invert_cdf( const float* cdf, float* invcdf, int n_vals);
-// float   msh_pdfsample( const float* pdf, float prob, int n_vals);
-float   msh_gausspdf1d( float x, float mu, float sigma );
+
+float   msh_gauss_1d( float x, float mu, float sigma );
+float   msh_gausspdf_1d( float x, float mu, float sigma );
+
+
+typedef struct discrete_distribution_sampler msh_discrete_distrib_t;
+
+void    msh_distrib2pdf( const double* dist, double* pdf, size_t n_vals );
+void    msh_pdf2cdf( const double* pdf, double* cdf, size_t n_vals );
+void    msh_invert_cdf( const double* cdf, size_t n_vals, double* invcdf, size_t n_invcdf_bins );
+int     msh_pdfsample_linear( const double* pdf, double prob, size_t n_vals);
+int     msh_pdfsample_invcdf( const double* pdf, double prob, size_t n_vals);
+
+void    msh_discrete_distribution_init( msh_discrete_distrib_t* ctx, 
+                                        double* weights, size_t n_weights, size_t seed );
+void    msh_discrete_distribution_free( msh_discrete_distrib_t* ctx );
+int     msh_discrete_distribution_sample( msh_discrete_distrib_t* ctx );
+
 
 
 
@@ -881,17 +894,16 @@ msh_pdf2cdf( const double* pdf, double* cdf, size_t n_vals )
 
 // TODO(maciej): Implement log(n) search?
 
-typedef struct discrete_distribution_sampler
+struct discrete_distribution_sampler
 {
   double* prob;
   int* alias;
   size_t n_weights;
   msh_rand_ctx_t rand_gen;
-} msh_discrete_distrib_t;
+};
 
 void msh_discrete_distribution_init( msh_discrete_distrib_t* ctx, double* weights, size_t n_weights, size_t seed );
 void msh_discrete_distribution_free( msh_discrete_distrib_t* ctx );
-// Prob is expected to be a random 
 int  msh_discrete_distribution_sample( msh_discrete_distrib_t* ctx );
 
 void
@@ -984,7 +996,7 @@ msh_invert_cdf( const double* cdf, size_t n_vals, double* invcdf, size_t n_invcd
 }
 
 int
-msh_pdfsample_invcdf( const double* invcdf, double prob, int n_vals )
+msh_pdfsample_invcdf( const double* invcdf, double prob, size_t n_vals )
 {
   int cdf_idx = prob * n_vals;
   double sample_idx = invcdf[cdf_idx];
@@ -992,9 +1004,9 @@ msh_pdfsample_invcdf( const double* invcdf, double prob, int n_vals )
 }
 
 int
-msh_pdfsample_linear( const double* pdf, double prob, int n_vals)
+msh_pdfsample_linear( const double* pdf, double prob, size_t n_vals)
 {
-  int sample_idx = 0;
+  size_t sample_idx = 0;
   while ( sample_idx < n_vals && prob > pdf[sample_idx])
   {
     prob -= pdf[sample_idx];
