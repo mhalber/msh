@@ -1,15 +1,21 @@
 /************************
- TODOs
- [x] Fix issue when _init function cannot be used if no implementation is declared.
- [x] Optimization - in both knn and radius I need a better way to determine whether I can early out
- [ ] Optimization - spatial locality - sort linear data on  bin idx or morton curves
- [ ] Optimization - see if supplying structure which interleaves distances and indices help
- [ ] Detect if msh_std was declared. If so, don't re-add the data structures
- [ ] Multithreading?
- [ ] API for supplying more then a single point 
- [ ] Docs
- [ ] Assert proof 
-**********************/
+ * 
+ * 
+ * TO COMPILE : g++ -O3 -lflann_cpp -fopenmp -pthread -lm -I../dev msh_hash_grid_benchmark.cpp -o test.exe
+ * TODOs
+ * [x] Fix issue when _init function cannot be used if no implementation is declared.
+ * [x] Optimization - in both knn and radius I need a better way to determine whether I can early out
+ * [ ] Optimization - see if I can simplify the radius search function for small search radii.
+ * [ ] Optimization - spatial locality - sort linear data on bin idx or morton curves
+ * [ ] Optimization - see if supplying structure which interleaves distances and indices help
+ * [ ] Detect if msh_std was declared. If so, don't re-add the data structures
+ * [ ] Multithreading
+ *     [ ] API for supplying more then a single point 
+ *     [ ] In the case of more than 1 point, start with simple openmp example
+ *     [ ] Decide whether we want to go with something like tinycthreads or openmp
+ * [ ] Docs
+ * [ ] Assert proof 
+ **********************/
 
 #ifndef MSH_HASH_GRID_H
 #define MSH_HASH_GRID_H
@@ -653,42 +659,43 @@ msh_hash_grid_radius_search2( const msh_hash_grid_t* hg, const float* query_pt,
   uint64_t slab_size = hg->_slab_size;
   float cs = hg->cell_size;
 
-  for( int64_t oz = onz; oz <= opz; ++oz )
-  {
-    cz = (int64_t)iz + oz;
-    if( cz < 0 || cz >= d ) { continue; }
-    uint64_t idx_z = cz * slab_size;
-
-    if( oz < 0 )      { dz = pt_prime.z - (cz + 1) * cs; }
-    else if( oz > 0 ) { dz = cz * cs - pt_prime.z; }
-    else              { dz = 0.0f; }
-
-    for( int64_t oy = ony; oy <= opy; ++oy )
+    for( int64_t oz = onz; oz <= opz; ++oz )
     {
-      cy = iy + oy;
-      if( cy < 0 || cy >= h ) { continue; }
-      uint64_t idx_y = cy * w;
+      cz = (int64_t)iz + oz;
+      if( cz < 0 || cz >= d ) { continue; }
+      uint64_t idx_z = cz * slab_size;
 
-      if( oy < 0 )      { dy = pt_prime.y - (cy + 1) * cs; }
-      else if( oy > 0 ) { dy = cy * cs - pt_prime.y; }
-      else              { dy = 0.0f; }
+      if( oz < 0 )      { dz = pt_prime.z - (cz + 1) * cs; }
+      else if( oz > 0 ) { dz = cz * cs - pt_prime.z; }
+      else              { dz = 0.0f; }
 
-      for( int64_t ox = onx; ox <= opx; ++ox )
+      for( int64_t oy = ony; oy <= opy; ++oy )
       {
-        cx = ix + ox;
-        if( cx < 0 || cx >= w ) { continue; }
+        cy = iy + oy;
+        if( cy < 0 || cy >= h ) { continue; }
+        uint64_t idx_y = cy * w;
 
-        bin_indices[n_visited_bins] = idx_z + idx_y + cx;
+        if( oy < 0 )      { dy = pt_prime.y - (cy + 1) * cs; }
+        else if( oy > 0 ) { dy = cy * cs - pt_prime.y; }
+        else              { dy = 0.0f; }
 
-        if( ox < 0 )      { dx = pt_prime.x - (cx + 1) * cs; }
-        else if( ox > 0 ) { dx = cx * cs - pt_prime.x; }
-        else              { dx = 0.0f; }
-        
-        bin_dists_sq[n_visited_bins] = dz * dz + dy * dy + dx * dx;
-        n_visited_bins++;
+        for( int64_t ox = onx; ox <= opx; ++ox )
+        {
+          cx = ix + ox;
+          if( cx < 0 || cx >= w ) { continue; }
+
+          bin_indices[n_visited_bins] = idx_z + idx_y + cx;
+
+          if( ox < 0 )      { dx = pt_prime.x - (cx + 1) * cs; }
+          else if( ox > 0 ) { dx = cx * cs - pt_prime.x; }
+          else              { dx = 0.0f; }
+          
+          bin_dists_sq[n_visited_bins] = dz * dz + dy * dy + dx * dx;
+          n_visited_bins++;
+        }
       }
     }
-  }
+
 
   // Now we are checking bins in order of closeness to the current point + 
   // we have a minimum closest distance to a point in a bin, so we can early out and not
