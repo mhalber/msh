@@ -1,13 +1,14 @@
 /************************
  TODOs
  [x] Fix issue when _init function cannot be used if no implementation is declared.
- [ ] Optimization - in both knn and radius I need a better way to determine whether I can early out
- [ ] Optimization - see if supplying structure which interleaves distances and indices help
+ [x] Optimization - in both knn and radius I need a better way to determine whether I can early out
  [ ] Optimization - spatial locality - sort linear data on  bin idx or morton curves
+ [ ] Optimization - see if supplying structure which interleaves distances and indices help
  [ ] Detect if msh_std was declared. If so, don't re-add the data structures
- [ ] Multithreading ?
+ [ ] Multithreading?
  [ ] API for supplying more then a single point 
  [ ] Docs
+ [ ] Assert proof 
 **********************/
 
 #ifndef MSH_HASH_GRID_H
@@ -25,6 +26,11 @@
 #ifndef MSH_HG_MALLOC
 #define MSH_HG_MALLOC(x) malloc((x))
 #endif
+
+#ifndef MSH_HG_MEMSET
+#define MSH_HG_MEMSET(x,y,z) memset((x), (y), (z))
+#endif
+
 
 #ifndef MSH_HG_CALLOC
 #define MSH_HG_CALLOC(x,y) calloc((x), (y))
@@ -157,6 +163,19 @@ uint64_t* msh_hg_map_get( const msh_hg_map_t* map, uint64_t key );
 #define MSH_HG_INLINE __attribute__((always_inline, unused)) inline
 #endif
 
+
+MSH_HG_INLINE msh_hg_v3_t
+msh_hg__vec3_add( msh_hg_v3_t a, msh_hg_v3_t b )
+{
+  return (msh_hg_v3_t) { a.x + b.x, a.y + b.y, a.z + b.z };
+}
+
+MSH_HG_INLINE msh_hg_v3_t
+msh_hg__vec3_sub( msh_hg_v3_t a, msh_hg_v3_t b )
+{
+  return (msh_hg_v3_t) { a.x - b.x, a.y - b.y, a.z - b.z };
+}
+
 typedef struct msh_hg_bin_data
 { 
   int32_t n_pts;
@@ -253,7 +272,7 @@ msh_hash_grid_init( msh_hash_grid_t* hg, const float* pts, const int n_pts, cons
   // Prepare storage for linear data
   hg->offsets     = (msh_hg__bin_info_t*)MSH_HG_MALLOC( n_bins * sizeof(msh_hg__bin_info_t) );
   hg->linear_data = (msh_hg_v3i_t*)MSH_HG_MALLOC( n_pts * sizeof(msh_hg_v3i_t) );
-  memset( hg->offsets, 0, n_bins * sizeof(msh_hg__bin_info_t) );
+  MSH_HG_MEMSET( hg->offsets, 0, n_bins * sizeof(msh_hg__bin_info_t) );
 
   // Reorder the data from the hash-table into linear block
   // NOTE(maciej): There should be a sort here
@@ -480,7 +499,7 @@ msh_hash_grid_dist_storage_push( msh_hash_grid_dist_storage_t* q, float dist, in
       // Make sure we are really looking at the highest element after replacement
       for( int32_t i = 0; i < q->len; ++i )
       {
-        if (q->dists[i] > q->dists[q->max_dist_idx] ) { q->max_dist_idx = i; }
+        if( q->dists[i] > q->dists[q->max_dist_idx] ) { q->max_dist_idx = i; }
       }
     }
   }
@@ -579,89 +598,109 @@ msh_hash_grid_radius_search( const msh_hash_grid_t* hg, const float* query_pt,
   return storage.len;
 }
 
-// maybe write alternate function if radius is less or equal 0.5 cell size;
+// TODO(maciej): Also there is small issue with the bin distances. I think I'll just fix it with an
+// assert for now.
+
+// DESMOS for the derivation of piecewise to continuous approximation : https://www.desmos.com/calculator/adbcuy9ys6
+// Approximation snippet (for z dimension): 
+    // sgn = 2.0f / ( 1.0f + expf(-k*oz) ) - 1.0f;
+    // r = -sgn * ( pt_prime.z - cs * (cz+1) );
+    // t =  sgn * ( cs*cz - pt_prime.z);
+    // dz = ((r+t) - fabs(r-t)) * 0.5f;
+// This snipped ended up being slower than the if statement however
 int
 msh_hash_grid_radius_search2( const msh_hash_grid_t* hg, const float* query_pt, 
                              const float radius, float* dists_sq, int* indices, 
-                             int max_n_results, int sort )
+                             int max_n_neigh, int sort )
 {
   msh_hash_grid_dist_storage_t storage;
-  msh_hash_grid_dist_storage_init( &storage, max_n_results, dists_sq, indices );
+  msh_hash_grid_dist_storage_init( &storage, max_n_neigh, dists_sq, indices );
 
-  msh_hg_v3_t* pt = (msh_hg_v3_t*)query_pt;
+  msh_hg_v3_t* pt      = (msh_hg_v3_t*)query_pt;
+  msh_hg_v3_t pt_prime = (msh_hg_v3_t) { pt->x - hg->min_pt.x,
+                                         pt->y - hg->min_pt.y,
+                                         pt->z - hg->min_pt.z };
 
   // Get base bin idx for query pt
-  uint64_t ix = (uint64_t)( (pt->x - hg->min_pt.x) * hg->_inv_cell_size );
-  uint64_t iy = (uint64_t)( (pt->y - hg->min_pt.y) * hg->_inv_cell_size );
-  uint64_t iz = (uint64_t)( (pt->z - hg->min_pt.z) * hg->_inv_cell_size );
+  int64_t ix = (int64_t)( pt_prime.x * hg->_inv_cell_size );
+  int64_t iy = (int64_t)( pt_prime.y * hg->_inv_cell_size );
+  int64_t iz = (int64_t)( pt_prime.z * hg->_inv_cell_size );
 
   // Decide where to look
-  float dist_px = pt->x + radius;
-  float dist_nx = pt->x - radius;
-  
-  float dist_py = pt->y + radius;
-  float dist_ny = pt->y - radius;
-  
-  float dist_pz = pt->z + radius;
-  float dist_nz = pt->z - radius;
-
-  uint64_t px = (uint64_t)( (dist_px - hg->min_pt.x) * hg->_inv_cell_size );
-  uint64_t nx = (uint64_t)( (dist_nx - hg->min_pt.x) * hg->_inv_cell_size );
+  int64_t px  = (int64_t)( (pt_prime.x + radius) * hg->_inv_cell_size );
+  int64_t nx  = (int64_t)( (pt_prime.x - radius) * hg->_inv_cell_size );
   int64_t opx = px - ix;
   int64_t onx = nx - ix;
 
-  uint64_t py = (uint64_t)( (dist_py - hg->min_pt.y) * hg->_inv_cell_size );
-  uint64_t ny = (uint64_t)( (dist_ny - hg->min_pt.y) * hg->_inv_cell_size );
+  int64_t py  = (int64_t)( (pt_prime.y + radius) * hg->_inv_cell_size );
+  int64_t ny  = (int64_t)( (pt_prime.y - radius) * hg->_inv_cell_size );
   int64_t opy = py - iy;
   int64_t ony = ny - iy;
 
-  uint64_t pz = (uint64_t)( (dist_pz - hg->min_pt.z) * hg->_inv_cell_size );
-  uint64_t nz = (uint64_t)( (dist_nz - hg->min_pt.z) * hg->_inv_cell_size );
+  int64_t pz  = (int64_t)( (pt_prime.z + radius) * hg->_inv_cell_size );
+  int64_t nz  = (int64_t)( (pt_prime.z - radius) * hg->_inv_cell_size );
   int64_t opz = pz - iz;
   int64_t onz = nz - iz;
 
-  int32_t neigh_idx = 0;
   float radius_sq = radius * radius;
-  uint64_t cur_bin_idx = msh_hash_grid__bin_pt(hg, ix, iy, iz );
-  int32_t bin_indices[1024] = {0};
-  float bin_dists[1024] = {0};
+  int32_t bin_indices[128];
+  float  bin_dists_sq[128];
   int n_visited_bins = 0;
-  
+
+  float dx, dy, dz;
+  int64_t cx, cy, cz;
+  int64_t w = hg->width, h = hg->height, d = hg->depth;
+  uint64_t slab_size = hg->_slab_size;
+  float cs = hg->cell_size;
+
   for( int64_t oz = onz; oz <= opz; ++oz )
   {
-    int64_t cz = (int64_t)iz + oz;
-    if( cz < 0 || cz >= (int64_t)hg->depth ) { continue; }
-    uint64_t idx_z = cz * hg->_slab_size;
+    cz = (int64_t)iz + oz;
+    if( cz < 0 || cz >= d ) { continue; }
+    uint64_t idx_z = cz * slab_size;
+
+    if( oz < 0 )      { dz = pt_prime.z - (cz + 1) * cs; }
+    else if( oz > 0 ) { dz = cz * cs - pt_prime.z; }
+    else              { dz = 0.0f; }
+
     for( int64_t oy = ony; oy <= opy; ++oy )
     {
-      int64_t cy = (int64_t)iy + oy;
-      if( cy < 0 || cy >= (int64_t)hg->height ) { continue; }
-      uint64_t idx_y = cy * hg->width;
+      cy = iy + oy;
+      if( cy < 0 || cy >= h ) { continue; }
+      uint64_t idx_y = cy * w;
+
+      if( oy < 0 )      { dy = pt_prime.y - (cy + 1) * cs; }
+      else if( oy > 0 ) { dy = cy * cs - pt_prime.y; }
+      else              { dy = 0.0f; }
+
       for( int64_t ox = onx; ox <= opx; ++ox )
       {
-        int64_t cx = (int64_t)ix + ox;
-        if( cx < 0 || cx >= (int64_t)hg->width ) { continue; }
-        // I need tp take position of point p'
-        uint64_t bin_idx = idx_z + idx_y + cx;
-        bin_dists[n_visited_bins] = oz * hg->cell_size * oz * hg->cell_size +
-                                    oy * hg->cell_size * oy * hg->cell_size +
-                                    ox * hg->cell_size * ox * hg->cell_size;
-        bin_indices[n_visited_bins++] = bin_idx;
+        cx = ix + ox;
+        if( cx < 0 || cx >= w ) { continue; }
+
+        bin_indices[n_visited_bins] = idx_z + idx_y + cx;
+
+        if( ox < 0 )      { dx = pt_prime.x - (cx + 1) * cs; }
+        else if( ox > 0 ) { dx = cx * cs - pt_prime.x; }
+        else              { dx = 0.0f; }
+        
+        bin_dists_sq[n_visited_bins] = dz * dz + dy * dy + dx * dx;
+        n_visited_bins++;
       }
     }
   }
 
-  msh_hash_grid__ins_sort(bin_dists, bin_indices, n_visited_bins);
+  // Now we are checking bins in order of closeness to the current point + 
+  // we have a minimum closest distance to a point in a bin, so we can early out and not
+  // check all the bins.
+  msh_hash_grid__sort( bin_dists_sq, bin_indices, n_visited_bins );
 
   for( int i = 0; i < n_visited_bins; ++i )
   {
-    printf("%d | %d %f\n", cur_bin_idx, bin_indices[i], bin_dists[i] );
     msh_hash_grid__find_neighbors_in_bin( hg, bin_indices[i], radius_sq, pt, &storage );
-    if( storage.len >= max_n_results &&
-        storage.max_dist_idx >= 0 &&
-        dists_sq[storage.max_dist_idx] <= bin_dists[i] )
+    if( storage.len >= max_n_neigh &&
+        dists_sq[ storage.max_dist_idx ] <= bin_dists_sq[i] )
     {
-      printf("      | %f \n", dists_sq[storage.max_dist_idx] );
       break;
     }
   }
@@ -671,6 +710,17 @@ msh_hash_grid_radius_search2( const msh_hash_grid_t* hg, const float* query_pt,
   return storage.len;
 }
 
+
+msh_hash_grid_radius_search3( const msh_hash_grid_t* hg, const float* query_pt, 
+                              const float radius, float* dists_sq, int* indices, 
+                              int max_n_results, int sort )
+{
+  /* In the case when we know that search radius is less than 0.5*create_radius, then 
+   * we probably can allow for some optimizations.
+   * We can directly compute offsets from the point of interest, and compute distances directly.
+   */
+  return 1;
+}
 
 
 MSH_HG_INLINE void
