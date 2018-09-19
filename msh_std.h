@@ -265,7 +265,7 @@ void* msh_array__grow(const void *array, size_t new_len, size_t elem_size);
 #define msh_array_push(a, ...)        ( msh_array_fit((a), 1 + msh_array_len((a))), (a)[msh_array__hdr(a)->len++] = (__VA_ARGS__))
 
 #define msh_array_cpy( dst, src, n )  ( msh_array_fit( (dst), (n) ), msh_array__hdr((dst))->len = (n), memcpy( (void*)(dst), (void*)(src), (n) * sizeof(*(dst) )))
-// #define msh_array_printf(b, ...)      ( (b) = msh_array__printf((b), __VA_ARGS__))
+#define msh_array_printf(b, ...)      ( (b) = msh_array__printf((b), __VA_ARGS__))
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hash Table
@@ -488,26 +488,31 @@ msh_array__grow(const void *array, size_t new_len, size_t elem_size) {
   return (void*)((char*)new_hdr + sizeof(msh_array_hdr_t));
 }
 
-// NOTE(maciej): This code does not work...
-
-// MSHDEF char*
-// msh_array__printf(char *buf, const char *fmt, ...) {
-//   va_list args;
-//   va_start(args, fmt);
-//   int cap = msh_array_cap(buf) - msh_array_len(buf) ;
-//   size_t n = 1 + vsnprintf( msh_array_end(buf), cap, fmt, args );
-//   va_end(args);
-//   if (n > cap) {
-//     msh_array_fit( buf, n + msh_array_len(buf) );
-//     va_start(args, fmt);
-//     size_t new_cap = msh_array_cap(buf) - msh_array_len(buf);
-//     n = 1 + vsnprintf( msh_array_end(buf), new_cap, fmt, args);
-//     assert(n <= new_cap);
-//     va_end(args);
-//   }
-//   msh_array__hdr(buf)->len += (n - 1);
-//   return buf;
-// }
+// NOTE(maciej): vsnprintf behaves wierd when under gcc/clang/tcc. if the cap is not enough
+// to hold string, instead of returning correct number of written characters, it returns 0.
+// Not sure if that will be a problem for visualc...
+MSHDEF char*
+msh_array__printf(char *buf, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  int cap = msh_array_cap(buf) - msh_array_len(buf) ;
+  int len = vsnprintf( msh_array_end(buf), cap, fmt, args );
+  if( len < 0 ) { len = cap; }
+  size_t n = 1 + len;
+  va_end(args);
+  if (n > cap) {
+    msh_array_fit( buf, n + msh_array_len(buf) );
+    va_start(args, fmt);
+    size_t new_cap = msh_array_cap(buf) - msh_array_len(buf);
+    len = vsnprintf( msh_array_end(buf), new_cap, fmt, args);
+    if( len < 0 ) { len = new_cap; }
+    n = 1 + len;
+    assert(n <= new_cap);
+    va_end(args);
+  }
+  msh_array__hdr(buf)->len += (n - 1);
+  return buf;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // HASHTABLE
