@@ -1,8 +1,6 @@
 /************************
- * 
- * 
- * TO COMPILE : g++ -O3 -lflann_cpp -fopenmp -pthread -lm -I../dev msh_hash_grid_benchmark.cpp -o test.exe
- * TODOs
+ * TO COMPILE : g++ -O3 -lflann_cpp -fopenmp -I../dev msh_hash_grid_benchmark.cpp -o test.exe
+ * TODOs:
  * [x] Fix issue when _init function cannot be used if no implementation is declared.
  * [x] Optimization - in both knn and radius I need a better way to determine whether I can early out
  * [ ] Optimization - see if I can simplify the radius search function for small search radii.
@@ -13,6 +11,8 @@
  *     [ ] API for supplying more then a single point 
  *     [ ] In the case of more than 1 point, start with simple openmp example
  *     [ ] Decide whether we want to go with something like tinycthreads or openmp
+ *     [ ] Public domain implementations include jtsiomb for posix threads and stb for windows.
+ *         I could build my threading support based on those implementations.
  * [ ] Docs
  * [ ] Assert proof 
  **********************/

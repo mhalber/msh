@@ -12,10 +12,7 @@
   #define MSH_STD_IMPLEMENTATION
   #include "msh_std.h"
 
-  The define should only include once in your source. If you need to include 
-  library in multiple places, simply use the include:
-
-  #include "msh_std.h"
+  The define should only include once in your source.
 
   All functions can be made static by definining:
 
@@ -45,15 +42,16 @@
   [x] Limits
   [ ] Static asserts
   [ ] Path manipulation
+      [ ] Implement the string concatenation code with some version of vsnprintf
   [ ] Memory allocation
     [ ] Tracking memory allocs
     [ ] Alternative allocators
   [ ] Inline keyword disentanglement
   [ ] Sorting and Searching
     [ ] Common qsort comparator functions
-    [ ] binary and linear searches
+    [ ] binary and linear searches over arrays
   [ ] Multithreading / Scheduling
-  [ ] Stats - cdf inversion
+  [x] Stats - cdf inversion
   [ ] Custom prints (stb_sprintf inlined, look at replacing sprintf with "write" function in linux (unistd.h))
 
   ==============================================================================
@@ -97,7 +95,6 @@ extern "C" {
 // Trying to overcome some c shortcomings.
 //
 // Credits
-//  Inline keywords from                      gb.h by Ginger Bill
 //  System and architecture detection from    gb.h by Ginger Bill
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 #define msh_count_of(x) ( ( sizeof(x) / sizeof( *x ) ) )
@@ -149,7 +146,9 @@ extern "C" {
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// Debug
+// Debug 
+//
+// Not entirely sure if this is that useful over the assert.h
 //
 // Credit
 //  This is taken from gb.h by Ginger Bill.
@@ -161,6 +160,8 @@ extern "C" {
   #else
     #define MSH_DEBUG_TRAP() __debugbreak()
   #endif
+#elif defined(__TINYC__) /*If using tcc, just segfault*/
+  #define MSH_DEBUG_TRAP() do{ int* ptr=NULL; int val = *ptr; } while(0)
 #else
   #define MSH_DEBUG_TRAP() __builtin_trap()
 #endif
@@ -181,8 +182,6 @@ extern "C" {
 
 #define MSH_ASSERT_NOT_NULL(ptr) MSH_ASSERT_MSG((ptr) != NULL, #ptr " must not be NULL")
 
-#define MSH_PANIC(msg, ...) MSH_ASSERT_MSG(0, msg, ##__VA_ARGS__)
-
 void msh__assert_handler( char const *condition, char const *file, int32_t line, char const *msg );
 
 
@@ -202,11 +201,13 @@ void msh__assert_handler( char const *condition, char const *file, int32_t line,
     fprintf( stderr, fmt, ##__VA_ARGS__ );                    \
   }                                                           \
   while (0)
+
 #define msh_panic_eprintf(fmt, ...) do {                      \
     fprintf( stderr, fmt, ##__VA_ARGS__ );                    \
     exit( EXIT_FAILURE) ;                                     \
   }                                                           \
   while (0)
+
 #define msh_panic_ceprintf(cond, fmt, ...) do {               \
     if(cond)                                                  \
     {                                                         \
@@ -251,8 +252,10 @@ void* msh_array__grow(const void *array, size_t new_len, size_t elem_size);
 #define msh_array_cap(a)              ( (a) ? (msh_array__hdr((a))->cap) : 0)
 #define msh_array_sizeof(a)           ( (a) ? (msh_array__hdr((a))->len * sizeof(*(a))) : 0)
 #define msh_array_isempty(a)          ( (a) ? (msh_array__hdr((a))->len <= 0) : 1)
+
 #define msh_array_front(a)            ( (a) ? (a) : NULL)
-#define msh_array_back(a)             ( msh_array_len((a)) ? ((a) + msh_array_len((a)) - 1 ) : NULL)
+#define msh_array_end(a)              ( (a) + msh_array_len((a)) ) // One past the end
+#define msh_array_back(a)             ( msh_array_len((a)) ? ((a) + msh_array_len((a)) - 1 ) : NULL) // Ptr to last element
 
 #define msh_array_free(a)             ( (a) ? (free(msh_array__hdr(a)), (a) = NULL) :0 )
 #define msh_array_pop(a)              ( (a) ? (msh_array__hdr((a))->len--) : 0)
@@ -262,7 +265,7 @@ void* msh_array__grow(const void *array, size_t new_len, size_t elem_size);
 #define msh_array_push(a, ...)        ( msh_array_fit((a), 1 + msh_array_len((a))), (a)[msh_array__hdr(a)->len++] = (__VA_ARGS__))
 
 #define msh_array_cpy( dst, src, n )  ( msh_array_fit( (dst), (n) ), msh_array__hdr((dst))->len = (n), memcpy( (void*)(dst), (void*)(src), (n) * sizeof(*(dst) )))
-#define msh_array_printf(b, ...)      ( (b) = msh_array__printf((b), __VA_ARGS__))
+// #define msh_array_printf(b, ...)      ( (b) = msh_array__printf((b), __VA_ARGS__))
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hash Table
@@ -286,15 +289,15 @@ typedef struct msh_map
   size_t _cap;
 } msh_map_t;
 
-uint64_t msh_hash_uint64(uint64_t x);
-uint64_t msh_hash_ptr(const void *ptr);
-uint64_t msh_hash_str(char *str);
+uint64_t  msh_hash_uint64(uint64_t x);
+uint64_t  msh_hash_ptr(const void *ptr);
+uint64_t  msh_hash_str(char *str);
 
-size_t msh_map_len( msh_map_t* map );
-size_t msh_map_cap( msh_map_t* map ); 
-void msh_map_insert( msh_map_t* map, uint64_t key, uint64_t val );
+size_t    msh_map_len( msh_map_t* map );
+size_t    msh_map_cap( msh_map_t* map ); 
+void      msh_map_insert( msh_map_t* map, uint64_t key, uint64_t val );
 uint64_t* msh_map_get( const msh_map_t* map, uint64_t key );
-void msh_map_free( msh_map_t* map );
+void      msh_map_free( msh_map_t* map );
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // String and path manipulation
@@ -430,14 +433,13 @@ float   msh_gauss_1d( float x, float mu, float sigma );
 float   msh_gausspdf_1d( float x, float mu, float sigma );
 
 
-typedef struct discrete_distribution_sampler msh_discrete_distrib_t;
-
 void    msh_distrib2pdf( const double* dist, double* pdf, size_t n_vals );
 void    msh_pdf2cdf( const double* pdf, double* cdf, size_t n_vals );
 void    msh_invert_cdf( const double* cdf, size_t n_vals, double* invcdf, size_t n_invcdf_bins );
 int     msh_pdfsample_linear( const double* pdf, double prob, size_t n_vals);
 int     msh_pdfsample_invcdf( const double* pdf, double prob, size_t n_vals);
 
+typedef struct discrete_distribution_sampler msh_discrete_distrib_t;
 void    msh_discrete_distribution_init( msh_discrete_distrib_t* ctx, 
                                         double* weights, size_t n_weights, size_t seed );
 void    msh_discrete_distribution_free( msh_discrete_distrib_t* ctx );
@@ -486,24 +488,26 @@ msh_array__grow(const void *array, size_t new_len, size_t elem_size) {
   return (void*)((char*)new_hdr + sizeof(msh_array_hdr_t));
 }
 
-MSHDEF char*
-msh_array__printf(char *buf, const char *fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
-  size_t cap = msh_array_cap(buf) - msh_array_len(buf);
-  size_t n = 1 + vsnprintf(msh_array_back(buf), cap, fmt, args);
-  va_end(args);
-  if (n > cap) {
-    msh_array_fit( buf, n + msh_array_len(buf) );
-    va_start(args, fmt);
-    size_t new_cap = msh_array_cap(buf) - msh_array_len(buf);
-    n = 1 + vsnprintf(msh_array_back(buf), new_cap, fmt, args);
-    assert(n <= new_cap);
-    va_end(args);
-  }
-  msh_array__hdr(buf)->len += (n - 1);
-  return buf;
-}
+// NOTE(maciej): This code does not work...
+
+// MSHDEF char*
+// msh_array__printf(char *buf, const char *fmt, ...) {
+//   va_list args;
+//   va_start(args, fmt);
+//   int cap = msh_array_cap(buf) - msh_array_len(buf) ;
+//   size_t n = 1 + vsnprintf( msh_array_end(buf), cap, fmt, args );
+//   va_end(args);
+//   if (n > cap) {
+//     msh_array_fit( buf, n + msh_array_len(buf) );
+//     va_start(args, fmt);
+//     size_t new_cap = msh_array_cap(buf) - msh_array_len(buf);
+//     n = 1 + vsnprintf( msh_array_end(buf), new_cap, fmt, args);
+//     assert(n <= new_cap);
+//     va_end(args);
+//   }
+//   msh_array__hdr(buf)->len += (n - 1);
+//   return buf;
+// }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // HASHTABLE
@@ -745,7 +749,9 @@ double msh_time_diff( int32_t unit, uint64_t new_time, uint64_t old_time )
 }
 
 #if defined(_WIN32)
+#if !defined(WIN32_LEAN_AND_MEAN)
 #define WIN32_LEAN_AND_MEAN
+#endif
 
 #include <windows.h>
 
@@ -848,33 +854,30 @@ msh_compute_mean( const float *vals, const int n_vals )
   return sum / (float) n_vals;
 }
 
+// NOTE(maciej): Temporarily switch sqrtf to sqrt etc., 
+//               since tcc does not seem to have correct libm on windows?
 float 
 msh_compute_stddev( float mean, float *vals, int n_vals )
 {
   float sq_sum = msh_inner_product( vals, n_vals );
-  return sqrtf( sq_sum / (float)n_vals - mean * mean );
+  return (float)sqrt( sq_sum / (float)n_vals - mean * mean );
 }
 
 // TODO(maciej): More analytical distributions in the future, like Poisson etc.
 float 
 msh_gauss1d( float x, float mu, float sigma )
 {
-  float exponential = expf(-0.5f * msh_sqf((x-mu)/sigma));
+  float exponential = (float)exp( -0.5f * msh_sqf((x-mu)/sigma));
   return exponential;
 }
 
 float 
 msh_gausspdf1d( float x, float mu, float sigma )
 {
-  float scale = 1.0f * sigma * sqrtf( 2.0f * (float)MSH_PI );
-  float exponential = expf(-0.5f * msh_sqf((x-mu)/sigma));
+  float scale = 1.0f * sigma * sqrt( 2.0f * (float)MSH_PI );
+  float exponential = (float)exp(-0.5f * msh_sqf((x-mu)/sigma));
   return scale*exponential;
 }
-
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- * Alias method, after description and Java implementation by Keith Schwarz:
- * http://www.keithschwarz.com/darts-dice-coins/
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 void 
 msh_distrib2pdf( const double* dist, double* pdf, size_t n_vals )
@@ -892,7 +895,11 @@ msh_pdf2cdf( const double* pdf, double* cdf, size_t n_vals )
   for( size_t i = 0; i < n_vals; ++i ) { accum += pdf[i]; cdf[i] = accum; };
 }
 
-// TODO(maciej): Implement log(n) search?
+/* 
+ * Alias method, after description and Java implementation by Keith Schwarz:
+ * http://www.keithschwarz.com/darts-dice-coins/
+ */
+
 
 struct discrete_distribution_sampler
 {
