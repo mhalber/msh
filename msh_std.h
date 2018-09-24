@@ -5,7 +5,7 @@
   
   A single header library for extending the C standard library.
   This file is partially written by myself, but also includes a lot
-  of code copied / modified from other libraries. Please see credits for details.
+  of code copied / adapted from other libraries. Please see credits for details.
 
   To use the library you simply add:
   
@@ -14,39 +14,43 @@
 
   The define should only include once in your source.
 
-  All functions can be made static by definining:
-
-  #ifdef MSH_STD_STATIC
-
-  before including the "msh_std.h"
-
   ==============================================================================
   DEPENDENCIES
+    This file includes and depends a number c stdlib headers at this point:
+     - <assert.h>
+     - <math.h>
+     - <string.h>
+     - <stdint.h>
+     - <stdarg.h>
+     - <stddef.h>
+     - <stdbool.h>
+     - <stdio.h>
+     - <stdlib.h>
+     - <float.h>
+     - <sys/stat.h> (on Linux)
+    By default, these are not included by this library. If you'd like these to be included,
+    define:
+    #define MSH_STD_INCLUDE_C_HEADERS
 
-    This file includes some c stdlib headers.
 
   ==============================================================================
   AUTHORS:
     Maciej Halber
 
   CREDITS:
-    Dynamic array based on                   stb.h      by Sean T. Barrett
-                                             common.h   by Per Vognsen
-    Hashtable based on                       common.h   by Per Vognsen
-    Random number generation based on        rnd.h      by Mattias Gustavsson
-    Time measurements based on               tinytime.h by Randy Gaul
-    Assert handling based on                 gb.h       by Ginger Bill
+    Sean T. Barrett, Per Vognsen, Mattias Gustavsson, Randy Gaul, Ginger Bill
+    Please see particular sections for exact source of code / inspiration
 
   ==============================================================================
   TODOs:
   [x] Limits
-  [ ] Static asserts
+  [ ] Simple set implementation
   [ ] Path manipulation
       [ ] Implement the string concatenation code with some version of vsnprintf
   [ ] Memory allocation
     [ ] Tracking memory allocs
     [ ] Alternative allocators
-  [ ] Inline keyword disentanglement
+  [ ] Inline keyword fixes
   [ ] Sorting and Searching
     [ ] Common qsort comparator functions
     [ ] binary and linear searches over arrays
@@ -70,7 +74,7 @@
 extern "C" {
 #endif
 
-#ifdef MSH_STD_INCLUDE_HEADERS
+#ifdef MSH_STD_INCLUDE_LIBC_HEADERS
 
 // c stdlib
 #include <assert.h>
@@ -92,11 +96,15 @@ extern "C" {
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// Trying to overcome some c shortcomings.
+// Some basics to fix c shortcomings
 //
 // Credits
-//  System and architecture detection from    gb.h by Ginger Bill
+//  Ginger Bill: System and architecture detection from gb.h
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+/* TODOs
+ * [ ] inline keyword
+ */ 
+
 #define msh_count_of(x) ( ( sizeof(x) / sizeof( *x ) ) )
 
 #ifdef MSH_STD_STATIC
@@ -188,7 +196,9 @@ void msh__assert_handler( char const *condition, char const *file, int32_t line,
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Printing
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
+/* TODOs:
+ *  [ ] inline vsnprintf from stb
+ */
 #define msh_cprintf(cond, fmt, ...) do {                      \
     if(cond)                                                  \
     {                                                         \
@@ -227,12 +237,14 @@ void msh__assert_handler( char const *condition, char const *file, int32_t line,
 //
 // Credits
 //   Seat T. Barrett - idea of stretchy buffers (?)
-//   Per Vognsen - various improvements from his ion implementation
+//   Per Vognsen     - various improvements from his ion implementation
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /* TODOs 
   [ ] Prepare docs
   [ ] Replace malloc with jemalloc or TC malloc?
-  [ ] What about alignment issues ? http://pzemtsov.github.io/2016/11/06/bug-story-alignment-on-x86.html
+  [ ] What about alignment issues? http://pzemtsov.github.io/2016/11/06/bug-story-alignment-on-x86.html
+  [ ] Convert this to a function based implementation with things like array bounds
+  [ ] Change behaviour of msh_array_pop
 */
 
 typedef struct msh_array_header
@@ -273,13 +285,10 @@ void* msh_array__grow(const void *array, size_t new_len, size_t elem_size);
 // Notes: This hashtable cannot use zero as key
 //
 // Credits
-//   Seat T. Barrett - Judy Array vs. Hash-table text
-//   Niklas Frykholm - The Machinery Container system blog-series
-//   Per Vognsen - ion open-addressing, linear probing hashtable
+//   Seat T. Barrett: Judy Array vs. Hash-table text
+//   Niklas Frykholm: The Machinery Container system blog-series
+//   Per Vognsen    : ion open-addressing, linear probing hashtable
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-/* TODOs
-  [ ] Use msh_array internally
-*/
 
 typedef struct msh_map
 {
@@ -289,15 +298,22 @@ typedef struct msh_map
   size_t _cap;
 } msh_map_t;
 
-uint64_t  msh_hash_uint64(uint64_t x);
-uint64_t  msh_hash_ptr(const void *ptr);
-uint64_t  msh_hash_str(char *str);
+uint64_t  msh_hash_uint64( uint64_t x );
+uint64_t  msh_hash_ptr( void *ptr );
+uint64_t  msh_hash_str( char *str );
+
+void      msh_map_init( msh_map_t *map, uint32_t cap );
+void      msh_map_free( msh_map_t* map );
 
 size_t    msh_map_len( msh_map_t* map );
 size_t    msh_map_cap( msh_map_t* map ); 
+
 void      msh_map_insert( msh_map_t* map, uint64_t key, uint64_t val );
 uint64_t* msh_map_get( const msh_map_t* map, uint64_t key );
-void      msh_map_free( msh_map_t* map );
+
+void      msh_map_get_iterable_keys( const msh_map_t* map, uint64_t** keys );
+void      msh_map_get_iterable_vals( const msh_map_t* map, uint64_t** vals );
+void      msh_map_get_iterable_keys_and_vals( const msh_map_t* map, uint64_t** key, uint64_t** val );
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // String and path manipulation
@@ -328,7 +344,7 @@ char* msh_strdup( const char *src );
 // Time
 // 
 // Credits
-//   Based on Randy Gauls tinyheaders https://github.com/RandyGaul/tinyheaders
+//   Randy Gaul: based on tinyheaders https://github.com/RandyGaul/tinyheaders
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 enum msh__time_units
@@ -346,8 +362,8 @@ double msh_time_diff( int32_t unit, uint64_t new_time, uint64_t old_time );
 // PCG-based random number generation 
 //
 // Credits:
-//   Mattias Gustavsson(internals of pcg seed generator)
-//   Jonatan Hedborg: unsigned int to normalized float conversion
+//   Mattias Gustavsson: internals of pcg seed generator
+//   Jonatan Hedborg:    unsigned int to normalized float conversion
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifndef MSH_RND_U32
@@ -371,7 +387,7 @@ int         msh_rand_range( msh_rand_ctx_t* pcg, int min, int max );
 // Maths & stats helpers
 //
 // Credit:
-//    Limits from gb.h by Ginger Bill
+//    Ginger Bill: Limits from gb.h by 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 #ifndef MSH_U8_MIN
   #define MSH_U8_MIN 0u
@@ -431,7 +447,6 @@ float   msh_compute_stddev( float mean, float *vals, int n_vals );
 
 float   msh_gauss_1d( float x, float mu, float sigma );
 float   msh_gausspdf_1d( float x, float mu, float sigma );
-
 
 void    msh_distrib2pdf( const double* dist, double* pdf, size_t n_vals );
 void    msh_pdf2cdf( const double* pdf, double* cdf, size_t n_vals );
@@ -518,19 +533,21 @@ msh_array__printf(char *buf, const char *fmt, ...) {
 // HASHTABLE
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 uint64_t 
-msh_hash_uint64(uint64_t x) 
+msh_hash_uint64( uint64_t x ) 
 {
   x *= 0xff51afd7ed558ccd;
   x ^= x >> 32;
   return x;
 }
 
-uint64_t msh_hash_ptr(const void *ptr) 
+uint64_t 
+msh_hash_ptr( void *ptr ) 
 {
-  return msh_hash_uint64((uintptr_t)ptr);
+  return msh_hash_uint64( (uintptr_t)ptr );
 }
 
-uint64_t msh_hash_str(char *str) 
+uint64_t 
+msh_hash_str( char *str ) 
 {
   uint64_t x = 0xcbf29ce484222325;
   char *buf = str;
@@ -544,7 +561,33 @@ uint64_t msh_hash_str(char *str)
   return x;
 }
 
-void msh_map__grow( msh_map_t *map, size_t new_cap) {
+size_t 
+msh_map__pow2ceil( uint32_t v )
+{
+  --v;
+  v |= v >> 1;
+  v |= v >> 2;
+  v |= v >> 4;
+  v |= v >> 8;
+  v |= v >> 16;
+  ++v;
+  v += ( v == 0 );
+  return v;
+}
+
+void 
+msh_map_init( msh_map_t *map, uint32_t cap )
+{
+  assert( !map->keys && !map->vals );
+  cap = msh_map__pow2ceil( cap );
+  map->keys = (uint64_t*)calloc( cap, sizeof(uint64_t) );
+  map->vals = (uint64_t*)malloc( cap * sizeof(uint64_t) );
+  map->_len = 0;
+  map->_cap = cap;
+}
+
+void 
+msh_map__grow( msh_map_t *map, size_t new_cap ) {
   new_cap = msh_max( new_cap, 16 );
   msh_map_t new_map;
   new_map.keys = (uint64_t*)calloc( new_cap, sizeof(uint64_t) );
@@ -554,22 +597,24 @@ void msh_map__grow( msh_map_t *map, size_t new_cap) {
 
   for( size_t i = 0; i < map->_cap; i++ ) 
   {
-    if (map->keys[i]) 
+    if( map->keys[i] ) 
     {
       msh_map_insert( &new_map, map->keys[i], map->vals[i] );
     }
   }
-  free( (void *)map->keys );
+  free( map->keys );
   free( map->vals );
   *map = new_map;
 }
 
-size_t msh_map_len( msh_map_t* map )
+size_t
+msh_map_len( msh_map_t* map )
 {
   return map->_len;
 }
 
-size_t msh_map_cap( msh_map_t* map )
+size_t
+msh_map_cap( msh_map_t* map )
 {
   return map->_cap;
 }
@@ -577,10 +622,11 @@ size_t msh_map_cap( msh_map_t* map )
 void 
 msh_map_insert( msh_map_t* map, uint64_t key, uint64_t val )
 {
-  assert( key );
-  if( 2 * map->_len >= map->_cap) { msh_map__grow(map, 2*map->_cap); }
+  // Increment the key, so that key == 0 is valid, even though 0 is marking empty slot.
+  key += 1;
+  if( 2 * map->_len >= map->_cap) { msh_map__grow( map, 2 * map->_cap ); }
   assert( 2 * map->_len < map->_cap );
-  size_t i = (size_t)msh_hash_uint64(key);
+  size_t i = (size_t)msh_hash_uint64( key );
   for (;;) 
   {
     i &= map->_cap - 1;
@@ -600,12 +646,14 @@ msh_map_insert( msh_map_t* map, uint64_t key, uint64_t val )
   }
 }
 
-uint64_t* msh_map_get( const msh_map_t* map, uint64_t key )
+uint64_t* 
+msh_map_get( const msh_map_t* map, uint64_t key )
 {
-  if (map->_len == 0) { return NULL; }
-  size_t i = (size_t)msh_hash_uint64(key);
-  assert(map->_len < map->_cap);
-  for (;;) {
+  if( map->_len == 0 ) { return NULL; }
+  key += 1;
+  size_t i = (size_t)msh_hash_uint64( key );
+  assert( map->_len < map->_cap );
+  for( ;; ) {
     i &= map->_cap - 1;
     if( map->keys[i] == key )
     {
@@ -620,7 +668,8 @@ uint64_t* msh_map_get( const msh_map_t* map, uint64_t key )
 }
 
 
-void msh_map_free( msh_map_t* map )
+void 
+msh_map_free( msh_map_t* map )
 {
   free( map->keys );
   free( map->vals );
@@ -628,19 +677,62 @@ void msh_map_free( msh_map_t* map )
   map->_len = 0;
 }
 
+void
+msh_map_get_iterable_keys( const msh_map_t* map, uint64_t** keys )
+{
+  assert( (*keys) == NULL );
+  (*keys) = (uint64_t*)malloc( map->_len * sizeof(uint64_t) );
+  size_t j = 0;
+  for( size_t i = 0; i < map->_cap; ++i )
+  {
+    if( !map->keys[i] ) { (*keys)[j++] = map->keys[i] - 1; }
+  }
+}
+
+void
+msh_map_get_iterable_vals( const msh_map_t* map, uint64_t** vals )
+{
+  assert( (*vals) == NULL );
+  (*vals) = (uint64_t*)malloc( map->_len * sizeof(uint64_t) );
+  size_t j = 0;
+  for( size_t i = 0; i < map->_cap; ++i )
+  {
+    if( !map->keys[i] ) { (*vals)[j++] = map->vals[i]; }
+  }
+}
+
+void
+msh_map_get_iterable_keys_and_vals( const msh_map_t* map, uint64_t** keys, uint64_t** vals )
+{
+  assert( (*keys) == NULL );
+  assert( (*vals) == NULL );
+  (*keys) = (uint64_t*)malloc( map->_len * sizeof(uint64_t) );
+  (*vals) = (uint64_t*)malloc( map->_len * sizeof(uint64_t) );
+  size_t j = 0;
+  for( size_t i = 0; i < map->_cap; ++i )
+  {
+    if( map->keys[i] )
+    { 
+      (*keys)[j] = map->keys[i] - 1;
+      (*vals)[j] = map->vals[i];
+      j++;
+    }
+  }
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // ASSERT
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-void msh__assert_handler( char const *condition, char const *file, 
-                         int32_t line, char const *msg ) {
+MSHDEF void 
+msh__assert_handler( char const *condition, char const *file, int32_t line, char const *msg ) {
   fprintf( stderr, "%s:%4d: Assert Failure: ", file, line );
-  if( condition ) fprintf( stderr, "`%s` ", condition);
+  if( condition ) { fprintf( stderr, "`%s` ", condition); }
   if( msg ) 
   {
     fprintf( stderr, "-> %s", msg );
   }
-  fprintf(stderr, "\n");
+  fprintf( stderr, "\n" );
 }
 
 
@@ -648,12 +740,12 @@ void msh__assert_handler( char const *condition, char const *file,
 // STRINGS
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-char* 
-msh_strdup(const char *src)
+MSHDEF char* 
+msh_strdup( const char *src )
 {
-  size_t len = strlen(src);
-  char* cpy = (char*)malloc(len+1);
-  strncpy(cpy, src, len);
+  size_t len = strlen( src );
+  char* cpy = (char*)malloc( len+1 );
+  strncpy( cpy, src, len );
   cpy[len] = 0;
   return cpy;
 }
@@ -669,7 +761,7 @@ msh_rand__float_normalized_from_u32( MSH_RND_U32 value )
   MSH_RND_U32 mantissa = value >> 9;
   MSH_RND_U32 result   = ( exponent << 23 ) | mantissa;
   float fresult        = 0.0f;
-  memcpy(&fresult, &result, sizeof(float));
+  memcpy( &fresult, &result, sizeof(float) );
   return fresult - 1.0f;
 }
 
@@ -740,7 +832,8 @@ msh_rand_range( msh_rand_ctx_t* pcg, int32_t min, int32_t max )
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // NOTE(maciej): This time measurement might actually be bad. Model it after sokol_time.h
 
-double msh_time_diff( int32_t unit, uint64_t new_time, uint64_t old_time )
+double 
+msh_time_diff( int32_t unit, uint64_t new_time, uint64_t old_time )
 {
   uint64_t diff = new_time - old_time;
   switch(unit)
@@ -760,7 +853,8 @@ double msh_time_diff( int32_t unit, uint64_t new_time, uint64_t old_time )
 
 #include <windows.h>
 
-uint64_t msh_time_now()
+uint64_t 
+msh_time_now()
 {
   static int first = 1;
   static LARGE_INTEGER freq;
@@ -773,7 +867,8 @@ uint64_t msh_time_now()
 #elif defined(__unix__)
 
 #include <time.h>
-uint64_t msh_time_now()
+uint64_t
+msh_time_now()
 {
   struct timespec now;
   clock_gettime( CLOCK_MONOTONIC, &now );
@@ -784,7 +879,8 @@ uint64_t msh_time_now()
 #elif defined(__APPLE__)
 
 #include <mach/mach_time.h>
-uint64_t msh_time_now()
+uint64_t
+msh_time_now()
 {
   static int first = 1;
   static uint64_t factor = 0;
@@ -808,7 +904,7 @@ uint64_t msh_time_now()
 // MATHS
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-inline int32_t
+int32_t
 msh_accumulatei( const int32_t* vals, const size_t n_vals )
 {
   int32_t accum = 0;

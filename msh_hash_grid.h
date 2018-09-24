@@ -453,7 +453,6 @@ void msh_hash_grid__sort( float* dists, int32_t* indices, int n )
   msh_hash_grid__ins_sort( dists, indices, n );
 }
 
-
 typedef struct msh_hash_grid_dist_storage
 {
   int32_t cap;
@@ -773,7 +772,7 @@ void msh_hg_map__grow( msh_hg_map_t *map, size_t new_cap) {
 
   for( size_t i = 0; i < map->_cap; i++ ) 
   {
-    if (map->keys[i]) 
+    if( map->keys[i] ) 
     {
       msh_hg_map_insert( &new_map, map->keys[i], map->vals[i] );
     }
@@ -799,10 +798,10 @@ msh_hg_map_insert( msh_hg_map_t* map, uint64_t key, uint64_t val )
   assert( key );
   if( 2 * map->_len >= map->_cap) { msh_hg_map__grow(map, 2*map->_cap); }
   assert( 2 * map->_len < map->_cap );
-  size_t i = (size_t)msh_hg_hash_uint64(key);
+  size_t i = (size_t)msh_hg_hash_uint64( key );
   for (;;) 
   {
-    i &= map->_cap - 1;
+    i &= map->_cap - 1; // modulo size
     if( !map->keys[i] )
     {
       map->_len++;
