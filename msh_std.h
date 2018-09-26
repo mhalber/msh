@@ -597,9 +597,9 @@ msh_map__grow( msh_map_t *map, size_t new_cap ) {
 
   for( size_t i = 0; i < map->_cap; i++ ) 
   {
-    if( map->keys[i] ) 
+    if( map->keys[i] )
     {
-      msh_map_insert( &new_map, map->keys[i], map->vals[i] );
+      msh_map_insert( &new_map, map->keys[i] - 1, map->vals[i] );
     }
   }
   free( map->keys );

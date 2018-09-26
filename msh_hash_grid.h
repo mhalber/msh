@@ -5,16 +5,21 @@
  * [x] Optimization - in both knn and radius I need a better way to determine whether I can early out
  * [x] Optimization - see if I can simplify the radius search function for small search radii.
  *        --> Very small gains given the increase in complexity.
- * [ ] Optimization - spatial locality - sort linear data on bin idx or morton curves
- * [ ] Optimization - see if supplying structure which interleaves distances and indices help
- * [ ] Detect if msh_std was declared. If so, don't re-add the data structures
- * [ ] Multithreading
- *     [ ] API for supplying more then a single point 
- *     [ ] In the case of more than 1 point, start with simple openmp example
- *     [ ] Decide whether we want to go with something like tinycthreads or openmp
- *     [ ] Public domain implementations include jtsiomb for posix threads and stb for windows.
+ * [x] Optimization - spatial locality - sort linear data on bin idx or morton curves
+ *        --> Does not seem to produce improvement. Something else must be dominating
+ * [ ] Optimization - try to supply different structure for storing distances and indices
+ * [ ] Fix knn search
+ * [x] Multithreading
+ *     [x] API for supplying more then a single point
+ *     [x] In the case of more than 1 point, start with simple openmp example
+ *     [ ] See if it is worth to inline something like c11 threads implementation
+ *         NOTE(maciej): Public domain implementations include jtsiomb for posix threads and stb for windows.
  *         I could build my threading support based on those implementations.
+ * [ ] Params struct for searching
+ *    [ ] Compatibility function?
  * [ ] Docs
+ *     NOTE(maciej): Remember to tell the user about sensitivity to max_n_neigh, as it is essentially
+ *                   Spreading out the memory. Should some functions to query point density be added?
  * [ ] Assert proof 
  **********************/
 
@@ -51,24 +56,43 @@
 #define MSH_HG_FREE(x) free((x))
 #endif
 
+#if defined(_OPENMP)
+#include <omp.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct msh_hg_bin_data msh_hg__bin_data_t;
-typedef struct msh_hg_bin_info msh_hg__bin_info_t;
-typedef struct msh_hg_map msh_hg_map_t;
-typedef struct msh_hg_v3 msh_hg_v3_t;
-typedef struct msh_hg_v3i msh_hg_v3i_t;
 typedef struct msh_hash_grid msh_hash_grid_t;
+
+typedef struct msh_hash_grid_search_desc
+{
+  float* query_pts;
+  size_t n_query_pts;
+
+  float* distances_sq;
+  int32_t* indices;
+  size_t* n_neighbors;
+
+  float radius;
+  int max_n_neigh;
+  int sort;
+} msh_hash_grid_search_desc_t;
 
 void msh_hash_grid_init( msh_hash_grid_t* hg, const float* pts, const int n_pts, const float radius );
 void msh_hash_grid_term( msh_hash_grid_t* hg );
-int msh_hash_grid_radius_search( const msh_hash_grid_t *hg, const float* query_pt, const float radius, 
+int msh_hash_grid_radius_search_mt( const msh_hash_grid_t* hg,
+                                      msh_hash_grid_search_desc_t* search_desc );
+
+// We we'd like to deprecate these functions in the future
+int msh_hash_grid_radius_search( const msh_hash_grid_t* hg, const float* query_pt, const float radius, 
                                  float* dists_sq, int32_t* indices, int max_n_results, int sort );
 int msh_hash_grid_knn_search( const msh_hash_grid_t* hg, const float* query_pt, const int k,
                               float* dists_sq, int* indices, int sort );
+
+
+
 
 typedef struct msh_hg_v3 
 { 
@@ -81,6 +105,10 @@ typedef struct msh_hg_v3i
   int32_t i;
 } msh_hg_v3i_t;
 
+typedef struct msh_hg_bin_data msh_hg__bin_data_t;
+typedef struct msh_hg_bin_info msh_hg__bin_info_t;
+typedef struct msh_hg_map msh_hg_map_t;
+
 typedef struct msh_hash_grid
 {
   size_t width;
@@ -92,7 +120,7 @@ typedef struct msh_hash_grid
   msh_hg_v3_t max_pt;
 
   msh_hg_map_t* bin_table;
-  msh_hg_v3i_t* linear_data;
+  msh_hg_v3i_t* data_buffer;
   msh_hg__bin_info_t* offsets;
 
   int32_t   _slab_size;
@@ -138,6 +166,7 @@ void* msh_hg__array_grow(const void *array, size_t new_len, size_t elem_size);
 #define msh_hg_array_push(a, ...)        (msh_hg_array_fit((a), 1 + msh_hg_array_len((a))), (a)[msh_hg_array__hdr(a)->len++] = (__VA_ARGS__))
 
 #define MSH_HG_MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MSH_HG_MIN(a, b) ((a) <= (b) ? (a) : (b))
 #define MSH_HG_MAX3(a, b, c) MSH_HG_MAX(MSH_HG_MAX(a,b), MSH_HG_MAX(b,c))
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -152,9 +181,9 @@ typedef struct msh_hg_map
   size_t _cap;
 } msh_hg_map_t;
 
-void      msh_hg_map_init( msh_hg_map_t* map );
+uint64_t  msh_hg_hash_uint64( uint64_t x );
+void      msh_hg_map_init( msh_hg_map_t* map, uint32_t cap );
 void      msh_hg_map_free( msh_hg_map_t* map );
-uint64_t  msh_hg_hash_uint64(uint64_t x);
 size_t    msh_hg_map_len( msh_hg_map_t* map );
 size_t    msh_hg_map_cap( msh_hg_map_t* map ); 
 void      msh_hg_map_insert( msh_hg_map_t* map, uint64_t key, uint64_t val );
@@ -202,6 +231,11 @@ msh_hash_grid__bin_pt( const msh_hash_grid_t* hg, uint64_t ix, uint64_t iy, uint
   return bin_idx;
 }
 
+int uint64_compare( const void * a, const void * b )
+{
+  return ( *(uint64_t*)a - *(uint64_t*)b );
+}
+
 void
 msh_hash_grid_init( msh_hash_grid_t* hg, const float* pts, const int n_pts, const float radius )
 {
@@ -239,8 +273,8 @@ msh_hash_grid_init( msh_hash_grid_t* hg, const float* pts, const int n_pts, cons
   hg->_slab_size = hg->height * hg->width;
 
   // Create hash table
-  hg->bin_table = (msh_hg_map_t*)MSH_HG_MALLOC( sizeof(msh_hg_map_t) );
-  msh_hg_map_init( hg->bin_table );
+  hg->bin_table = (msh_hg_map_t*)MSH_HG_CALLOC( 1, sizeof(msh_hg_map_t) );
+  msh_hg_map_init( hg->bin_table, 1024 );
   msh_hg_array( msh_hg__bin_data_t ) bin_table_data = 0;
   uint64_t n_bins = 0;
   for( int i = 0 ; i < n_pts; ++i )
@@ -257,7 +291,7 @@ msh_hash_grid_init( msh_hash_grid_t* hg, const float* pts, const int n_pts, cons
     uint64_t bin_idx = msh_hash_grid__bin_pt( hg, ix, iy, iz );
 
     // NOTE(maciej): In msh_map we can't have 0 as key
-    uint64_t* bin_table_idx = msh_hg_map_get( hg->bin_table, bin_idx + 1 );
+    uint64_t* bin_table_idx = msh_hg_map_get( hg->bin_table, bin_idx );
     
     if( bin_table_idx ) 
     { 
@@ -266,7 +300,7 @@ msh_hash_grid_init( msh_hash_grid_t* hg, const float* pts, const int n_pts, cons
     }
     else 
     {
-      msh_hg_map_insert( hg->bin_table, bin_idx + 1, n_bins );
+      msh_hg_map_insert( hg->bin_table, bin_idx, n_bins );
       
       msh_hg__bin_data_t new_bin = {0};
       new_bin.n_pts = 1;
@@ -278,29 +312,40 @@ msh_hash_grid_init( msh_hash_grid_t* hg, const float* pts, const int n_pts, cons
 
   // Prepare storage for linear data
   hg->offsets     = (msh_hg__bin_info_t*)MSH_HG_MALLOC( n_bins * sizeof(msh_hg__bin_info_t) );
-  hg->linear_data = (msh_hg_v3i_t*)MSH_HG_MALLOC( n_pts * sizeof(msh_hg_v3i_t) );
+  hg->data_buffer = (msh_hg_v3i_t*)MSH_HG_MALLOC( n_pts * sizeof( msh_hg_v3i_t ) );
   MSH_HG_MEMSET( hg->offsets, 0, n_bins * sizeof(msh_hg__bin_info_t) );
 
-  // Reorder the data from the hash-table into linear block
-  // NOTE(maciej): There should be a sort here
-  // Possible way to achieve this is to generate a bin index, check if
-  // such index exists ( ) and then put data into linear array.
-  // -> Get all non zero values from hashmap, sort them
-  // and then go over them.
-  int offset = 0;
-  for( size_t i = 0; i < n_bins; ++i )
+
+  // Gather indices of bins that have data in them from hash table
+  msh_array( uint64_t ) filled_bin_indices = {0};
+  for( int i = 0; i < msh_hg_map_cap(hg->bin_table); ++i )
   {
-    msh_hg__bin_data_t* bin = &bin_table_data[i];
+    // Remember that msh_hg_map internally increments the index, so we need to decrement it here.
+    if( hg->bin_table->keys[i] ) 
+    { 
+      msh_array_push( filled_bin_indices, hg->bin_table->keys[i] - 1); 
+    }
+  }
+  qsort( filled_bin_indices, msh_array_len( filled_bin_indices ), sizeof(uint64_t), uint64_compare );
+
+  // Now lay the data into an array based on the sorted keys (following fill order)
+  // TODO(maciej): Morton ordering?
+  int offset = 0;
+  for( size_t i = 0; i < msh_array_len(filled_bin_indices); ++i )
+  {
+    uint64_t* bin_index = msh_hg_map_get( hg->bin_table, filled_bin_indices[i] );
+    assert( bin_index );
+    msh_hg__bin_data_t* bin = &bin_table_data[ *bin_index ];
+    assert( bin );
     int n_bin_pts = bin->n_pts;
-    if(!n_bin_pts) { continue; }
-  
     for( int j = 0; j < n_bin_pts; ++j )
     {
-      hg->linear_data[offset+j] = bin->data[j];
+      hg->data_buffer[ offset + j ] = bin->data[j] ;
     }
-    hg->offsets[i] = (msh_hg__bin_info_t) { .offset = offset, .length = n_bin_pts };
+    hg->offsets[ *bin_index ] = (msh_hg__bin_info_t) { .offset = offset, .length = n_bin_pts };
     offset += n_bin_pts;
   }
+
 
   // Clean-up temporary data
   for( size_t i = 0; i < n_bins; ++i )
@@ -322,7 +367,7 @@ msh_hash_grid_term( msh_hash_grid_t* hg )
   hg->_slab_size     = 0.0f;
   hg->_inv_cell_size = 0.0f;
 
-  MSH_HG_FREE( hg->linear_data ); hg->linear_data = NULL;
+  MSH_HG_FREE( hg->data_buffer ); hg->data_buffer = NULL;
   MSH_HG_FREE( hg->offsets );     hg->offsets = NULL;
   MSH_HG_FREE( hg->bin_table );   hg->bin_table = NULL;
 }
@@ -378,7 +423,8 @@ msh_hash_grid__quick_sort( float *dists, int32_t* indices, int n )
       c = da < db;
       c12 = c;
       // if 0 >= mid >= end, or 0 < mid < end, then use mid
-      if (c01 != c12) {
+      if( c01 != c12 ) 
+      {
          // otherwise, we'll need to swap something else to middle
          int32_t z;
          da = dists[0];
@@ -405,22 +451,24 @@ msh_hash_grid__quick_sort( float *dists, int32_t* indices, int n )
       // partition loop 
       i=1;
       j=n-1;
-      for(;;) {
+      for(;;)
+      {
          // handling of equality is crucial here for sentinels & efficiency with duplicates
          db = dists[0];
-         for (;;++i) {
+         for( ;;++i ) 
+         {
             da = dists[i];
             c = da < db;
             if (!c) break;
          }
          da = dists[0];
-         for (;;--j) {
+         for( ;;--j ) {
             db = dists[j];
             c = da < db;
             if (!c) break;
          }
          // make sure we haven't crossed
-         if (i >= j) break;
+         if( i >= j ) { break; }
          dt = dists[i];
          dists[i] = dists[j];
          dists[j] = dt;
@@ -458,8 +506,8 @@ typedef struct msh_hash_grid_dist_storage
   int32_t cap;
   int32_t len;
   int32_t max_dist_idx;
-  float   *dists;
-  int32_t *indices;
+  float* dists;
+  int32_t* indices;
 } msh_hash_grid_dist_storage_t;
 
 MSH_HG_INLINE void 
@@ -500,7 +548,7 @@ msh_hash_grid_dist_storage_push( msh_hash_grid_dist_storage_t* q,
   {
     if( q->dists[q->max_dist_idx] > dist )
     {
-      q->dists[q->max_dist_idx] = dist;
+      q->dists[q->max_dist_idx]   = dist;
       q->indices[q->max_dist_idx] = idx;
 
       // Make sure we are really looking at the highest element after replacement
@@ -518,29 +566,191 @@ msh_hash_grid__find_neighbors_in_bin( const msh_hash_grid_t* hg, const uint64_t 
                                       msh_hash_grid_dist_storage_t* s )
 {
   // issue this whole things stops working if we use doubles.
-  uint64_t* bin_table_idx = msh_hg_map_get( hg->bin_table, (bin_idx + 1));
+  uint64_t* bin_table_idx = msh_hg_map_get( hg->bin_table, bin_idx );
   if( !bin_table_idx ) { return; }
 
   msh_hg__bin_info_t bi = hg->offsets[ *bin_table_idx ];
   int n_pts = bi.length;
-  const msh_hg_v3i_t* data = &hg->linear_data[bi.offset];
+  const msh_hg_v3i_t* data = &hg->data_buffer[bi.offset];
+
+  float px = pt->x;
+  float py = pt->y;
+  float pz = pt->z;
 
   for( int32_t i = 0; i < n_pts; ++i )
   {
     // TODO(maciej): Maybe SSE?
-    msh_hg_v3_t v = { data[i].x - pt->x,
-                      data[i].y - pt->y,
-                      data[i].z - pt->z };
-    float dist_sq = v.x * v.x + v.y * v.y + v.z * v.z;
+    float   dix = data[i].x;
+    float   diy = data[i].y;
+    float   diz = data[i].z;
+    int32_t dii = data[i].i;
+
+    float vx = dix - px;
+    float vy = diy - py;
+    float vz = diz - pz;
+    float dist_sq = vx * vx + vy * vy + vz * vz;
+
     if( dist_sq < radius_sq )
     {
-      msh_hash_grid_dist_storage_push( s, dist_sq, data[i].i );
+      msh_hash_grid_dist_storage_push( s, dist_sq, dii );
     }
   }
 }
 
-// TODO(maciej): Also there is small issue with the bin distances. I think I'll just fix it with an
-// assert for now.
+int msh_hash_grid_radius_search_mt( const msh_hash_grid_t* hg, 
+                                    msh_hash_grid_search_desc_t* hg_sd )
+{
+  assert( hg_sd->query_pts );
+  assert( hg_sd->distances_sq );
+  assert( hg_sd->indices );
+  assert( hg_sd->radius > 0.0 );
+  assert( hg_sd->n_query_pts > 0 );
+  assert( hg_sd->max_n_neigh > 0 );
+
+  // Unpack the some useful data from structs
+  enum { MAX_BIN_COUNT = 128 };
+  int32_t n_query_pts = hg_sd->n_query_pts;
+  size_t row_size     = hg_sd->max_n_neigh;
+  float radius        = hg_sd->radius;
+  uint64_t slab_size  = hg->_slab_size;
+  float cs            = hg->cell_size;
+  float ics           = hg->_inv_cell_size;
+  int64_t w           = hg->width;
+  int64_t h           = hg->height;
+  int64_t d           = hg->depth;
+  float radius_sq     = radius * radius;
+  
+
+  int n_threads = 1;
+  int n_pts_per_thread = n_query_pts;
+#if defined(_OPENMP)
+  #pragma omp parallel
+  {
+    n_threads = omp_get_num_threads();
+    n_pts_per_thread = ceilf((float)n_query_pts / n_threads);
+    int thread_idx = omp_get_thread_num();
+#else
+  for( int thread_idx = 0; thread_idx < n_threads; ++thread_idx )
+  {
+#endif
+    int low_lim   = thread_idx * n_pts_per_thread;
+    int high_lim  = MSH_HG_MIN((thread_idx + 1) * n_pts_per_thread, n_query_pts);
+    int cur_n_pts = high_lim - low_lim;
+
+    msh_hg_v3_t *query_pt = ((msh_hg_v3_t*)hg_sd->query_pts) + low_lim;
+    size_t* n_neighbors   = hg_sd->n_neighbors + low_lim;
+    float* dists_sq       = hg_sd->distances_sq + (low_lim * row_size);
+    int32_t* indices      = hg_sd->indices + (low_lim * row_size);
+
+    int32_t bin_indices[ MAX_BIN_COUNT ];
+    float bin_dists_sq[ MAX_BIN_COUNT ];
+    msh_hash_grid_dist_storage_t storage;
+
+    for( int32_t pt_idx = 0; pt_idx < cur_n_pts; ++pt_idx )
+    {
+      // Prep the storage for the next point
+      msh_hash_grid_dist_storage_init( &storage, row_size, dists_sq, indices );
+
+      // Normalize query pt with respect to grid
+      msh_hg_v3_t q = (msh_hg_v3_t) { query_pt->x - hg->min_pt.x,
+                                      query_pt->y - hg->min_pt.y,
+                                      query_pt->z - hg->min_pt.z };
+
+      // Get base bin idx for query pt
+      int64_t ix = (int64_t)( q.x * ics );
+      int64_t iy = (int64_t)( q.y * ics );
+      int64_t iz = (int64_t)( q.z * ics );
+
+      // Decide where to look
+      int64_t px  = (int64_t)( (q.x + radius) * ics );
+      int64_t nx  = (int64_t)( (q.x - radius) * ics );
+      int64_t opx = px - ix;
+      int64_t onx = nx - ix;
+
+      int64_t py  = (int64_t)( (q.y + radius) * ics );
+      int64_t ny  = (int64_t)( (q.y - radius) * ics );
+      int64_t opy = py - iy;
+      int64_t ony = ny - iy;
+
+      int64_t pz  = (int64_t)( (q.z + radius) * ics );
+      int64_t nz  = (int64_t)( (q.z - radius) * ics );
+      int64_t opz = pz - iz;
+      int64_t onz = nz - iz;
+
+      int n_visited_bins = 0;
+      float dx, dy, dz;
+      int64_t cx, cy, cz;
+      for( int64_t oz = onz; oz <= opz; ++oz )
+      {
+        cz = (int64_t)iz + oz;
+        if( cz < 0 || cz >= d ) { continue; }
+        uint64_t idx_z = cz * slab_size;
+
+        if( oz < 0 )      { dz = q.z - (cz + 1) * cs; }
+        else if( oz > 0 ) { dz = cz * cs - q.z; }
+        else              { dz = 0.0f; }
+
+        for( int64_t oy = ony; oy <= opy; ++oy )
+        {
+          cy = iy + oy;
+          if( cy < 0 || cy >= h ) { continue; }
+          uint64_t idx_y = cy * w;
+
+          if( oy < 0 )      { dy = q.y - (cy + 1) * cs; }
+          else if( oy > 0 ) { dy = cy * cs - q.y; }
+          else              { dy = 0.0f; }
+
+          for( int64_t ox = onx; ox <= opx; ++ox )
+          {
+            cx = ix + ox;
+            if( cx < 0 || cx >= w ) { continue; }
+
+            assert( n_visited_bins < MAX_BIN_COUNT );
+
+            bin_indices[n_visited_bins] = idx_z + idx_y + cx;
+
+            if( ox < 0 )      { dx = q.x - (cx + 1) * cs; }
+            else if( ox > 0 ) { dx = cx * cs - q.x; }
+            else              { dx = 0.0f; }
+            
+            bin_dists_sq[n_visited_bins] = dz * dz + dy * dy + dx * dx;
+            n_visited_bins++;
+          }
+        }
+      }
+
+      msh_hash_grid__sort( bin_dists_sq, bin_indices, n_visited_bins );
+
+      for( int i = 0; i < n_visited_bins; ++i )
+      {
+        msh_hash_grid__find_neighbors_in_bin( hg, bin_indices[i], radius_sq, query_pt, &storage );
+        if( storage.len >= row_size &&
+            dists_sq[ storage.max_dist_idx ] <= bin_dists_sq[i] )
+        {
+          break;
+        }
+      }
+
+      if( hg_sd->sort ) { msh_hash_grid__sort( dists_sq, indices, storage.len ); }
+
+      if( n_neighbors ) { (*n_neighbors++) = storage.len; }
+
+      // Advance pointers 
+      dists_sq += row_size;
+      indices  += row_size;
+      query_pt += 1;
+    }
+  }
+
+  int total_num_neighbors = 0;
+  for( int i = 0 ; i < n_query_pts; ++i )
+  {
+    total_num_neighbors += hg_sd->n_neighbors[i];
+  }
+  
+  return total_num_neighbors;
+}
+
 
 // DESMOS for the derivation of piecewise to continuous approximation : https://www.desmos.com/calculator/adbcuy9ys6
 // Approximation snippet (for z dimension): 
@@ -584,8 +794,9 @@ msh_hash_grid_radius_search( const msh_hash_grid_t* hg, const float* query_pt,
   int64_t onz = nz - iz;
 
   float radius_sq = radius * radius;
-  int32_t bin_indices[128];
-  float  bin_dists_sq[128];
+  enum { MAX_BIN_COUNT = 128 };
+  int32_t bin_indices[MAX_BIN_COUNT];
+  float  bin_dists_sq[MAX_BIN_COUNT];
   int n_visited_bins = 0;
 
   float dx, dy, dz;
@@ -594,43 +805,44 @@ msh_hash_grid_radius_search( const msh_hash_grid_t* hg, const float* query_pt,
   uint64_t slab_size = hg->_slab_size;
   float cs = hg->cell_size;
 
-    for( int64_t oz = onz; oz <= opz; ++oz )
+  for( int64_t oz = onz; oz <= opz; ++oz )
+  {
+    cz = (int64_t)iz + oz;
+    if( cz < 0 || cz >= d ) { continue; }
+    uint64_t idx_z = cz * slab_size;
+
+    if( oz < 0 )      { dz = pt_prime.z - (cz + 1) * cs; }
+    else if( oz > 0 ) { dz = cz * cs - pt_prime.z; }
+    else              { dz = 0.0f; }
+
+    for( int64_t oy = ony; oy <= opy; ++oy )
     {
-      cz = (int64_t)iz + oz;
-      if( cz < 0 || cz >= d ) { continue; }
-      uint64_t idx_z = cz * slab_size;
+      cy = iy + oy;
+      if( cy < 0 || cy >= h ) { continue; }
+      uint64_t idx_y = cy * w;
 
-      if( oz < 0 )      { dz = pt_prime.z - (cz + 1) * cs; }
-      else if( oz > 0 ) { dz = cz * cs - pt_prime.z; }
-      else              { dz = 0.0f; }
+      if( oy < 0 )      { dy = pt_prime.y - (cy + 1) * cs; }
+      else if( oy > 0 ) { dy = cy * cs - pt_prime.y; }
+      else              { dy = 0.0f; }
 
-      for( int64_t oy = ony; oy <= opy; ++oy )
+      for( int64_t ox = onx; ox <= opx; ++ox )
       {
-        cy = iy + oy;
-        if( cy < 0 || cy >= h ) { continue; }
-        uint64_t idx_y = cy * w;
+        cx = ix + ox;
+        if( cx < 0 || cx >= w ) { continue; }
 
-        if( oy < 0 )      { dy = pt_prime.y - (cy + 1) * cs; }
-        else if( oy > 0 ) { dy = cy * cs - pt_prime.y; }
-        else              { dy = 0.0f; }
+        assert( n_visited_bins < MAX_BIN_COUNT );
 
-        for( int64_t ox = onx; ox <= opx; ++ox )
-        {
-          cx = ix + ox;
-          if( cx < 0 || cx >= w ) { continue; }
+        bin_indices[n_visited_bins] = idx_z + idx_y + cx;
 
-          bin_indices[n_visited_bins] = idx_z + idx_y + cx;
-
-          if( ox < 0 )      { dx = pt_prime.x - (cx + 1) * cs; }
-          else if( ox > 0 ) { dx = cx * cs - pt_prime.x; }
-          else              { dx = 0.0f; }
-          
-          bin_dists_sq[n_visited_bins] = dz * dz + dy * dy + dx * dx;
-          n_visited_bins++;
-        }
+        if( ox < 0 )      { dx = pt_prime.x - (cx + 1) * cs; }
+        else if( ox > 0 ) { dx = cx * cs - pt_prime.x; }
+        else              { dx = 0.0f; }
+        
+        bin_dists_sq[n_visited_bins] = dz * dz + dy * dy + dx * dx;
+        n_visited_bins++;
       }
     }
-
+  }
 
   // Now we are checking bins in order of closeness to the current point + 
   // we have a minimum closest distance to a point in a bin, so we can early out and not
@@ -652,17 +864,18 @@ msh_hash_grid_radius_search( const msh_hash_grid_t* hg, const float* query_pt,
   return storage.len;
 }
 
+
 MSH_HG_INLINE void
 msh_hash_grid__add_bin_contents( const msh_hash_grid_t* hg, const uint64_t bin_idx,   
                                  const msh_hg_v3_t* pt, msh_hash_grid_dist_storage_t* s )
 {
-  uint64_t* bin_table_idx = msh_hg_map_get( hg->bin_table, (bin_idx+1));
+  uint64_t* bin_table_idx = msh_hg_map_get( hg->bin_table, bin_idx );
 
   if( !bin_table_idx ) { return; }
   
   msh_hg__bin_info_t bi = hg->offsets[*bin_table_idx];
   int n_pts = bi.length;
-  const msh_hg_v3i_t* data = &hg->linear_data[bi.offset];
+  const msh_hg_v3i_t* data = &hg->data_buffer[bi.offset];
 
   for( int32_t i = 0; i < n_pts; ++i )
   {
@@ -753,16 +966,34 @@ msh_hg_hash_uint64(uint64_t x)
   return x;
 }
 
-void 
-msh_hg_map_init( msh_hg_map_t* map )
+
+size_t 
+msh_hg_map__pow2ceil( uint32_t v )
 {
-  map->keys = NULL;
-  map->vals = NULL;
-  map->_len = 0;
-  map->_cap = 0;
+  --v;
+  v |= v >> 1;
+  v |= v >> 2;
+  v |= v >> 4;
+  v |= v >> 8;
+  v |= v >> 16;
+  ++v;
+  v += ( v == 0 );
+  return v;
 }
 
-void msh_hg_map__grow( msh_hg_map_t *map, size_t new_cap) {
+void 
+msh_hg_map_init( msh_hg_map_t* map, uint32_t cap )
+{
+  assert( !map->keys && !map->vals );
+  cap = msh_hg_map__pow2ceil( cap );
+  map->keys = (uint64_t*)MSH_HG_CALLOC( cap, sizeof(uint64_t) );
+  map->vals = (uint64_t*)MSH_HG_MALLOC( cap * sizeof(uint64_t) );
+  map->_len = 0;
+  map->_cap = cap;
+}
+
+void 
+msh_hg_map__grow( msh_hg_map_t *map, size_t new_cap) {
   new_cap = msh_max( new_cap, 16 );
   msh_hg_map_t new_map;
   new_map.keys = (uint64_t*)MSH_HG_CALLOC( new_cap, sizeof(uint64_t) );
@@ -774,7 +1005,7 @@ void msh_hg_map__grow( msh_hg_map_t *map, size_t new_cap) {
   {
     if( map->keys[i] ) 
     {
-      msh_hg_map_insert( &new_map, map->keys[i], map->vals[i] );
+      msh_hg_map_insert( &new_map, map->keys[i] - 1, map->vals[i] );
     }
   }
   MSH_HG_FREE( (void *)map->keys );
@@ -782,12 +1013,14 @@ void msh_hg_map__grow( msh_hg_map_t *map, size_t new_cap) {
   *map = new_map;
 }
 
-size_t msh_hg_map_len( msh_hg_map_t* map )
+size_t 
+msh_hg_map_len( msh_hg_map_t* map )
 {
   return map->_len;
 }
 
-size_t msh_hg_map_cap( msh_hg_map_t* map )
+size_t 
+msh_hg_map_cap( msh_hg_map_t* map )
 {
   return map->_cap;
 }
@@ -795,13 +1028,13 @@ size_t msh_hg_map_cap( msh_hg_map_t* map )
 void 
 msh_hg_map_insert( msh_hg_map_t* map, uint64_t key, uint64_t val )
 {
-  assert( key );
-  if( 2 * map->_len >= map->_cap) { msh_hg_map__grow(map, 2*map->_cap); }
+  key += 1;
+  if( 2 * map->_len >= map->_cap) { msh_hg_map__grow( map, 2 * map->_cap ); }
   assert( 2 * map->_len < map->_cap );
-  size_t i = (size_t)msh_hg_hash_uint64( key );
+  size_t i = (size_t)key;
   for (;;) 
   {
-    i &= map->_cap - 1; // modulo size
+    i &= map->_cap - 1;
     if( !map->keys[i] )
     {
       map->_len++;
@@ -818,10 +1051,12 @@ msh_hg_map_insert( msh_hg_map_t* map, uint64_t key, uint64_t val )
   }
 }
 
-uint64_t* msh_hg_map_get( const msh_hg_map_t* map, uint64_t key )
+uint64_t* 
+msh_hg_map_get( const msh_hg_map_t* map, uint64_t key )
 {
   if (map->_len == 0) { return NULL; }
-  size_t i = (size_t)msh_hg_hash_uint64(key);
+  key += 1;
+  size_t i = (size_t)key;
   assert(map->_len < map->_cap);
   for (;;) {
     i &= map->_cap - 1;
@@ -837,7 +1072,8 @@ uint64_t* msh_hg_map_get( const msh_hg_map_t* map, uint64_t key )
   }
 }
 
-void msh_hg_map_free( msh_hg_map_t* map )
+void 
+msh_hg_map_free( msh_hg_map_t* map )
 {
   MSH_HG_FREE( map->keys );
   MSH_HG_FREE( map->vals );
@@ -861,7 +1097,7 @@ void msh_hg_map_free( msh_hg_map_t* map )
           //   printf("%d %d\n", bin_idx, (int)(*bin_table_idx));
           //   msh_hg__bin_info_t bi = hg->offsets[ *bin_table_idx ];
           //   int n_pts = bi.length;
-          //   const msh_hg_v3i_t* data = &hg->linear_data[bi.offset];
+          //   const msh_hg_v3i_t* data = &hg->data_buffer[bi.offset];
           //   printf(" || %d %d\n", bi.length, bi.offset );
           //   for( int i = 0; i < n_pts; ++i )
           //   {
@@ -877,7 +1113,7 @@ void msh_hg_map_free( msh_hg_map_t* map )
           //   printf("%d %d\n", bin_idx, (int)(*bin_table_idx));
           //   bi = hg->offsets[ *bin_table_idx ];
           //   n_pts = bi.length;
-          //   data = &hg->linear_data[bi.offset];
+          //   data = &hg->data_buffer[bi.offset];
           //   printf(" || %d %d\n", bi.length, bi.offset );
           //   for( int i = 0; i < n_pts; ++i )
           //   {
@@ -893,7 +1129,7 @@ void msh_hg_map_free( msh_hg_map_t* map )
           //   printf("%d %d\n", bin_idx, (int)(*bin_table_idx));
           //   bi = hg->offsets[ *bin_table_idx ];
           //   n_pts = bi.length;
-          //   data = &hg->linear_data[bi.offset];
+          //   data = &hg->data_buffer[bi.offset];
           //   printf(" || %d %d\n", bi.length, bi.offset );
           //   for( int i = 0; i < n_pts; ++i )
           //   {
