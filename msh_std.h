@@ -510,12 +510,12 @@ MSHDEF char*
 msh_array__printf(char *buf, const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  int cap = msh_array_cap(buf) - msh_array_len(buf) ;
-  int len = vsnprintf( msh_array_end(buf), cap, fmt, args );
+  size_t cap = msh_array_cap(buf) - msh_array_len(buf) ;
+  size_t len = vsnprintf( msh_array_end(buf), cap, fmt, args );
   if( len < 0 ) { len = cap; }
   size_t n = 1 + len;
   va_end(args);
-  if (n > cap) {
+  if( n > cap ) {
     msh_array_fit( buf, n + msh_array_len(buf) );
     va_start(args, fmt);
     size_t new_cap = msh_array_cap(buf) - msh_array_len(buf);
