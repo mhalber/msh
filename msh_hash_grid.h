@@ -12,13 +12,12 @@
  *     [x] Multithread knn
  * [x] Multithreading
  *     [x] API for supplying more then a single point
- *     [x] In the case of more than 1 point, start with simple openmp example
- *     [ ] See if it is worth to inline something like c11 threads implementation
- *         NOTE(maciej): Public domain implementations include jtsiomb for posix threads and stb for windows.
- *         I could build my threading support based on those implementations.
+ *     [x] OpenMP optional support ( if -fopenmp was supplied, sequential otherwise)
+ *     [ ] Replace openMP with c11 threads?
  * [x] Params struct for searching
  *    [ ] Compatibility function?
- * [ ] Clean API, prepare examples.
+ * [ ] Clean the API, prepare examples.
+ * [ ] Add 2d support on API level
  * [ ] Docs
  *     NOTE(maciej): Remember to tell the user about sensitivity to max_n_neigh, as it is essentially
  *                   spreading out the memory. Should some functions to query point density be added?
