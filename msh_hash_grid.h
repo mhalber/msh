@@ -924,7 +924,6 @@ msh_hash_grid_knn_search( const msh_hash_grid_t* hg, const float* query_pt, cons
 
   enum { MAX_BIN_COUNT = 1024 };
   int32_t bin_indices[ MAX_BIN_COUNT ];
-  float bin_dists_sq[ MAX_BIN_COUNT ];
   
   while( true )
   {
@@ -1000,11 +999,10 @@ int msh_hash_grid_knn_search_mt( const msh_hash_grid_t* hg,
   // Unpack the some useful data from structs
   enum { MAX_BIN_COUNT = 128 };
   int32_t n_query_pts = hg_sd->n_query_pts;
-  int32_t k           = hg_sd->k;
+  uint32_t k          = hg_sd->k;
   uint64_t slab_size  = hg->_slab_size;
   int8_t sort         = hg_sd->sort;
   float cs            = hg->cell_size;
-  float ics           = hg->_inv_cell_size;
   int64_t w           = hg->width;
   int64_t h           = hg->height;
   int64_t d           = hg->depth;
@@ -1032,7 +1030,6 @@ int msh_hash_grid_knn_search_mt( const msh_hash_grid_t* hg,
     int32_t* indices      = hg_sd->indices + (low_lim * k);
 
     int32_t bin_indices[ MAX_BIN_COUNT ];
-    float bin_dists_sq[ MAX_BIN_COUNT ];
     msh_hash_grid_dist_storage_t storage;
 
     for( int32_t pt_idx = 0; pt_idx < cur_n_pts; ++pt_idx )
@@ -1058,7 +1055,7 @@ int msh_hash_grid_knn_search_mt( const msh_hash_grid_t* hg,
       while( true )
       {
         int32_t inc_x = 1;
-        int n_visited_bins = 0;
+        uint32_t n_visited_bins = 0;
         for( int64_t oz = -layer; oz <= layer; oz++ )
         {
           cz = iz + oz;
