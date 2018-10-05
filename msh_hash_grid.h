@@ -970,7 +970,6 @@ msh_hash_grid_knn_search( const msh_hash_grid_t* hg, const float* query_pt, cons
           assert( n_visited_bins < MAX_BIN_COUNT );
   
           bin_indices[ n_visited_bins ] = idx_z + idx_y + cx;
-          bin_dists_sq[n_visited_bins] = dist_sq;
 
           n_visited_bins++;
         }
@@ -1097,14 +1096,13 @@ int msh_hash_grid_knn_search_mt( const msh_hash_grid_t* hg,
               assert( n_visited_bins < MAX_BIN_COUNT );
       
               bin_indices[n_visited_bins]  = idx_z + idx_y + cx;
-              bin_dists_sq[n_visited_bins] = dist_sq;
 
               n_visited_bins++;
             }
           }
         }
 
-        for( int i = 0; i < n_visited_bins; ++i )
+        for( uint32_t i = 0; i < n_visited_bins; ++i )
         {
           msh_hash_grid__add_bin_contents( hg, bin_indices[i], pt, &storage );
         }
