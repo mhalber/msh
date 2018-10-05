@@ -118,8 +118,14 @@ extern "C" {
 #define msh_internal        static // Internal linkage
 
 #if defined(_WIN32) || defined(_WIN64)
-  #ifndef MSH_SYSTEM_WINDOWS
-  #define MSH_SYSTEM_WINDOWS 1
+  #if defined(__MINGW32__)
+    #ifndef MSH_SYSTEM_MSYS
+    #define MSH_SYSTEM_MSYS 1
+    #endif
+  #else
+    #ifndef MSH_SYSTEM_WINDOWS
+    #define MSH_SYSTEM_WINDOWS 1
+    #endif
   #endif
 #elif defined(__APPLE__) && defined(__MACH__)
   #ifndef MSH_SYSTEM_OSX
@@ -319,7 +325,7 @@ void      msh_map_get_iterable_keys_and_vals( const msh_map_t* map, uint64_t** k
 // String and path manipulation
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
+#if MSH_SYSTEM_WINDOWS
   #define MSH_FILE_SEPARATOR '\\'
 #else
   #define MSH_FILE_SEPARATOR '/'
