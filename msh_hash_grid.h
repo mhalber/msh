@@ -81,22 +81,27 @@ typedef struct msh_hash_grid_search_desc
     float radius;
     size_t k;
   };
+
   size_t max_n_neigh;
   int sort;
 } msh_hash_grid_search_desc_t;
 
-void msh_hash_grid_init( msh_hash_grid_t* hg, const float* pts, const int n_pts, const float radius );
-void msh_hash_grid_term( msh_hash_grid_t* hg );
-int msh_hash_grid_radius_search_mt( const msh_hash_grid_t* hg,
-                                    msh_hash_grid_search_desc_t* search_desc );
-int msh_hash_grid_knn_search_mt( const msh_hash_grid_t* hg, 
-                                 msh_hash_grid_search_desc_t* search_desc );
+void   msh_hash_grid_init_2d( msh_hash_grid_t* hg, 
+                              const float* pts, const int32_t n_pts, const float radius );
+void   msh_hash_grid_init_3d( msh_hash_grid_t* hg, 
+                              const float* pts, const int32_t n_pts, const float radius );
+void   msh_hash_grid_term( msh_hash_grid_t* hg );
+size_t msh_hash_grid_radius_search( const msh_hash_grid_t* hg,
+                                     msh_hash_grid_search_desc_t* search_desc );
+size_t msh_hash_grid_knn_search( const msh_hash_grid_t* hg, 
+                                  msh_hash_grid_search_desc_t* search_desc );
 
-// We we'd like to deprecate these functions in the future
-int msh_hash_grid_radius_search( const msh_hash_grid_t* hg, const float* query_pt, const float radius, 
-                                 float* dists_sq, int32_t* indices, size_t max_n_results, int sort );
-int msh_hash_grid_knn_search( const msh_hash_grid_t* hg, const float* query_pt, const size_t k,
-                              float* dists_sq, int* indices, int sort );
+// Will be removed
+int msh_hash_grid_radius_search_deprecated( const msh_hash_grid_t* hg, const float* query_pt, 
+                                            const float radius, float* dists_sq, int32_t* indices, 
+                                            size_t max_n_results, int sort );
+int msh_hash_grid_knn_search_deprecated( const msh_hash_grid_t* hg, const float* query_pt, 
+                                         const size_t k, float* dists_sq, int* indices, int sort );
 
 
 
@@ -132,6 +137,7 @@ typedef struct msh_hash_grid
 
   int32_t   _slab_size;
   float _inv_cell_size;
+  uint8_t _pts_dim;
 } msh_hash_grid_t;
 
 
@@ -140,6 +146,10 @@ typedef struct msh_hash_grid
 #endif
 
 #endif /* MSH_HASH_GRID_H */
+
+
+
+
 
 #ifdef MSH_HASH_GRID_IMPLEMENTATION
 
@@ -243,17 +253,29 @@ int uint64_compare( const void * a, const void * b )
   return ( *(uint64_t*)a - *(uint64_t*)b );
 }
 
+
+
 void
-msh_hash_grid_init( msh_hash_grid_t* hg, const float* pts, const int n_pts, const float radius )
+msh_hash_grid__init( msh_hash_grid_t* hg, 
+                     const float* pts, const int32_t n_pts, const int32_t dim, 
+                     const float radius )
 {
+  assert(dim == 2 || dim == 3);
+
+  hg->_pts_dim = dim;
+
   // Compute bbox
   hg->min_pt = (msh_hg_v3_t){ .x =  1e9, .y =  1e9, .z =  1e9 };
   hg->max_pt = (msh_hg_v3_t){ .x = -1e9, .y = -1e9, .z = -1e9 };
 
   for( int i = 0; i < n_pts; ++i )
   {
-    const float* pt_ptr = &pts[3*i];
-    msh_hg_v3_t pt = { .x = pt_ptr[0], .y = pt_ptr[1], .z = pt_ptr[2] };
+    const float* pt_ptr = &pts[ dim * i ];
+
+    msh_hg_v3_t pt;
+    if( dim == 2 ) { pt = (msh_hg_v3_t){ .x = pt_ptr[0], .y = pt_ptr[1], .z = 0 }; }
+    else           { pt = (msh_hg_v3_t){ .x = pt_ptr[0], .y = pt_ptr[1], .z = pt_ptr[2] }; };
+  
     hg->min_pt.x = (hg->min_pt.x > pt.x) ? pt.x : hg->min_pt.x;
     hg->min_pt.y = (hg->min_pt.y > pt.y) ? pt.y : hg->min_pt.y;
     hg->min_pt.z = (hg->min_pt.z > pt.z) ? pt.z : hg->min_pt.z;
@@ -261,17 +283,18 @@ msh_hash_grid_init( msh_hash_grid_t* hg, const float* pts, const int n_pts, cons
     hg->max_pt.x = (hg->max_pt.x < pt.x) ? pt.x : hg->max_pt.x;
     hg->max_pt.y = (hg->max_pt.y < pt.y) ? pt.y : hg->max_pt.y;
     hg->max_pt.z = (hg->max_pt.z < pt.z) ? pt.z : hg->max_pt.z;
+  
   }
 
   // Calculate dimensions
-  float dim_x = (hg->max_pt.x - hg->min_pt.x);
-  float dim_y = (hg->max_pt.y - hg->min_pt.y);
-  float dim_z = (hg->max_pt.z - hg->min_pt.z);
-  float dim = MSH_HG_MAX3( dim_x, dim_y, dim_z );
+  float dim_x   = (hg->max_pt.x - hg->min_pt.x);
+  float dim_y   = (hg->max_pt.y - hg->min_pt.y);
+  float dim_z   = (hg->max_pt.z - hg->min_pt.z);
+  float max_dim = MSH_HG_MAX3( dim_x, dim_y, dim_z );
   
   // Calculate cell size
   if( radius > 0.0 ) { hg->cell_size = 2.0f * radius; }
-  else               { hg->cell_size = dim / (32 * sqrtf(3.0f)); }
+  else               { hg->cell_size = max_dim / (32 * sqrtf(3.0f)); }
 
   hg->width     = (int)(dim_x / hg->cell_size + 1.0);
   hg->height    = (int)(dim_y / hg->cell_size + 1.0) ;
@@ -286,14 +309,20 @@ msh_hash_grid_init( msh_hash_grid_t* hg, const float* pts, const int n_pts, cons
   uint64_t n_bins = 0;
   for( int i = 0 ; i < n_pts; ++i )
   {
-    msh_hg_v3i_t pt_data = (msh_hg_v3i_t){ .x = pts[3*i+0], 
-                                           .y = pts[3*i+1], 
-                                           .z = pts[3*i+2], 
-                                           .i = i };
- 
-    uint64_t ix = (uint64_t)((pt_data.x - hg->min_pt.x ) * hg->_inv_cell_size);
-    uint64_t iy = (uint64_t)((pt_data.y - hg->min_pt.y ) * hg->_inv_cell_size);
-    uint64_t iz = (uint64_t)((pt_data.z - hg->min_pt.z ) * hg->_inv_cell_size);
+    const float* pt_ptr = &pts[ dim * i ];
+    msh_hg_v3i_t pt_data;
+    if( dim == 2 )
+    {
+      pt_data = (msh_hg_v3i_t){ .x = pt_ptr[0], .y = pt_ptr[1], .z = 0, .i = i };
+    }
+    else
+    {
+      pt_data = (msh_hg_v3i_t){ .x = pt_ptr[0], .y = pt_ptr[1], .z = pt_ptr[2], .i = i };
+    }
+
+    uint64_t ix = (uint64_t)( ( pt_data.x - hg->min_pt.x ) * hg->_inv_cell_size );
+    uint64_t iy = (uint64_t)( ( pt_data.y - hg->min_pt.y ) * hg->_inv_cell_size );
+    uint64_t iz = (uint64_t)( ( pt_data.z - hg->min_pt.z ) * hg->_inv_cell_size );
 
     uint64_t bin_idx = msh_hash_grid__bin_pt( hg, ix, iy, iz );
 
@@ -361,6 +390,21 @@ msh_hash_grid_init( msh_hash_grid_t* hg, const float* pts, const int n_pts, cons
   }
   msh_hg_array_free( bin_table_data );
 }
+
+void
+msh_hash_grid_init_2d( msh_hash_grid_t* hg, 
+                       const float* pts, const int32_t n_pts, const float radius)
+{
+  msh_hash_grid__init( hg, pts, n_pts, 2, radius );
+}
+
+void
+msh_hash_grid_init_3d( msh_hash_grid_t* hg, 
+                       const float* pts, const int32_t n_pts, const float radius)
+{
+  msh_hash_grid__init( hg, pts, n_pts, 3, radius );
+}
+
 
 void
 msh_hash_grid_term( msh_hash_grid_t* hg )
@@ -569,7 +613,7 @@ msh_hash_grid_dist_storage_push( msh_hash_grid_dist_storage_t* q,
 
 MSH_HG_INLINE void
 msh_hash_grid__find_neighbors_in_bin( const msh_hash_grid_t* hg, const uint64_t bin_idx, 
-                                      const float radius_sq, const msh_hg_v3_t* pt, 
+                                      const float radius_sq, const float* pt, 
                                       msh_hash_grid_dist_storage_t* s )
 {
   // issue this whole things stops working if we use doubles.
@@ -580,9 +624,9 @@ msh_hash_grid__find_neighbors_in_bin( const msh_hash_grid_t* hg, const uint64_t 
   int n_pts = bi.length;
   const msh_hg_v3i_t* data = &hg->data_buffer[bi.offset];
 
-  float px = pt->x;
-  float py = pt->y;
-  float pz = pt->z;
+  float px = pt[0];
+  float py = pt[1];
+  float pz = (hg->_pts_dim == 2 ) ? 0.0 : pt[2];
 
   for( int32_t i = 0; i < n_pts; ++i )
   {
@@ -604,7 +648,7 @@ msh_hash_grid__find_neighbors_in_bin( const msh_hash_grid_t* hg, const uint64_t 
   }
 }
 
-int msh_hash_grid_radius_search_mt( const msh_hash_grid_t* hg, 
+size_t msh_hash_grid_radius_search( const msh_hash_grid_t* hg, 
                                     msh_hash_grid_search_desc_t* hg_sd )
 {
   assert( hg_sd->query_pts );
@@ -644,7 +688,9 @@ int msh_hash_grid_radius_search_mt( const msh_hash_grid_t* hg,
     int high_lim  = MSH_HG_MIN((thread_idx + 1) * n_pts_per_thread, n_query_pts);
     int cur_n_pts = high_lim - low_lim;
 
-    msh_hg_v3_t *query_pt = ((msh_hg_v3_t*)hg_sd->query_pts) + low_lim;
+    //THIS NEEDS TO BE CHANGED! 
+    // msh_hg_v3_t *query_pt = ((msh_hg_v3_t*)hg_sd->query_pts) + low_lim;
+    float* query_pt       = hg_sd->query_pts + low_lim * hg->_pts_dim;
     size_t* n_neighbors   = hg_sd->n_neighbors + low_lim;
     float* dists_sq       = hg_sd->distances_sq + (low_lim * row_size);
     int32_t* indices      = hg_sd->indices + (low_lim * row_size);
@@ -659,9 +705,19 @@ int msh_hash_grid_radius_search_mt( const msh_hash_grid_t* hg,
       msh_hash_grid_dist_storage_init( &storage, row_size, dists_sq, indices );
 
       // Normalize query pt with respect to grid
-      msh_hg_v3_t q = (msh_hg_v3_t) { query_pt->x - hg->min_pt.x,
-                                      query_pt->y - hg->min_pt.y,
-                                      query_pt->z - hg->min_pt.z };
+      msh_hg_v3_t q;
+      if( hg->_pts_dim == 2 ) 
+      { 
+        q = (msh_hg_v3_t) { query_pt[0] - hg->min_pt.x,
+                            query_pt[1] - hg->min_pt.y,
+                            0.0 };
+      }
+      else
+      { 
+        q = (msh_hg_v3_t) { query_pt[0] - hg->min_pt.x,
+                            query_pt[1] - hg->min_pt.y,
+                            query_pt[2] - hg->min_pt.z };
+      }
 
       // Get base bin idx for query pt
       int64_t ix = (int64_t)( q.x * ics );
@@ -745,12 +801,12 @@ int msh_hash_grid_radius_search_mt( const msh_hash_grid_t* hg,
       // Advance pointers 
       dists_sq += row_size;
       indices  += row_size;
-      query_pt += 1;
+      query_pt += hg->_pts_dim;
     }
   }
 
-  int total_num_neighbors = 0;
-  for( int i = 0 ; i < n_query_pts; ++i )
+  int32_t total_num_neighbors = 0;
+  for( int32_t i = 0 ; i < n_query_pts; ++i )
   {
     total_num_neighbors += hg_sd->n_neighbors[i];
   }
@@ -759,119 +815,6 @@ int msh_hash_grid_radius_search_mt( const msh_hash_grid_t* hg,
 }
 
 
-// DESMOS for the derivation of piecewise to continuous approximation : https://www.desmos.com/calculator/adbcuy9ys6
-// Approximation snippet (for z dimension): 
-    // sgn = 2.0f / ( 1.0f + expf(-k*oz) ) - 1.0f;
-    // r = -sgn * ( pt_prime.z - cs * (cz+1) );
-    // t =  sgn * ( cs*cz - pt_prime.z);
-    // dz = ((r+t) - fabs(r-t)) * 0.5f;
-// This snipped ended up being slower than the if statement however
-int
-msh_hash_grid_radius_search( const msh_hash_grid_t* hg, const float* query_pt, 
-                             const float radius, float* dists_sq, int* indices, 
-                             size_t max_n_neigh, int sort )
-{
-  msh_hash_grid_dist_storage_t storage;
-  msh_hash_grid_dist_storage_init( &storage, max_n_neigh, dists_sq, indices );
-
-  msh_hg_v3_t* pt      = (msh_hg_v3_t*)query_pt;
-  msh_hg_v3_t pt_prime = (msh_hg_v3_t) { pt->x - hg->min_pt.x,
-                                         pt->y - hg->min_pt.y,
-                                         pt->z - hg->min_pt.z };
-
-  // Get base bin idx for query pt
-  int64_t ix = (int64_t)( pt_prime.x * hg->_inv_cell_size );
-  int64_t iy = (int64_t)( pt_prime.y * hg->_inv_cell_size );
-  int64_t iz = (int64_t)( pt_prime.z * hg->_inv_cell_size );
-
-  // Decide where to look
-  int64_t px  = (int64_t)( (pt_prime.x + radius) * hg->_inv_cell_size );
-  int64_t nx  = (int64_t)( (pt_prime.x - radius) * hg->_inv_cell_size );
-  int64_t opx = px - ix;
-  int64_t onx = nx - ix;
-
-  int64_t py  = (int64_t)( (pt_prime.y + radius) * hg->_inv_cell_size );
-  int64_t ny  = (int64_t)( (pt_prime.y - radius) * hg->_inv_cell_size );
-  int64_t opy = py - iy;
-  int64_t ony = ny - iy;
-
-  int64_t pz  = (int64_t)( (pt_prime.z + radius) * hg->_inv_cell_size );
-  int64_t nz  = (int64_t)( (pt_prime.z - radius) * hg->_inv_cell_size );
-  int64_t opz = pz - iz;
-  int64_t onz = nz - iz;
-
-  float radius_sq = radius * radius;
-  enum { MAX_BIN_COUNT = 128 };
-  int32_t bin_indices[MAX_BIN_COUNT];
-  float  bin_dists_sq[MAX_BIN_COUNT];
-  int n_visited_bins = 0;
-
-  float dx, dy, dz;
-  int64_t cx, cy, cz;
-  int64_t w = hg->width, h = hg->height, d = hg->depth;
-  uint64_t slab_size = hg->_slab_size;
-  float cs = hg->cell_size;
-
-  for( int64_t oz = onz; oz <= opz; ++oz )
-  {
-    cz = iz + oz;
-    if( cz < 0 || cz >= d ) { continue; }
-    uint64_t idx_z = cz * slab_size;
-
-    if( oz < 0 )      { dz = pt_prime.z - (cz + 1) * cs; }
-    else if( oz > 0 ) { dz = cz * cs - pt_prime.z; }
-    else              { dz = 0.0f; }
-
-    for( int64_t oy = ony; oy <= opy; ++oy )
-    {
-      cy = iy + oy;
-      if( cy < 0 || cy >= h ) { continue; }
-      uint64_t idx_y = cy * w;
-
-      if( oy < 0 )      { dy = pt_prime.y - (cy + 1) * cs; }
-      else if( oy > 0 ) { dy = cy * cs - pt_prime.y; }
-      else              { dy = 0.0f; }
-
-      for( int64_t ox = onx; ox <= opx; ++ox )
-      {
-        cx = ix + ox;
-        if( cx < 0 || cx >= w ) { continue; }
-
-        if( ox < 0 )      { dx = pt_prime.x - (cx + 1) * cs; }
-        else if( ox > 0 ) { dx = cx * cs - pt_prime.x; }
-        else              { dx = 0.0f; }
-
-        assert( n_visited_bins < MAX_BIN_COUNT );
-
-        int32_t idx = idx_z + idx_y + cx;
-        float dist_sq = dz * dz + dy * dy + dx * dx;
-        bin_indices[n_visited_bins] = idx;
-        bin_dists_sq[n_visited_bins] = dist_sq;
-        n_visited_bins++;
-      }
-    }
-  }
-
-  // Now we are checking bins in order of closeness to the current point + 
-  // we have a minimum closest distance to a point in a bin, so we can early out and not
-  // check all the bins.
-  msh_hash_grid__sort( bin_dists_sq, bin_indices, n_visited_bins );
-
-  for( int i = 0; i < n_visited_bins; ++i )
-  {
-    msh_hash_grid__find_neighbors_in_bin( hg, bin_indices[i], radius_sq, pt, &storage );
-
-    if( storage.len >= max_n_neigh &&
-        dists_sq[ storage.max_dist_idx ] <= bin_dists_sq[i] )
-    {
-      break;
-    }
-  }
-
-  if( sort ) { msh_hash_grid__sort( dists_sq, indices, storage.len ); }
-  
-  return storage.len;
-}
 
 
 MSH_HG_INLINE void
@@ -894,107 +837,16 @@ msh_hash_grid__add_bin_contents( const msh_hash_grid_t* hg, const uint64_t bin_i
   }
 }
 
-int
-msh_hash_grid_knn_search( const msh_hash_grid_t* hg, const float* query_pt, const size_t k,
-                          float* dists_sq, int* indices, int sort )
-{
-  msh_hash_grid_dist_storage_t storage;
-  msh_hash_grid_dist_storage_init( &storage, k, dists_sq, indices );
-
-  msh_hg_v3_t* pt = (msh_hg_v3_t*)query_pt;
-  msh_hg_v3_t pt_prime = (msh_hg_v3_t) { pt->x - hg->min_pt.x,
-                                         pt->y - hg->min_pt.y,
-                                         pt->z - hg->min_pt.z };
-  // get base bin for query
-  uint64_t ix = (uint64_t)( (pt_prime.x) * hg->_inv_cell_size );
-  uint64_t iy = (uint64_t)( (pt_prime.y) * hg->_inv_cell_size );
-  uint64_t iz = (uint64_t)( (pt_prime.z) * hg->_inv_cell_size );
-  
-  int32_t layer = 0;
-  int8_t should_break = 0;
-  
-  float dx, dy, dz;
-  int64_t cx, cy, cz;
-  int64_t w = hg->width;
-  int64_t h = hg->height;
-  int64_t d = hg->depth;
-
-  uint64_t slab_size = hg->_slab_size;
-  float cs = hg->cell_size;
-
-  enum { MAX_BIN_COUNT = 1024 };
-  int32_t bin_indices[ MAX_BIN_COUNT ];
-  
-  while( true )
-  {
-    int32_t inc_x = 1;
-    int n_visited_bins = 0;
-    for( int64_t oz = -layer; oz <= layer; oz++ )
-    {
-      cz = iz + oz;
-      if( cz < 0 || cz >= d ) continue;
-      uint64_t idx_z = cz * slab_size;
-
-      if( oz < 0 )      { dz = pt_prime.z - (cz + 1) * cs; }
-      else if( oz > 0 ) { dz = cz * cs - pt_prime.z; }
-      else              { dz = 0.0f; }
-
-      for( int64_t oy = -layer; oy <= layer; oy++ )
-      {
-        cy = iy + oy;
-        if( cy < 0 || cy >= h ) continue;
-        uint64_t idx_y = cy * w;
-
-        if( oy < 0 )      { dy = pt_prime.y - (cy + 1) * cs; }
-        else if( oy > 0 ) { dy = cy * cs - pt_prime.y; }
-        else              { dy = 0.0f; }
-
-        if( abs(oy) != layer && abs(oz) != layer ) { inc_x = 2 * layer; }
-        else                                       { inc_x = 1; }
-
-        for( int64_t ox = -layer; ox <= layer; ox += inc_x )
-        {
-          cx = ix + ox;
-          if( cx < 0 || cx >= w ) continue;
-
-
-          if( ox < 0 )      { dx = pt_prime.x - (cx + 1) * cs; }
-          else if( ox > 0 ) { dx = cx * cs - pt_prime.x; }
-          else              { dx = 0.0f; }
-
-          float dist_sq = dz * dz + dy * dy + dx * dx;
-
-          if( storage.len >= k &&
-              dist_sq > dists_sq[storage.max_dist_idx] ) { continue; }
-  
-          assert( n_visited_bins < MAX_BIN_COUNT );
-  
-          bin_indices[ n_visited_bins ] = idx_z + idx_y + cx;
-
-          n_visited_bins++;
-        }
-      }
-    }
-
-    for( int i = 0; i < n_visited_bins; ++i )
-    {
-      msh_hash_grid__add_bin_contents( hg, bin_indices[i], pt, &storage );
-    }
-    layer++;
-
-    if( should_break ) { break; }
-    if( storage.len >= k ) { should_break = true; }
-  }
-
-
-  if( sort ) { msh_hash_grid__sort( dists_sq, indices, storage.len ); }
-  return storage.len;
-}
-
-
-int msh_hash_grid_knn_search_mt( const msh_hash_grid_t* hg, 
+size_t msh_hash_grid_knn_search( const msh_hash_grid_t* hg, 
                                  msh_hash_grid_search_desc_t* hg_sd )
 {
+  assert( hg_sd->query_pts );
+  assert( hg_sd->distances_sq );
+  assert( hg_sd->indices );
+  assert( hg_sd->radius > 0.0 );
+  assert( hg_sd->n_query_pts > 0 );
+  assert( hg_sd->max_n_neigh > 0 );
+
   // Unpack the some useful data from structs
   enum { MAX_BIN_COUNT = 128 };
   int32_t n_query_pts = hg_sd->n_query_pts;
@@ -1006,8 +858,8 @@ int msh_hash_grid_knn_search_mt( const msh_hash_grid_t* hg,
   int64_t h           = hg->height;
   int64_t d           = hg->depth;
 
-  int n_threads = 1;
-  int n_pts_per_thread = n_query_pts;
+  int32_t n_threads = 1;
+  int32_t n_pts_per_thread = n_query_pts;
 
 #if defined(_OPENMP)
   #pragma omp parallel
@@ -1124,14 +976,232 @@ int msh_hash_grid_knn_search_mt( const msh_hash_grid_t* hg,
     }
   }
 
-  int total_num_neighbors = 0;
-  for( int i = 0 ; i < n_query_pts; ++i )
+  int32_t total_num_neighbors = 0;
+  for( int32_t i = 0 ; i < n_query_pts; ++i )
   {
     total_num_neighbors += hg_sd->n_neighbors[i];
   }
 
   return total_num_neighbors;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Single threaded functions to be depracated
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+// DESMOS for the derivation of piecewise to continuous approximation : https://www.desmos.com/calculator/adbcuy9ys6
+// Approximation snippet (for z dimension): 
+    // sgn = 2.0f / ( 1.0f + expf(-k*oz) ) - 1.0f;
+    // r = -sgn * ( pt_prime.z - cs * (cz+1) );
+    // t =  sgn * ( cs*cz - pt_prime.z);
+    // dz = ((r+t) - fabs(r-t)) * 0.5f;
+// This snipped ended up being slower than the if statement however
+int
+msh_hash_grid_radius_search_deprecated( const msh_hash_grid_t* hg, const float* query_pt, 
+                             const float radius, float* dists_sq, int* indices, 
+                             size_t max_n_neigh, int sort )
+{
+  msh_hash_grid_dist_storage_t storage;
+  msh_hash_grid_dist_storage_init( &storage, max_n_neigh, dists_sq, indices );
+
+  msh_hg_v3_t* pt      = (msh_hg_v3_t*)query_pt;
+  msh_hg_v3_t pt_prime = (msh_hg_v3_t) { pt->x - hg->min_pt.x,
+                                         pt->y - hg->min_pt.y,
+                                         pt->z - hg->min_pt.z };
+
+  // Get base bin idx for query pt
+  int64_t ix = (int64_t)( pt_prime.x * hg->_inv_cell_size );
+  int64_t iy = (int64_t)( pt_prime.y * hg->_inv_cell_size );
+  int64_t iz = (int64_t)( pt_prime.z * hg->_inv_cell_size );
+
+  // Decide where to look
+  int64_t px  = (int64_t)( (pt_prime.x + radius) * hg->_inv_cell_size );
+  int64_t nx  = (int64_t)( (pt_prime.x - radius) * hg->_inv_cell_size );
+  int64_t opx = px - ix;
+  int64_t onx = nx - ix;
+
+  int64_t py  = (int64_t)( (pt_prime.y + radius) * hg->_inv_cell_size );
+  int64_t ny  = (int64_t)( (pt_prime.y - radius) * hg->_inv_cell_size );
+  int64_t opy = py - iy;
+  int64_t ony = ny - iy;
+
+  int64_t pz  = (int64_t)( (pt_prime.z + radius) * hg->_inv_cell_size );
+  int64_t nz  = (int64_t)( (pt_prime.z - radius) * hg->_inv_cell_size );
+  int64_t opz = pz - iz;
+  int64_t onz = nz - iz;
+
+  float radius_sq = radius * radius;
+  enum { MAX_BIN_COUNT = 128 };
+  int32_t bin_indices[MAX_BIN_COUNT];
+  float  bin_dists_sq[MAX_BIN_COUNT];
+  int n_visited_bins = 0;
+
+  float dx, dy, dz;
+  int64_t cx, cy, cz;
+  int64_t w = hg->width, h = hg->height, d = hg->depth;
+  uint64_t slab_size = hg->_slab_size;
+  float cs = hg->cell_size;
+
+  for( int64_t oz = onz; oz <= opz; ++oz )
+  {
+    cz = iz + oz;
+    if( cz < 0 || cz >= d ) { continue; }
+    uint64_t idx_z = cz * slab_size;
+
+    if( oz < 0 )      { dz = pt_prime.z - (cz + 1) * cs; }
+    else if( oz > 0 ) { dz = cz * cs - pt_prime.z; }
+    else              { dz = 0.0f; }
+
+    for( int64_t oy = ony; oy <= opy; ++oy )
+    {
+      cy = iy + oy;
+      if( cy < 0 || cy >= h ) { continue; }
+      uint64_t idx_y = cy * w;
+
+      if( oy < 0 )      { dy = pt_prime.y - (cy + 1) * cs; }
+      else if( oy > 0 ) { dy = cy * cs - pt_prime.y; }
+      else              { dy = 0.0f; }
+
+      for( int64_t ox = onx; ox <= opx; ++ox )
+      {
+        cx = ix + ox;
+        if( cx < 0 || cx >= w ) { continue; }
+
+        if( ox < 0 )      { dx = pt_prime.x - (cx + 1) * cs; }
+        else if( ox > 0 ) { dx = cx * cs - pt_prime.x; }
+        else              { dx = 0.0f; }
+
+        assert( n_visited_bins < MAX_BIN_COUNT );
+
+        int32_t idx = idx_z + idx_y + cx;
+        float dist_sq = dz * dz + dy * dy + dx * dx;
+        bin_indices[n_visited_bins] = idx;
+        bin_dists_sq[n_visited_bins] = dist_sq;
+        n_visited_bins++;
+      }
+    }
+  }
+
+  // Now we are checking bins in order of closeness to the current point + 
+  // we have a minimum closest distance to a point in a bin, so we can early out and not
+  // check all the bins.
+  msh_hash_grid__sort( bin_dists_sq, bin_indices, n_visited_bins );
+
+  for( int i = 0; i < n_visited_bins; ++i )
+  {
+    msh_hash_grid__find_neighbors_in_bin( hg, bin_indices[i], radius_sq, pt, &storage );
+
+    if( storage.len >= max_n_neigh &&
+        dists_sq[ storage.max_dist_idx ] <= bin_dists_sq[i] )
+    {
+      break;
+    }
+  }
+
+  if( sort ) { msh_hash_grid__sort( dists_sq, indices, storage.len ); }
+  
+  return storage.len;
+}
+
+int
+msh_hash_grid_knn_search_deprecated( const msh_hash_grid_t* hg, const float* query_pt, const size_t k,
+                          float* dists_sq, int* indices, int sort )
+{
+  msh_hash_grid_dist_storage_t storage;
+  msh_hash_grid_dist_storage_init( &storage, k, dists_sq, indices );
+
+  msh_hg_v3_t* pt = (msh_hg_v3_t*)query_pt;
+  msh_hg_v3_t pt_prime = (msh_hg_v3_t) { pt->x - hg->min_pt.x,
+                                         pt->y - hg->min_pt.y,
+                                         pt->z - hg->min_pt.z };
+  // get base bin for query
+  uint64_t ix = (uint64_t)( (pt_prime.x) * hg->_inv_cell_size );
+  uint64_t iy = (uint64_t)( (pt_prime.y) * hg->_inv_cell_size );
+  uint64_t iz = (uint64_t)( (pt_prime.z) * hg->_inv_cell_size );
+  
+  int32_t layer = 0;
+  int8_t should_break = 0;
+  
+  float dx, dy, dz;
+  int64_t cx, cy, cz;
+  int64_t w = hg->width;
+  int64_t h = hg->height;
+  int64_t d = hg->depth;
+
+  uint64_t slab_size = hg->_slab_size;
+  float cs = hg->cell_size;
+
+  enum { MAX_BIN_COUNT = 1024 };
+  int32_t bin_indices[ MAX_BIN_COUNT ];
+  
+  while( true )
+  {
+    int32_t inc_x = 1;
+    int n_visited_bins = 0;
+    for( int64_t oz = -layer; oz <= layer; oz++ )
+    {
+      cz = iz + oz;
+      if( cz < 0 || cz >= d ) continue;
+      uint64_t idx_z = cz * slab_size;
+
+      if( oz < 0 )      { dz = pt_prime.z - (cz + 1) * cs; }
+      else if( oz > 0 ) { dz = cz * cs - pt_prime.z; }
+      else              { dz = 0.0f; }
+
+      for( int64_t oy = -layer; oy <= layer; oy++ )
+      {
+        cy = iy + oy;
+        if( cy < 0 || cy >= h ) continue;
+        uint64_t idx_y = cy * w;
+
+        if( oy < 0 )      { dy = pt_prime.y - (cy + 1) * cs; }
+        else if( oy > 0 ) { dy = cy * cs - pt_prime.y; }
+        else              { dy = 0.0f; }
+
+        if( abs(oy) != layer && abs(oz) != layer ) { inc_x = 2 * layer; }
+        else                                       { inc_x = 1; }
+
+        for( int64_t ox = -layer; ox <= layer; ox += inc_x )
+        {
+          cx = ix + ox;
+          if( cx < 0 || cx >= w ) continue;
+
+
+          if( ox < 0 )      { dx = pt_prime.x - (cx + 1) * cs; }
+          else if( ox > 0 ) { dx = cx * cs - pt_prime.x; }
+          else              { dx = 0.0f; }
+
+          float dist_sq = dz * dz + dy * dy + dx * dx;
+
+          if( storage.len >= k &&
+              dist_sq > dists_sq[storage.max_dist_idx] ) { continue; }
+  
+          assert( n_visited_bins < MAX_BIN_COUNT );
+  
+          bin_indices[ n_visited_bins ] = idx_z + idx_y + cx;
+
+          n_visited_bins++;
+        }
+      }
+    }
+
+    for( int i = 0; i < n_visited_bins; ++i )
+    {
+      msh_hash_grid__add_bin_contents( hg, bin_indices[i], pt, &storage );
+    }
+    layer++;
+
+    if( should_break ) { break; }
+    if( storage.len >= k ) { should_break = true; }
+  }
+
+
+  if( sort ) { msh_hash_grid__sort( dists_sq, indices, storage.len ); }
+  return storage.len;
+}
+
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // msh_array / msh_hg_map implementation
