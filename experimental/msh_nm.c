@@ -27,11 +27,14 @@ Householder decomposition and QR factorization
   [x] Make sure gemm with blocking works as intended - no segfaults + correct output.
   [ ] Compare the performance with blas dgemm
   [x] Figure out how to use dgemm // there is cblas.h
+  [ ] Seems like drapper version is best. I will keep the simpler one like mmm2 if it works for small matrices
 */
 
 // Compile command: g++ -I../../ msh_svd.c -o ../../../bin/svd_test -lopenblas
 // Add -DUSE_EIGEN to compile with Eigen
-#define MSH_STD_INCLUDE_HEADERS
+#include <stdlib.h>
+#include <malloc.h>
+#define MSH_STD_INCLUDE_LIBC_HEADERS
 #define MSH_STD_IMPLEMENTATION
 #include "msh/msh_std.h"
 #include "OpenBLAS/lapacke.h"
@@ -100,69 +103,178 @@ void msh_slap_matmatmul_blocking( const msh_slap_mat_t* A, const msh_slap_mat_t*
 // I even need the svd. Trimesh does not use it at all. It's just LDLT and eigen decompositions.
 
 void print_matrix( double* M, int r, int c );
-void eigen_example();
 extern void dgemm_(char*, char*, int*, int*,int*, double*, double*, int*, double*, int*, double*, double*, int*);
 void lapack_simple_mmm_example();
 void lapack_svd_example();
 
 
-// From:https://www.akkadia.org/drepper/cpumemory.pdf
-// Does not seem to return correct result though
-// This does work, however, SM needs to be at least N not 
+// Check : https://github.com/ldfaiztt/cs267-dgemm/tree/master/src 
+// Check : https://github.com/ytsutano/dgemm-goto-in-c // not super fast
+// Ckeck : https://github.com/cappachu/dgemm // bit faster, but requires sse4
+
+
+#include <stdio.h>
+#include <mmintrin.h>
+#include <xmmintrin.h>
+#include <pmmintrin.h>
 #include <emmintrin.h>
-#define N 4
-double res[N][N] __attribute__ ((aligned (64)));
-double mul1[N][N] __attribute__ ((aligned (64)));
-double mul2[N][N] __attribute__ ((aligned (64)));
-#define SM 4
-// (CLS / sizeof (double))
 
-void test()
-{
-  int i, i2, j, j2, k, k2;
-  double *restrict rres;
-  double *restrict rmul1;
-  double *restrict rmul2;
-  for (i = 0; i < N; i += SM)
-    for (j = 0; j < N; j += SM)
-      for (k = 0; k < N; k += SM)
-        for (i2 = 0, rres = &res[i][j],
-            rmul1 = &mul1[i][k];
-             i2 < SM;
-             ++i2, rres += N, rmul1 += N)
-          for (k2 = 0, rmul2 = &mul2[k][j];
-               k2 < SM; ++k2, rmul2 += N)
-            for (j2 = 0; j2 < SM; ++j2)
-              rres[j2] += rmul1[k2] * rmul2[j2];
 
-  // for (i = 0; i < N; i += SM)
-  //   for (j = 0; j < N; j += SM)
-  //     for (k = 0; k < N; k += SM)
-  //       for (i2 = 0, rres = &res[i][j], rmul1 = &mul1[i][k]; i2 < SM;
-  //           ++i2, rres += N, rmul1 += N)
-  //       {
-  //         _mm_prefetch (&rmul1[8], _MM_HINT_NTA);
-  //         for (k2 = 0, rmul2 = &mul2[k][j]; k2 < SM; ++k2, rmul2 += N)
-  //         {
-  //           __m128d m1d = _mm_load_sd(&rmul1[k2]);
-  //           m1d = _mm_unpacklo_pd(m1d, m1d);
-  //           for (j2 = 0; j2 < SM; j2 += 2)
-  //           {
-  //             __m128d m2 = _mm_load_pd(&rmul2[j2]);
-  //             __m128d r2 = _mm_load_pd(&rres[j2]);
-  //             _mm_store_pd(&rres[j2],
-  //                          _mm_add_pd(_mm_mul_pd(m2, m1d), r2));
-  //           }
-  //         }
-  //       }
-  print_matrix( &mul1[0][0], N, N );
-  print_matrix( &mul2[0][0], N, N );
-  print_matrix( &res[0][0], N, N );
+#if !defined(BLOCK_SIZE)
+#define BLOCK_SIZE 256
+#endif
+
+// TODO: Just do 4x4 matrix multiply here
+void sse_4x4 (int lda, int K, double* A, double* B, double* C) {
+    /* Performs Matrix Multiplication on 4x4 block
+     * using SSE intrinsics 
+     * load, update, store*/
+  // A
+  __m128d A_0X_A_1X, A_2X_A_3X;
+  // B
+  __m128d B_X0, B_X1, B_X2, B_X3;
+  // C 
+  __m128d C_00_C_10, C_20_C_30,
+          C_01_C_11, C_21_C_31,
+          C_02_C_12, C_22_C_32,
+          C_03_C_13, C_23_C_33;
+
+  // LOAD --------
+  // load unaligned
+  C_00_C_10 = _mm_loadu_pd(C              );
+  C_20_C_30 = _mm_loadu_pd(C           + 2);
+  C_01_C_11 = _mm_loadu_pd(C + lda        );
+  C_21_C_31 = _mm_loadu_pd(C + lda     + 2);
+  C_02_C_12 = _mm_loadu_pd(C + (2*lda)    );
+  C_22_C_32 = _mm_loadu_pd(C + (2*lda) + 2);
+  C_03_C_13 = _mm_loadu_pd(C + (3*lda)    );
+  C_23_C_33 = _mm_loadu_pd(C + (3*lda) + 2);
+
+  for (int k = 0; k < K; ++k) {
+    // load aligned
+    A_0X_A_1X = _mm_load_pd(A);
+    A_2X_A_3X = _mm_load_pd(A+2);
+    A += 4;
+      
+    // load unaligned
+    B_X0 = _mm_loaddup_pd(B);
+    B_X1 = _mm_loaddup_pd(B+1);
+    B_X2 = _mm_loaddup_pd(B+2);
+    B_X3 = _mm_loaddup_pd(B+3);
+    B += 4;
+    // UPDATE ---------
+    // C := C + A*B
+    C_00_C_10 = _mm_add_pd(C_00_C_10, _mm_mul_pd(A_0X_A_1X, B_X0));
+    C_20_C_30 = _mm_add_pd(C_20_C_30, _mm_mul_pd(A_2X_A_3X, B_X0));
+    C_01_C_11 = _mm_add_pd(C_01_C_11, _mm_mul_pd(A_0X_A_1X, B_X1));
+    C_21_C_31 = _mm_add_pd(C_21_C_31, _mm_mul_pd(A_2X_A_3X, B_X1));
+    C_02_C_12 = _mm_add_pd(C_02_C_12, _mm_mul_pd(A_0X_A_1X, B_X2));
+    C_22_C_32 = _mm_add_pd(C_22_C_32, _mm_mul_pd(A_2X_A_3X, B_X2));
+    C_03_C_13 = _mm_add_pd(C_03_C_13, _mm_mul_pd(A_0X_A_1X, B_X3));
+    C_23_C_33 = _mm_add_pd(C_23_C_33, _mm_mul_pd(A_2X_A_3X, B_X3));
+  }
+
+  // STORE -------
+  _mm_storeu_pd(C              , C_00_C_10);
+  _mm_storeu_pd(C           + 2, C_20_C_30);
+  _mm_storeu_pd(C + lda        , C_01_C_11);
+  _mm_storeu_pd(C + lda     + 2, C_21_C_31);
+  _mm_storeu_pd(C + (2*lda)    , C_02_C_12);
+  _mm_storeu_pd(C + (2*lda) + 2, C_22_C_32);
+  _mm_storeu_pd(C + (3*lda)    , C_03_C_13);
+  _mm_storeu_pd(C + (3*lda) + 2, C_23_C_33);
 }
-#undef N
 
-// Check blocking in  https://github.com/deuxbot/fast-matrix-multiplication
-// Check code in      https://github.com/attractivechaos/matmul
+
+void naive_helper (int lda, int K, double* A, double* B, double* C, int i, int j) {
+    double cij = C[j*lda + i];
+    for (int k = 0; k < K; ++k) {
+        cij += A[k*lda + i] * B[j*lda + k];
+    }
+    C[j*lda + i] = cij;
+}
+
+
+void do_block (int lda, int M, int N, int K, double* A, double* B, double* C)
+{
+  // largest multiple of 4 less than M
+  int M4_max = (M>>2) << 2;
+  // largest multiple of 4 less than N
+  int N4_max = (N>>2) << 2;
+  
+  // pack and align data from A 
+  double AA[M4_max*K]; // under allocate
+  for(int m=0; m < M4_max; m+=4) {
+      double *dst = &AA[m*K];
+      double *src = A + m;
+      for (int k = 0; k < K; ++k) {
+          *dst     = *src;
+          *(dst+1) = *(src+1);
+          *(dst+2) = *(src+2);
+          *(dst+3) = *(src+3);
+          dst += 4;
+          src += lda;
+      }
+  }
+  // pack and align data from B
+  double BB[N4_max*K]; // under allocate
+  for(int n=0; n < N4_max; n+=4){
+      double *dst = &BB[n*K];
+      double *src_0 = B + n*lda;
+      double *src_1 = src_0 + lda; 
+      double *src_2 = src_1 + lda; 
+      double *src_3 = src_2 + lda;
+      for (int k = 0; k < K; ++k) {
+          *dst++ = *src_0++;
+          *dst++ = *src_1++;
+          *dst++ = *src_2++;
+          *dst++ = *src_3++;
+      }
+  }
+
+  // compute 4x4's using SSE intrinsics 
+  for (int i = 0; i < M4_max; i+=4){
+    for (int j = 0; j < N4_max; j+=4){
+        sse_4x4(lda, K, &AA[i*K], &BB[j*K], &C[j*lda + i]);
+    }
+  }
+  // compute remaining cells using naive dgemm
+  // horizontal sliver
+  if(M4_max!=M){
+      for (int i=M4_max; i < M; ++i)
+          for (int tmp=0; tmp < N; ++tmp) 
+              naive_helper(lda, K, A, B, C, i, tmp);
+  }
+  // vertical sliver + bottom right corner 
+  if(N4_max!=N){
+      for (int j=N4_max; j < N; ++j)
+          for (int tmp=0; tmp < M4_max; ++tmp) 
+              naive_helper(lda, K, A, B, C, tmp, j);
+  }
+}
+
+
+
+void square_dgemm (int lda, double* A, double* B, double* C)
+{
+  /* For each block-row of A */ 
+  for (int i = 0; i < lda; i += BLOCK_SIZE)
+    /* For each block-column of B */
+    for (int j = 0; j < lda; j += BLOCK_SIZE)
+      /* Accumulate block dgemms into block of C */
+      for (int k = 0; k < lda; k += BLOCK_SIZE)
+      {
+        /* Correct block dimensions if block "goes off edge of" the matrix */
+        int M = min (BLOCK_SIZE, lda-i);
+        int N = min (BLOCK_SIZE, lda-j);
+        int K = min (BLOCK_SIZE, lda-k);
+
+        /* Perform individual block dgemm */
+        do_block(lda, M, N, K, A + i + k*lda, B + k + j*lda, C + i + j*lda);
+      }
+}
+
+
 
 void mmm0( const int N, const double* A, const double* B, double* C )
 {
@@ -219,58 +331,71 @@ void mmm2( const int N, const double* restrict A, const double* restrict B, doub
   free( Bt );
 }
 
-void mmm3( const int N, const double* restrict A, const double* restrict B, double* restrict C )
+// Based on: https://www.akkadia.org/drepper/cpumemory.pdf
+void mmm3( const int N, double* restrict A, double* restrict B, double* restrict C )
 {
-  int32_t i, j, k, i0, j0, k0, i0lim, j0lim, k0lim, bs = 4;
-
-  for( i = 0; i < N; i += bs )
-  {
-    for( j = 0; j < N; j += bs )
+    uint32_t i, i2, j, j2, k, k2;
+    uint32_t SM = 64;
+    double *restrict rres;
+    double *restrict rmul1;
+    double *restrict rmul2;
+    for (i = 0; i < N; i += SM)
     {
-      for( k = 0; k < N; k += bs )
+      uint32_t i2lim = min( SM, N-i );
+      for (j = 0; j < N; j += SM)
       {
-        // mini MM
-        i0lim = ( (i + bs) > N ) ? N : (i + bs);
-        j0lim = ( (j + bs) > N ) ? N : (j + bs);
-        k0lim = ( (k + bs) > N ) ? N : (k + bs);
-
-        const double* restrict Ap = &A[ i * N + k ];
-        const double* restrict Bp = &B[ k * N + j ];
-              double* restrict Cp = &C[ i * N + j ];
-        for( i0 = i; i0 < i0lim; ++i0, Cp += N, Ap += N )
+        uint32_t j2lim = min( SM, N-j );
+        for (k = 0; k < N; k += SM)
         {
-          for( k0 = k, Bp = &B[ k * N + j ]; k0 < k0lim; ++k0, Bp += N )
+          uint32_t k2lim = min( SM, N-k );
+          for (i2 = 0, rres = &C[i*N+j], rmul1 = &A[i*N+k]; i2 < i2lim; ++i2, rres += N, rmul1 += N)
           {
-            // double Aval = Ap[k0];
-            for( j0 = j; j0 < j0lim ; j0++ )
+            for (k2 = 0, rmul2 = &B[k*N+j]; k2 < k2lim; ++k2, rmul2 += N)
             {
-              // C[ i0 * N + j0 ] += A[ i0 * N + k0 ] * B[ k0 * N + j0 ];
-              Cp[ j0 ] += Ap[k0] * Bp[ j0 ];
+              for (j2 = 0; j2 < j2lim; ++j2)
+              {
+                rres[j2] += rmul1[k2] * rmul2[j2];
+              }
             }
           }
         }
-
       }
     }
-  }
 }
 
 
 
+// Based on : https://github.com/deuxbot/fast-matrix-multiplication
+void mmm4( const int N, const double* restrict A, const double* restrict B, double* restrict C )
+{
+  int i, j, k, ii, jj, kk, Aik, bs = N;
+  
+  for(ii = 0; ii < N; ii += bs)
+    for(kk = 0; kk < N; kk += bs)
+      for(jj = 0; jj < N; jj += bs)
+        for(i = ii; i < min(N, ii+bs); i++)
+          for(k = kk; k < min(N, kk+bs); k++)
+          {
+            Aik = A[N*i+k];
+            for(j = jj; j < min(N, jj+bs); j++)
+              C[N*i+j] += Aik * B[N*k+j];
+          }
+}
 
 
-
-void measure_mmm0( const int n_iter, const int N, const double* A, const double* B, double* C )
+void measure_mmm0( const int n_iter, int N, double* A, double* B, double* C )
 {
   uint64_t t1, t2;
 
-  mmm0( N, A, B, C );
+  // mmm0( N, A, B, C );
+  square_dgemm(N, A, B, C);
   for( int i = 0; i < N*N; ++i )
   {
     C[i] = 0;
   }
   t1 = msh_time_now();
-  for( int i = 0; i < n_iter; ++i ) mmm0(N, A, B, C);
+  // for( int i = 0; i < n_iter; ++i ) mmm0(N, A, B, C);
+  for( int i = 0; i < n_iter; ++i ) square_dgemm(N, A, B, C);
   t2 = msh_time_now();
   printf("Time taken by %s is %fms\n", __FUNCTION__, msh_time_diff(MSHT_MILLISECONDS, t2, t1)/n_iter );
 }
@@ -305,7 +430,7 @@ void measure_mmm2( const int n_iter, const int N, const double* A, const double*
   printf("Time taken by %s is %fms\n", __FUNCTION__, msh_time_diff(MSHT_MILLISECONDS, t2, t1)/n_iter );
 }
 
-void measure_mmm3( const int n_iter, const int N, const double* A, const double* B, double* C )
+void measure_mmm3( const int n_iter, const int N,  double* A, double* B, double* C )
 {
   uint64_t t1, t2;
 
@@ -320,19 +445,45 @@ void measure_mmm3( const int n_iter, const int N, const double* A, const double*
   printf("Time taken by %s is %fms\n", __FUNCTION__, msh_time_diff(MSHT_MILLISECONDS, t2, t1)/n_iter );
 }
 
+void measure_mmm4( const int n_iter, const int N, const double* A, const double* B, double* C )
+{
+  uint64_t t1, t2;
+
+  mmm4( N, A, B, C );
+  for( int i = 0; i < N*N; ++i )
+  {
+    C[i] = 0;
+  }
+  t1 = msh_time_now();
+  for( int i = 0; i < n_iter; ++i ) mmm4(N, A, B, C);
+  t2 = msh_time_now();
+  printf("Time taken by %s is %fms\n", __FUNCTION__, msh_time_diff(MSHT_MILLISECONDS, t2, t1)/n_iter );
+}
+
+
 int main( int argc, char** argv )
 {
-  // test();
-  enum{ N = 120 };
-  double A[N*N] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-  double B[N*N] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-  double C[N*N] = { 0 };
-  measure_mmm0( 1000, N, &A[0], &B[0], &C[0] );
-  measure_mmm1( 1000, N, &A[0], &B[0], &C[0] );
-  measure_mmm2( 1000, N, &A[0], &B[0], &C[0] );
-  measure_mmm3( 1000, N, &A[0], &B[0], &C[0] );
-  // mmm3( N, &A[0], &B[0], &C[0] );
-  // print_matrix( C, N, N );
+  enum{ N = 1024 };
+  double* A = malloc( N*N*sizeof(double) );
+  double* B = malloc( N*N*sizeof(double) );
+  double* C = malloc( N*N*sizeof(double) );
+  for( int i = 0; i < N*N; ++i )
+  {
+    A[i] = i;
+    B[i] = i;
+  }
+  measure_mmm0( 1, N, A, B, C );
+  // measure_mmm1( 1, N, &A[0], &B[0], &C[0] );
+  // // measure_mmm2( 100, N, &A[0], &B[0], &C[0] );
+  measure_mmm3( 1, N, A, B, C );
+  measure_mmm4( 1, N, A, B, C );
+  // // measure_mmm5( 100, N, A, B, C );
+  // // measure_test( 100, N );
+
+  // mmm4( N, A, B, C );
+  // square_dgemm(N, A, B, C);
+  printf("%f %f %f %f\n", C[0], C[N-1], C[N*(N-1)], C[N*N-1]);
+  lapack_simple_mmm_example();
   return 1;
 }
 
@@ -394,24 +545,24 @@ void
 lapack_simple_mmm_example()
 {
   msh_slap_mat_t A, B, C;
-  #define N 300
+  #define M 512
   uint64_t t1, t2;
-  msh_slap_mat_init( &A, N, N );
-  msh_slap_mat_init( &B, N, N );
-  msh_slap_mat_init( &C, N, N );
+  msh_slap_mat_init( &A, M, M );
+  msh_slap_mat_init( &B, M, M );
+  msh_slap_mat_init( &C, M, M );
   t1 = msh_time_now();
   for( int i = 0; i < A.cols; ++i )
   {
     for( int j = 0 ; j < A.rows; ++j )
     {
-      A.data[ i*A.rows +j ] = (i*A.rows + j) + 1;
+      A.data[ i*A.rows +j ] = (i*A.rows + j);
     }
   }
   for( int i = 0; i < B.cols; ++i )
   {
     for( int j = 0 ; j < B.rows; ++j )
     {
-      B.data[ i*B.rows +j ] = (i*B.rows + j) + 1;
+      B.data[ i*B.rows +j ] = (i*B.rows + j);
     }
   }
   for( size_t i = 0; i < C.rows; ++i  )
@@ -425,7 +576,7 @@ lapack_simple_mmm_example()
   printf("Initialization time: %fms\n", msh_time_diff(MSHT_MILLISECONDS, t2, t1));
 
   t1 = msh_time_now();
-  int lN = N;
+  int lN = M;
   double alpha = 1.0;
   double beta = 0.0;
   char TA = 'N';
@@ -433,48 +584,7 @@ lapack_simple_mmm_example()
   dgemm_( &TA, &TB, &lN, &lN, &lN, &alpha, A.data, &lN, B.data, &lN, &beta, C.data, &lN );
   t2 = msh_time_now();
   printf("Multiplication time: %fms\n", msh_time_diff(MSHT_MILLISECONDS, t2, t1));
-  print_matrix( C.data, C.rows, C.cols );
+  printf("%f %f %f %f\n", C.data[0], C.data[M-1], C.data[M*(M-1)], C.data[M*M-1]);
+  // print_matrix( C.data, C.rows, C.cols );
 }
 
-
-#if defined(USE_EIGEN)
-void eigen_example()
-{
-  const int size = 3000;
-  Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> A;
-  A.resize(size,size);
-  Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> B;
-  B.resize(size,size);
-  
-  A = Eigen::Matrix<double, size, size>::Random();
-  B = Eigen::Matrix<double, size, size>::Random();
-  Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> C;
-  C.resize(size,size);
-  
-  C = A * B;
-  // std::cout << C << "\n";
-
-  // NOTE that Eigen documentation notes that for large matrices  BDCSVD is better (similar to lapack dgesdd)
-  // double M[6 * 5] = {
-  //         8.79,  6.11, -9.15,  9.57, -3.49,  9.84,
-  //         9.93,  6.91, -7.93,  1.64,  4.02,  0.15,
-  //         9.83,  5.04,  4.86,  8.83,  9.80, -8.99,
-  //         5.45, -0.27,  4.85,  0.74, 10.00, -6.02,
-  //         3.16,  7.98,  3.01,  5.80,  4.27, -5.31
-  //     };
-
-  // using namespace Eigen;
-  // Matrix<double, 6, 5> eigM = Map<Matrix<double, 6, 5>>( M );
-  // JacobiSVD<Matrix<double, 6, 5>> svd( eigM, ComputeFullU | ComputeFullV );
-  // Matrix<double, 6, 6> U = svd.matrixU();
-  // Matrix<double, 6, 5> Sigma;
-  // Matrix<double, 5, 5> V = svd.matrixV();
-  // Sigma.setZero();
-  // Sigma.topLeftCorner(5,5) = svd.singularValues().asDiagonal();
-  // // std::cout << eigM << std::endl;
-  // std::cout << U << std::endl;
-  // std::cout << Sigma << std::endl;
-  // std::cout << V << std::endl;
-  // std::cout << svd.matrixU() * Sigma * svd.matrixV().transpose() << std::endl;
-}
-#endif

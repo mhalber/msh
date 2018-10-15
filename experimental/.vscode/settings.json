@@ -1,6 +1,9 @@
 {
   "files.associations": {
     "array": "c",
-    "string_view": "c"
-  }
+    "string_view": "c",
+    "stdlib.h": "c",
+    "cstdlib": "c"
+  },
+  "python.pythonPath": "C:\\Anaconda3\\python.exe"
 }

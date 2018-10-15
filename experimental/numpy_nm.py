@@ -1,4 +1,5 @@
 import numpy as np
+import timeit
 
 # print("Hello, World! SVD Example!");
 # a = np.array([ [ 8.790, 9.930, 9.830, 5.450, 3.160],
@@ -23,11 +24,24 @@ import numpy as np
 #                 [2, 6], 
 #                 [3, 7], 
 #                 [4, 8] ] )
-A = np.array( [ [1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16] ] )
-B = np.array( [ [1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16] ] )
+# A = np.array( [ [1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16] ] )
+# B = np.array( [ [1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16] ] )
 # A = np.array( [ [1,1,1,1], [1,1,1,1], [1,1,1,1], [1,1,1,1] ] )
 # B = np.array( [ [1,1,1,1], [1,1,1,1], [1,1,1,1], [1,1,1,1] ] )
-C = np.dot(A, B)
-print(C)
+
+# C = np.dot(A, B)
+# print(C)
 # print( np.allclose(a, rec_a) )
 # print(a.shape, u.shape, s.shape, vt.shape)
+
+N = 1024
+A = np.arange(N*N, dtype=np.float64).reshape((N, N))
+B = np.arange(N*N, dtype=np.float64).reshape((N, N))
+tic = timeit.default_timer()
+C = np.dot(A,B)
+toc = timeit.default_timer()
+print(A[0][0], A[0, N-1], A[N-1, 0], A[N-1,N-1])
+print(B[0][0], B[0, N-1], B[N-1, 0], B[N-1,N-1])
+print(C[0][0], C[0, N-1], C[N-1, 0], C[N-1,N-1])
+print((toc-tic)*1000)
+# print(C)
