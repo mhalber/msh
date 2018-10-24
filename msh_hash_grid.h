@@ -212,6 +212,7 @@ typedef struct msh_hash_grid
   int32_t   _slab_size;
   float _inv_cell_size;
   uint8_t _pts_dim;
+  uint16_t _num_threads;
 } msh_hash_grid_t;
 
 
@@ -335,6 +336,18 @@ msh_hash_grid__init( msh_hash_grid_t* hg,
                      const float radius )
 {
   assert(dim == 2 || dim == 3);
+
+  if( hg->_num_threads == 0 )
+  {
+    #if defined(_OPENMP)
+      #pragma omp parallel
+      {
+        hg->_num_threads = omp_get_num_threads();
+      }
+    #else
+      hg->_num_threads = 1;
+    #endif
+  }
 
   hg->_pts_dim = dim;
 
@@ -690,6 +703,7 @@ msh_hash_grid__find_neighbors_in_bin( const msh_hash_grid_t* hg, const uint64_t 
                                       const float radius_sq, const float* pt,
                                       msh_hash_grid_dist_storage_t* s )
 {
+  
   // issue this whole things stops working if we use doubles.
   uint64_t* bin_table_idx = msh_hg_map_get( hg->bin_table, bin_idx );
   if( !bin_table_idx ) { return; }
@@ -733,153 +747,160 @@ size_t msh_hash_grid_radius_search( const msh_hash_grid_t* hg,
   assert( hg_sd->max_n_neigh > 0 );
 
   // Unpack the some useful data from structs
-  enum { MAX_BIN_COUNT = 128 };
-  int32_t n_query_pts = hg_sd->n_query_pts;
-  size_t row_size     = hg_sd->max_n_neigh;
-  float radius        = hg_sd->radius;
-  uint64_t slab_size  = hg->_slab_size;
-  float cs            = hg->cell_size;
-  float ics           = hg->_inv_cell_size;
-  int64_t w           = hg->width;
-  int64_t h           = hg->height;
-  int64_t d           = hg->depth;
-  float radius_sq     = radius * radius;
+  enum { MAX_BIN_COUNT = 128, MAX_THREAD_COUNT = 128 };
+  uint32_t n_query_pts = hg_sd->n_query_pts;
+  size_t row_size      = hg_sd->max_n_neigh;
+  float radius         = hg_sd->radius;
+  uint64_t slab_size   = hg->_slab_size;
+  float cs             = hg->cell_size;
+  float ics            = hg->_inv_cell_size;
+  int64_t w            = hg->width;
+  int64_t h            = hg->height;
+  int64_t d            = hg->depth;
+  float radius_sq      = radius * radius;
 
-  int n_threads = 1;
-  int n_pts_per_thread = n_query_pts;
+  uint32_t n_pts_per_thread = n_query_pts;
+  uint32_t total_num_neighbors = 0;
+  uint32_t num_neighbors_per_thread[MAX_THREAD_COUNT] = {0};
+  uint32_t num_threads = hg->_num_threads;
+  assert( num_threads <= MAX_THREAD_COUNT );
+
 #if defined(_OPENMP)
-  #pragma omp parallel
+  #pragma omp parallel num_threads( num_threads )
   {
-    n_threads = omp_get_num_threads();
-    n_pts_per_thread = ceilf((float)n_query_pts / n_threads);
-    int thread_idx = omp_get_thread_num();
+    if( n_query_pts < num_threads ) { num_threads = n_query_pts; }
+    n_pts_per_thread = ceilf((float)n_query_pts / num_threads);
+    uint32_t thread_idx = omp_get_thread_num();
 #else
-  for( int thread_idx = 0; thread_idx < n_threads; ++thread_idx )
+  for( uint32_t thread_idx = 0; thread_idx < num_threads; ++thread_idx )
   {
 #endif
-    int low_lim   = thread_idx * n_pts_per_thread;
-    int high_lim  = MSH_HG_MIN((thread_idx + 1) * n_pts_per_thread, n_query_pts);
-    int cur_n_pts = high_lim - low_lim;
-
-    float* query_pt       = hg_sd->query_pts + low_lim * hg->_pts_dim;
-    size_t* n_neighbors   = hg_sd->n_neighbors + low_lim;
-    float* dists_sq       = hg_sd->distances_sq + (low_lim * row_size);
-    int32_t* indices      = hg_sd->indices + (low_lim * row_size);
-
-    int32_t bin_indices[ MAX_BIN_COUNT ];
-    float bin_dists_sq[ MAX_BIN_COUNT ];
-    msh_hash_grid_dist_storage_t storage;
-
-    for( int32_t pt_idx = 0; pt_idx < cur_n_pts; ++pt_idx )
+    if( thread_idx < num_threads )
     {
-      // Prep the storage for the next point
-      msh_hash_grid_dist_storage_init( &storage, row_size, dists_sq, indices );
+      uint32_t low_lim      = thread_idx * n_pts_per_thread;
+      uint32_t high_lim     = MSH_HG_MIN((thread_idx + 1) * n_pts_per_thread, n_query_pts);
+      uint32_t cur_n_pts    = high_lim - low_lim;
 
-      // Normalize query pt with respect to grid
-      msh_hg_v3_t q;
-      if( hg->_pts_dim == 2 )
+      float* query_pt       = hg_sd->query_pts + low_lim * hg->_pts_dim;
+      size_t* n_neighbors   = hg_sd->n_neighbors ? (hg_sd->n_neighbors + low_lim) : NULL;
+      float* dists_sq       = hg_sd->distances_sq + (low_lim * row_size);
+      int32_t* indices      = hg_sd->indices + (low_lim * row_size);
+
+      int32_t bin_indices[ MAX_BIN_COUNT ];
+      float bin_dists_sq[ MAX_BIN_COUNT ];
+      msh_hash_grid_dist_storage_t storage;
+
+      for( uint32_t pt_idx = 0; pt_idx < cur_n_pts; ++pt_idx )
       {
-        q = (msh_hg_v3_t) { query_pt[0] - hg->min_pt.x,
-                            query_pt[1] - hg->min_pt.y,
-                            0.0 };
-      }
-      else
-      {
-        q = (msh_hg_v3_t) { query_pt[0] - hg->min_pt.x,
-                            query_pt[1] - hg->min_pt.y,
-                            query_pt[2] - hg->min_pt.z };
-      }
+        // Prep the storage for the next point
+        msh_hash_grid_dist_storage_init( &storage, row_size, dists_sq, indices );
 
-      // Get base bin idx for query pt
-      int64_t ix = (int64_t)( q.x * ics );
-      int64_t iy = (int64_t)( q.y * ics );
-      int64_t iz = (int64_t)( q.z * ics );
-
-      // Decide where to look
-      int64_t px  = (int64_t)( (q.x + radius) * ics );
-      int64_t nx  = (int64_t)( (q.x - radius) * ics );
-      int64_t opx = px - ix;
-      int64_t onx = nx - ix;
-
-      int64_t py  = (int64_t)( (q.y + radius) * ics );
-      int64_t ny  = (int64_t)( (q.y - radius) * ics );
-      int64_t opy = py - iy;
-      int64_t ony = ny - iy;
-
-      int64_t pz  = (int64_t)( (q.z + radius) * ics );
-      int64_t nz  = (int64_t)( (q.z - radius) * ics );
-      int64_t opz = pz - iz;
-      int64_t onz = nz - iz;
-
-      int n_visited_bins = 0;
-      float dx, dy, dz;
-      int64_t cx, cy, cz;
-      for( int64_t oz = onz; oz <= opz; ++oz )
-      {
-        cz = (int64_t)iz + oz;
-        if( cz < 0 || cz >= d ) { continue; }
-        uint64_t idx_z = cz * slab_size;
-
-        if( oz < 0 )      { dz = q.z - (cz + 1) * cs; }
-        else if( oz > 0 ) { dz = cz * cs - q.z; }
-        else              { dz = 0.0f; }
-
-        for( int64_t oy = ony; oy <= opy; ++oy )
+        // Normalize query pt with respect to grid
+        msh_hg_v3_t q;
+        if( hg->_pts_dim == 2 )
         {
-          cy = iy + oy;
-          if( cy < 0 || cy >= h ) { continue; }
-          uint64_t idx_y = cy * w;
+          q = (msh_hg_v3_t) { query_pt[0] - hg->min_pt.x,
+                              query_pt[1] - hg->min_pt.y,
+                              0.0 };
+        }
+        else
+        {
+          q = (msh_hg_v3_t) { query_pt[0] - hg->min_pt.x,
+                              query_pt[1] - hg->min_pt.y,
+                              query_pt[2] - hg->min_pt.z };
+        }
 
-          if( oy < 0 )      { dy = q.y - (cy + 1) * cs; }
-          else if( oy > 0 ) { dy = cy * cs - q.y; }
-          else              { dy = 0.0f; }
+        // Get base bin idx for query pt
+        int64_t ix = (int64_t)( q.x * ics );
+        int64_t iy = (int64_t)( q.y * ics );
+        int64_t iz = (int64_t)( q.z * ics );
 
-          for( int64_t ox = onx; ox <= opx; ++ox )
+        // Decide where to look
+        int64_t px  = (int64_t)( (q.x + radius) * ics );
+        int64_t nx  = (int64_t)( (q.x - radius) * ics );
+        int64_t opx = px - ix;
+        int64_t onx = nx - ix;
+
+        int64_t py  = (int64_t)( (q.y + radius) * ics );
+        int64_t ny  = (int64_t)( (q.y - radius) * ics );
+        int64_t opy = py - iy;
+        int64_t ony = ny - iy;
+
+        int64_t pz  = (int64_t)( (q.z + radius) * ics );
+        int64_t nz  = (int64_t)( (q.z - radius) * ics );
+        int64_t opz = pz - iz;
+        int64_t onz = nz - iz;
+
+        int n_visited_bins = 0;
+        float dx, dy, dz;
+        int64_t cx, cy, cz;
+        for( int64_t oz = onz; oz <= opz; ++oz )
+        {
+          cz = (int64_t)iz + oz;
+          if( cz < 0 || cz >= d ) { continue; }
+          uint64_t idx_z = cz * slab_size;
+
+          if( oz < 0 )      { dz = q.z - (cz + 1) * cs; }
+          else if( oz > 0 ) { dz = cz * cs - q.z; }
+          else              { dz = 0.0f; }
+
+          for( int64_t oy = ony; oy <= opy; ++oy )
           {
-            cx = ix + ox;
-            if( cx < 0 || cx >= w ) { continue; }
+            cy = iy + oy;
+            if( cy < 0 || cy >= h ) { continue; }
+            uint64_t idx_y = cy * w;
 
-            assert( n_visited_bins < MAX_BIN_COUNT );
+            if( oy < 0 )      { dy = q.y - (cy + 1) * cs; }
+            else if( oy > 0 ) { dy = cy * cs - q.y; }
+            else              { dy = 0.0f; }
 
-            bin_indices[n_visited_bins] = idx_z + idx_y + cx;
+            for( int64_t ox = onx; ox <= opx; ++ox )
+            {
+              cx = ix + ox;
+              if( cx < 0 || cx >= w ) { continue; }
 
-            if( ox < 0 )      { dx = q.x - (cx + 1) * cs; }
-            else if( ox > 0 ) { dx = cx * cs - q.x; }
-            else              { dx = 0.0f; }
+              assert( n_visited_bins < MAX_BIN_COUNT );
 
-            bin_dists_sq[n_visited_bins] = dz * dz + dy * dy + dx * dx;
-            n_visited_bins++;
+              bin_indices[n_visited_bins] = idx_z + idx_y + cx;
+
+              if( ox < 0 )      { dx = q.x - (cx + 1) * cs; }
+              else if( ox > 0 ) { dx = cx * cs - q.x; }
+              else              { dx = 0.0f; }
+
+              bin_dists_sq[n_visited_bins] = dz * dz + dy * dy + dx * dx;
+              n_visited_bins++;
+            }
           }
         }
-      }
 
-      msh_hash_grid__sort( bin_dists_sq, bin_indices, n_visited_bins );
+        msh_hash_grid__sort( bin_dists_sq, bin_indices, n_visited_bins );
 
-      for( int i = 0; i < n_visited_bins; ++i )
-      {
-        msh_hash_grid__find_neighbors_in_bin( hg, bin_indices[i], radius_sq, query_pt, &storage );
-        if( storage.len >= row_size &&
-            dists_sq[ storage.max_dist_idx ] <= bin_dists_sq[i] )
+        for( int i = 0; i < n_visited_bins; ++i )
         {
-          break;
+          msh_hash_grid__find_neighbors_in_bin( hg, bin_indices[i], radius_sq, query_pt, &storage );
+          if( storage.len >= row_size &&
+              dists_sq[ storage.max_dist_idx ] <= bin_dists_sq[i] )
+          {
+            break;
+          }
         }
+
+        if( hg_sd->sort ) { msh_hash_grid__sort( dists_sq, indices, storage.len ); }
+
+        if( n_neighbors ) { (*n_neighbors++) = storage.len; }
+        num_neighbors_per_thread[thread_idx] += storage.len;
+
+        // Advance pointers
+        dists_sq += row_size;
+        indices  += row_size;
+        query_pt += hg->_pts_dim;
       }
-
-      if( hg_sd->sort ) { msh_hash_grid__sort( dists_sq, indices, storage.len ); }
-
-      if( n_neighbors ) { (*n_neighbors++) = storage.len; }
-
-      // Advance pointers
-      dists_sq += row_size;
-      indices  += row_size;
-      query_pt += hg->_pts_dim;
     }
   }
 
-  int32_t total_num_neighbors = 0;
-  for( int32_t i = 0 ; i < n_query_pts; ++i )
+  for( uint32_t i = 0 ; i < num_threads; ++i )
   {
-    total_num_neighbors += hg_sd->n_neighbors[i];
+    total_num_neighbors += num_neighbors_per_thread[i];
   }
 
   return total_num_neighbors;
@@ -927,32 +948,33 @@ size_t msh_hash_grid_knn_search( const msh_hash_grid_t* hg,
   assert( hg_sd->k > 0 );
 
   // Unpack the some useful data from structs
-  enum { MAX_BIN_COUNT = 128 };
-  int32_t n_query_pts = hg_sd->n_query_pts;
-  uint32_t k          = hg_sd->k;
-  uint64_t slab_size  = hg->_slab_size;
-  int8_t sort         = hg_sd->sort;
-  float cs            = hg->cell_size;
-  int64_t w           = hg->width;
-  int64_t h           = hg->height;
-  int64_t d           = hg->depth;
+  enum { MAX_BIN_COUNT = 128, MAX_THREAD_COUNT = 128 };
+  uint32_t n_query_pts = hg_sd->n_query_pts;
+  uint32_t k           = hg_sd->k;
+  uint64_t slab_size   = hg->_slab_size;
+  int8_t sort          = hg_sd->sort;
+  float cs             = hg->cell_size;
+  int64_t w            = hg->width;
+  int64_t h            = hg->height;
+  int64_t d            = hg->depth;
 
-  int32_t n_threads = 1;
-  int32_t n_pts_per_thread = n_query_pts;
+  uint32_t n_pts_per_thread = n_query_pts;
+  uint32_t num_neighbors_per_thread[MAX_THREAD_COUNT] = {0};
+  uint32_t num_threads = hg->_num_threads;
+  assert( num_threads <= MAX_THREAD_COUNT );
 
 #if defined(_OPENMP)
   #pragma omp parallel
   {
-    n_threads = omp_get_num_threads();
-    n_pts_per_thread = ceilf((float)n_query_pts / n_threads);
-    int thread_idx = omp_get_thread_num();
+    if( n_query_pts < num_threads ) { num_threads = n_query_pts; }
+    uint32_t thread_idx = omp_get_thread_num();
 #else
-  for( int thread_idx = 0; thread_idx < n_threads; ++thread_idx )
+  for( uint32_t thread_idx = 0; thread_idx < num_threads; ++thread_idx )
   {
 #endif
-    int low_lim   = thread_idx * n_pts_per_thread;
-    int high_lim  = MSH_HG_MIN((thread_idx + 1) * n_pts_per_thread, n_query_pts);
-    int cur_n_pts = high_lim - low_lim;
+    uint32_t low_lim      = thread_idx * n_pts_per_thread;
+    uint32_t high_lim     = MSH_HG_MIN((thread_idx + 1) * n_pts_per_thread, n_query_pts);
+    uint32_t cur_n_pts    = high_lim - low_lim;
 
     float *query_pt       = hg_sd->query_pts + low_lim * hg->_pts_dim;
     size_t* n_neighbors   = hg_sd->n_neighbors + low_lim;
@@ -962,7 +984,7 @@ size_t msh_hash_grid_knn_search( const msh_hash_grid_t* hg,
     int32_t bin_indices[ MAX_BIN_COUNT ];
     msh_hash_grid_dist_storage_t storage;
 
-    for( int32_t pt_idx = 0; pt_idx < cur_n_pts; ++pt_idx )
+    for( uint32_t pt_idx = 0; pt_idx < cur_n_pts; ++pt_idx )
     {
       // Prep the storage for the next point
       msh_hash_grid_dist_storage_init( &storage, k, dists_sq, indices );
@@ -1054,6 +1076,7 @@ size_t msh_hash_grid_knn_search( const msh_hash_grid_t* hg,
       }
 
       if( n_neighbors ) { (*n_neighbors++) = storage.len; }
+      num_neighbors_per_thread[thread_idx] += storage.len;
 
       if( sort ) { msh_hash_grid__sort( dists_sq, indices, storage.len ); }
 
@@ -1064,10 +1087,10 @@ size_t msh_hash_grid_knn_search( const msh_hash_grid_t* hg,
     }
   }
 
-  int32_t total_num_neighbors = 0;
-  for( int32_t i = 0 ; i < n_query_pts; ++i )
+  uint32_t total_num_neighbors = 0;
+  for( uint32_t i = 0 ; i < num_threads; ++i )
   {
-    total_num_neighbors += hg_sd->n_neighbors[i];
+    total_num_neighbors += num_neighbors_per_thread[i];
   }
 
   return total_num_neighbors;
@@ -1220,61 +1243,3 @@ msh_hg_map_free( msh_hg_map_t* map )
 }
 
 #endif /* MSH_HASH_GRID_IMPLEMENTATION */
-
-// if( nk_button_label( nk_ctx, "Colorize" ) )
-          // {
-          //   msh_hash_grid_t* hg = msh_hash_grid_create( (float*)input_scenes[TIME_IDX]->positions[0],
-          //                                               input_scenes[TIME_IDX]->n_pts[0], 0.3 );
-          //   int bin_idx = -1;
-          //   uint64_t* bin_table_idx = NULL;
-          //   while( bin_table_idx == NULL )
-          //   {
-          //     bin_idx++;
-          //     bin_table_idx = msh_hg_map_get( hg->bin_table, (bin_idx + 1));
-          //   }
-          //   printf("%d %d\n", bin_idx, (int)(*bin_table_idx));
-          //   msh_hg__bin_info_t bi = hg->offsets[ *bin_table_idx ];
-          //   int n_pts = bi.length;
-          //   const msh_hg_v3i_t* data = &hg->data_buffer[bi.offset];
-          //   printf(" || %d %d\n", bi.length, bi.offset );
-          //   for( int i = 0; i < n_pts; ++i )
-          //   {
-          //     input_scenes[TIME_IDX]->colors[0][data[i].i] = msh_vec3(1.0f, 0.0f, 0.0f);
-          //   }
-          //   bin_idx++;
-          //   bin_table_idx = msh_hg_map_get( hg->bin_table, (bin_idx + 1));
-          //   while( bin_table_idx == NULL )
-          //   {
-          //     bin_idx++;
-          //     bin_table_idx = msh_hg_map_get( hg->bin_table, (bin_idx + 1));
-          //   }
-          //   printf("%d %d\n", bin_idx, (int)(*bin_table_idx));
-          //   bi = hg->offsets[ *bin_table_idx ];
-          //   n_pts = bi.length;
-          //   data = &hg->data_buffer[bi.offset];
-          //   printf(" || %d %d\n", bi.length, bi.offset );
-          //   for( int i = 0; i < n_pts; ++i )
-          //   {
-          //     input_scenes[TIME_IDX]->colors[0][data[i].i] = msh_vec3(0.0f, 1.0f, 0.0f);
-          //   }
-          //   bin_idx++;
-          //   bin_table_idx = msh_hg_map_get( hg->bin_table, (bin_idx + 1));
-          //   while( bin_table_idx == NULL )
-          //   {
-          //     bin_idx++;
-          //     bin_table_idx = msh_hg_map_get( hg->bin_table, (bin_idx + 1));
-          //   }
-          //   printf("%d %d\n", bin_idx, (int)(*bin_table_idx));
-          //   bi = hg->offsets[ *bin_table_idx ];
-          //   n_pts = bi.length;
-          //   data = &hg->data_buffer[bi.offset];
-          //   printf(" || %d %d\n", bi.length, bi.offset );
-          //   for( int i = 0; i < n_pts; ++i )
-          //   {
-          //     input_scenes[TIME_IDX]->colors[0][data[i].i] = msh_vec3(0.0f, 0.0f, 1.0f);
-          //   }
-
-          //   mshgfx_geometry_free( &pointclouds[0][n_objects+TIME_IDX] );
-          //   pointclouds[0][n_objects+TIME_IDX] = convert_rs_pointcloud_to_gpu( input_scenes[TIME_IDX], 0 );
-
-          // }
