@@ -423,6 +423,9 @@ int         msh_rand_range( msh_rand_ctx_t* pcg, int min, int max );
   #define MSH_F64_MAX 1.7976931348623157e+308
 #endif
 
+typedef float real32_t;
+typedef double real64_t;
+
 #define MSH_PI          3.1415926535897932384626433832
 #define MSH_TWO_PI      6.2831853072
 #define MSH_INV_PI      0.3183098862

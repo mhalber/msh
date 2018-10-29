@@ -92,8 +92,10 @@
 
   ==============================================================================
   TODOs:
+    [ ] Support for enums?
     [ ] Meta-variables
     [ ] Default values
+    [ ] Better support for multiline argument descriptions
     [ ] Check for the validity based on type 
     [ ] C++ API 
 
@@ -194,6 +196,7 @@ typedef struct msh_argparse
   msh_arg_t args[ MSH_AP_MAX_N_ARGS ];
   size_t n_args;
   size_t n_required;
+  bool print_help;
 
   char * typenames[ MSH_AP_N_TYPES ];
 
@@ -411,12 +414,12 @@ msh_ap__find_argument( const char * arg_name,
   return NULL;
 }
 
-#define MSH_AP__PARSE_ARGUMENT(typename, val_t, cfunc)                            \
+#define MSH_AP__PARSE_ARGUMENT(typename, val_t, cfunc)                         \
   static int                                                                   \
-  msh_ap__parse_##typename##_argument( msh_arg_t * arg,                           \
-                                       size_t argc,                               \
-                                       char **argv,                               \
-                                       size_t *argv_index )                       \
+  msh_ap__parse_##typename##_argument( msh_arg_t * arg,                        \
+                                       size_t argc,                            \
+                                       char **argv,                            \
+                                       size_t *argv_index )                    \
   {                                                                            \
     val_t * values = (val_t *)arg->values;                                     \
     if ( arg->num_vals <= 0 )                                                  \
@@ -613,11 +616,12 @@ msh_ap_init( msh_argparse_t * argparse,
   }
 #endif
 
-  argparse->program_name = program_name;
+  argparse->program_name        = program_name;
   argparse->program_description = program_description;
 
-  argparse->n_args = 0;
+  argparse->n_args     = 0;
   argparse->n_required = 0;
+  argparse->print_help = 0;
 
   argparse->typenames[ 0] = (char*)"bool";
   argparse->typenames[ 1] = (char*)"char";
@@ -633,9 +637,8 @@ msh_ap_init( msh_argparse_t * argparse,
   argparse->typenames[11] = (char*)"string";
 
 #ifndef MSH_AP_NO_HELP
-  static bool msh_ap_print_help = 0;
   msh_ap_add_bool_argument( argparse, "--help", "-h", "Print this help information", 
-                            &msh_ap_print_help, 0 );
+                            &argparse->print_help, 0 );
 #endif
 
   return 1;
@@ -654,27 +657,43 @@ msh_ap_parse( msh_argparse_t * argparse,
 
   size_t argv_index = 0;
   size_t i;
-  for ( i = 0 ; i < argparse->n_required ; ++i )
+  for( i = 0 ; i < argparse->n_required ; ++i )
   {
     msh_arg_t * cur_arg = &(argparse->args[i]);
-    if ( !msh_ap__parse_argument( cur_arg, argc, argv, &argv_index ) ) return 0;
+    if( !msh_ap__parse_argument( cur_arg, argc, argv, &argv_index ) ) 
+    {
+      msh_ap_display_help( argparse );
+      return 0;
+    }
   }
  
   argv_index++;
-  for ( ; (int)argv_index < argc ; ++argv_index )
+  for( ; (int)argv_index < argc ; ++argv_index )
   {
      msh_arg_t * cur_arg = msh_ap__find_argument( argv[argv_index], 
                                                argv[argv_index], 
                                                -1,
                                                argparse );
-    if(!cur_arg) 
+    if( !cur_arg ) 
     { 
       fprintf( stderr, "Argparse Error: Unknown argument %s encountered!\n", 
                        argv[argv_index] );
       return 0;
     }
-    if ( !msh_ap__parse_argument( cur_arg, argc, argv, &argv_index ) ) return 0;
+
+    if( !msh_ap__parse_argument( cur_arg, argc, argv, &argv_index ) )
+    {
+      msh_ap_display_help( argparse );
+      return 0;
+    }
   }
+
+  if( argparse->print_help )
+  {
+    msh_ap_display_help( argparse );
+    return 0;
+  }
+
   return 1;
 }
 
@@ -688,9 +707,9 @@ msh_ap_display_help( msh_argparse_t *argparse )
   char* line_start = description;
   char* line_end = description;
   char buf[1024];
-  while(1)
+  while( 1 )
   {
-    while(*line_end != (char)'\n') { if(*line_end == 0) break; line_end++; }
+    while( *line_end != (char)'\n' ) { if(*line_end == 0) break; line_end++; }
     strncpy(buf, description+(line_start-description), line_end-line_start );
     buf[line_end-line_start] = 0;
     printf("|  %s\n", buf);
