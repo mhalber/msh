@@ -91,6 +91,8 @@
       [x] Multithread knn
   [ ] Options for creating search tree
       [ ] User specification of number of threads
+  [ ] For cases when the radius is large but the max_n_neigh is low, there is a lot of linear
+      searches happening. How to resolve this?
   [x] Multithreading
       [x] API for supplying more then a single point
       [x] OpenMP optional support ( if -fopenmp was supplied, sequential otherwise)
@@ -650,7 +652,7 @@ typedef struct msh_hash_grid_dist_storage
   int32_t* indices;
 } msh_hash_grid_dist_storage_t;
 
-MSH_HG_INLINE void
+void
 msh_hash_grid_dist_storage_init( msh_hash_grid_dist_storage_t* q,
                                  const int k, float* dists, int32_t* indices )
 {
@@ -661,7 +663,21 @@ msh_hash_grid_dist_storage_init( msh_hash_grid_dist_storage_t* q,
   q->indices      = indices;
 }
 
-MSH_HG_INLINE void
+void
+msh_hash_grid_dist_storage_find_highest_element( msh_hash_grid_dist_storage_t* q )
+{
+  float max_dist = q->dists[q->max_dist_idx];
+  for( size_t i = 0; i < q->len; ++i )
+  {
+    if( q->dists[i] > max_dist ) 
+    { 
+      q->max_dist_idx = i; 
+      max_dist = q->dists[q->max_dist_idx];
+    }
+  }
+}
+
+void
 msh_hash_grid_dist_storage_push( msh_hash_grid_dist_storage_t* q,
                                  const float dist, const int32_t idx )
 {
@@ -675,7 +691,7 @@ msh_hash_grid_dist_storage_push( msh_hash_grid_dist_storage_t* q,
     // book keep the index of max dist
     if( q->max_dist_idx != -1 )
     {
-      if( q->dists[q->max_dist_idx] < dist ) { q->max_dist_idx = q->len; }
+      if( q->dists[ q->max_dist_idx ] < dist ) { q->max_dist_idx = q->len; }
     }
     else
     {
@@ -683,24 +699,23 @@ msh_hash_grid_dist_storage_push( msh_hash_grid_dist_storage_t* q,
     }
     q->len++;
   }
-  // We are at capacity. Only add if new is smaller than maximal dist.
+  // We are at capacity. 
+  // THIS IS A SLOW PATH
   else
   {
+    // Replace if new element hash smaller distance than current dist
     if( q->dists[q->max_dist_idx] > dist )
     {
       q->dists[q->max_dist_idx]   = dist;
       q->indices[q->max_dist_idx] = idx;
 
       // Make sure we are really looking at the highest element after replacement
-      for( size_t i = 0; i < q->len; ++i )
-      {
-        if( q->dists[i] > q->dists[q->max_dist_idx] ) { q->max_dist_idx = i; }
-      }
+      msh_hash_grid_dist_storage_find_highest_element( q );
     }
   }
 }
 
-MSH_HG_INLINE void
+void
 msh_hash_grid__find_neighbors_in_bin( const msh_hash_grid_t* hg, const uint64_t bin_idx,
                                       const float radius_sq, const float* pt,
                                       msh_hash_grid_dist_storage_t* s )
@@ -918,13 +933,13 @@ msh_hash_grid__add_bin_contents( const msh_hash_grid_t* hg, const uint64_t bin_i
   uint64_t* bin_table_idx = msh_hg_map_get( hg->bin_table, bin_idx );
 
   if( !bin_table_idx ) { return; }
-
   msh_hg__bin_info_t bi = hg->offsets[*bin_table_idx];
   int n_pts = bi.length;
   const msh_hg_v3i_t* data = &hg->data_buffer[bi.offset];
 
   for( int32_t i = 0; i < n_pts; ++i )
   {
+
     msh_hg_v3_t v;
     if( hg->_pts_dim == 2 )
     {
@@ -935,8 +950,11 @@ msh_hash_grid__add_bin_contents( const msh_hash_grid_t* hg, const uint64_t bin_i
       v = (msh_hg_v3_t){ data[i].x - pt[0], data[i].y - pt[1], data[i].z - pt[2] };
     }
     float dist_sq = v.x * v.x + v.y * v.y + v.z * v.z;
+
     msh_hash_grid_dist_storage_push( s, dist_sq, data[i].i );
+
   }
+  
 }
 
 size_t msh_hash_grid_knn_search( const msh_hash_grid_t* hg,
@@ -965,7 +983,6 @@ size_t msh_hash_grid_knn_search( const msh_hash_grid_t* hg,
   uint32_t num_neighbors_per_thread[MAX_THREAD_COUNT] = {0};
   uint32_t num_threads = hg->_num_threads;
   assert( num_threads <= MAX_THREAD_COUNT );
-
 #if defined(_OPENMP)
   #pragma omp parallel
   {
@@ -988,7 +1005,7 @@ size_t msh_hash_grid_knn_search( const msh_hash_grid_t* hg,
 
       int32_t bin_indices[ MAX_BIN_COUNT ];
       msh_hash_grid_dist_storage_t storage;
-
+      
       for( uint32_t pt_idx = 0; pt_idx < cur_n_pts; ++pt_idx )
       {
         // Prep the storage for the next point
@@ -1004,20 +1021,19 @@ size_t msh_hash_grid_knn_search( const msh_hash_grid_t* hg,
         if( hg->_pts_dim == 2 )
         {
           pt_prime = (msh_hg_v3_t) { query_pt[0] - hg->min_pt.x,
-                                    query_pt[1] - hg->min_pt.y,
-                                    0.0 };
+                                     query_pt[1] - hg->min_pt.y,
+                                     0.0 };
         }
         else
         {
           pt_prime = (msh_hg_v3_t) { query_pt[0] - hg->min_pt.x,
-                                    query_pt[1] - hg->min_pt.y,
-                                    query_pt[2] - hg->min_pt.z };
+                                     query_pt[1] - hg->min_pt.y,
+                                     query_pt[2] - hg->min_pt.z };
         }
         // get base bin for query
         uint64_t ix = (uint64_t)( (pt_prime.x) * hg->_inv_cell_size );
         uint64_t iy = (uint64_t)( (pt_prime.y) * hg->_inv_cell_size );
         uint64_t iz = (uint64_t)( (pt_prime.z) * hg->_inv_cell_size );
-
         while( true )
         {
           int32_t inc_x = 1;
@@ -1069,22 +1085,19 @@ size_t msh_hash_grid_knn_search( const msh_hash_grid_t* hg,
             }
           }
 
-          for( uint32_t i = 0; i < n_visited_bins; ++i )
+          for( uint32_t bin_idx = 0; bin_idx < n_visited_bins; ++bin_idx )
           {
-            msh_hash_grid__add_bin_contents( hg, bin_indices[i], query_pt, &storage );
+            msh_hash_grid__add_bin_contents( hg, bin_indices[bin_idx], query_pt, &storage );
           }
-
+          
           layer++;
-
           if( should_break ) { break; }
           if( storage.len >= k ) { should_break = true; }
         }
-
         if( n_neighbors ) { (*n_neighbors++) = storage.len; }
         num_neighbors_per_thread[thread_idx] += storage.len;
 
         if( sort ) { msh_hash_grid__sort( dists_sq, indices, storage.len ); }
-
         // Advance pointers
         dists_sq += k;
         indices  += k;

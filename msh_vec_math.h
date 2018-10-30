@@ -522,7 +522,6 @@ MSHVMDEF msh_vec3_t &operator+=( msh_vec3_t &a, msh_vec3_t &b );
 MSHVMDEF msh_vec4_t &operator+=( msh_vec4_t &a, msh_vec4_t &b ); 
 #endif
 
-
 #endif /* MSH_VEC_MATH */
 
 

@@ -855,6 +855,30 @@ msh_time_diff( int32_t unit, uint64_t new_time, uint64_t old_time )
   return(double)diff;
 }
 
+double
+msh_time_diff_sec( uint64_t t2, uint64_t t1 )
+{
+  return msh_time_diff( MSHT_SECONDS, t2, t1 );
+}
+
+double
+msh_time_diff_ms( uint64_t t2, uint64_t t1 )
+{
+  return msh_time_diff( MSHT_MILLISECONDS, t2, t1 );
+}
+
+double
+msh_time_diff_us( uint64_t t2, uint64_t t1 )
+{
+  return msh_time_diff( MSHT_MICROSECONDS, t2, t1 );
+}
+
+double
+msh_time_diff_ns( uint64_t t2, uint64_t t1 )
+{
+  return msh_time_diff( MSHT_NANOSECONDS, t2, t1 );
+}
+
 #if defined(_WIN32)
 #if !defined(WIN32_LEAN_AND_MEAN)
 #define WIN32_LEAN_AND_MEAN
