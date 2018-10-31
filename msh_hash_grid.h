@@ -91,8 +91,9 @@
       [x] Multithread knn
   [ ] Options for creating search tree
       [ ] User specification of number of threads
-  [ ] For cases when the radius is large but the max_n_neigh is low, there is a lot of linear
-      searches happening. How to resolve this?
+  [ ] Heap implementation for knn radius
+      [ ] Use <algorithm> first
+      [ ] Implement own version and compare
   [x] Multithreading
       [x] API for supplying more then a single point
       [x] OpenMP optional support ( if -fopenmp was supplied, sequential otherwise)
@@ -126,7 +127,6 @@
 #ifndef MSH_HG_MEMSET
 #define MSH_HG_MEMSET(x,y,z) memset((x), (y), (z))
 #endif
-
 
 #ifndef MSH_HG_CALLOC
 #define MSH_HG_CALLOC(x,y) calloc((x), (y))
@@ -217,6 +217,7 @@ typedef struct msh_hash_grid
   float _inv_cell_size;
   uint8_t _pts_dim;
   uint16_t _num_threads;
+  uint32_t max_n_pts_in_bin;
 } msh_hash_grid_t;
 
 
@@ -316,8 +317,8 @@ typedef struct msh_hg_bin_data
 
 typedef struct msh_hg_bin_info
 {
-  int32_t offset;
-  int32_t length;
+  uint32_t offset;
+  uint32_t length;
 } msh_hg__bin_info_t;
 
 MSH_HG_INLINE uint64_t
@@ -442,7 +443,6 @@ msh_hash_grid__init( msh_hash_grid_t* hg,
   hg->data_buffer = (msh_hg_v3i_t*)MSH_HG_MALLOC( n_pts * sizeof( msh_hg_v3i_t ) );
   MSH_HG_MEMSET( hg->offsets, 0, n_bins * sizeof(msh_hg__bin_info_t) );
 
-
   // Gather indices of bins that have data in them from hash table
   msh_array( uint64_t ) filled_bin_indices = {0};
   for( size_t i = 0; i < msh_hg_map_cap(hg->bin_table); ++i )
@@ -453,19 +453,21 @@ msh_hash_grid__init( msh_hash_grid_t* hg,
       msh_array_push( filled_bin_indices, hg->bin_table->keys[i] - 1);
     }
   }
-  qsort( filled_bin_indices, msh_array_len( filled_bin_indices ), sizeof(uint64_t), uint64_compare );
+  qsort( filled_bin_indices, msh_hg_array_len( filled_bin_indices ), sizeof(uint64_t), uint64_compare );
 
   // Now lay the data into an array based on the sorted keys (following fill order)
   // TODO(maciej): Morton ordering?
-  int offset = 0;
-  for( size_t i = 0; i < msh_array_len(filled_bin_indices); ++i )
+  hg->max_n_pts_in_bin = 0;
+  uint32_t offset = 0;
+  for( size_t i = 0; i < msh_hg_array_len(filled_bin_indices); ++i )
   {
     uint64_t* bin_index = msh_hg_map_get( hg->bin_table, filled_bin_indices[i] );
     assert( bin_index );
     msh_hg__bin_data_t* bin = &bin_table_data[ *bin_index ];
     assert( bin );
-    int n_bin_pts = bin->n_pts;
-    for( int j = 0; j < n_bin_pts; ++j )
+    uint32_t n_bin_pts = bin->n_pts;
+    hg->max_n_pts_in_bin = MSH_HG_MAX( n_bin_pts, hg->max_n_pts_in_bin );
+    for( uint32_t j = 0; j < n_bin_pts; ++j )
     {
       hg->data_buffer[ offset + j ] = bin->data[j] ;
     }
@@ -645,11 +647,13 @@ void msh_hash_grid__sort( float* dists, int32_t* indices, int n )
 
 typedef struct msh_hash_grid_dist_storage
 {
-  size_t cap;
-  size_t len;
-  int32_t max_dist_idx;
-  float* dists;
-  int32_t* indices;
+  size_t    cap;
+  size_t    len;
+  int32_t   max_dist_idx;
+  real32_t  max_dist;
+  real32_t* dists;
+  int32_t*  indices;
+  int32_t   is_heap;
 } msh_hash_grid_dist_storage_t;
 
 void
@@ -659,26 +663,70 @@ msh_hash_grid_dist_storage_init( msh_hash_grid_dist_storage_t* q,
   q->cap          = k;
   q->len          = 0;
   q->max_dist_idx = -1;
+  q->max_dist     = MSH_F32_MAX;
+  q->is_heap      = 0;
   q->dists        = dists;
   q->indices      = indices;
 }
 
 void
-msh_hash_grid_dist_storage_find_highest_element( msh_hash_grid_dist_storage_t* q )
+msh_hash_grid_dist_storage_push_heap( msh_hash_grid_dist_storage_t* q,
+                                      const float dist, const int32_t idx )
 {
-  float max_dist = q->dists[q->max_dist_idx];
-  for( size_t i = 0; i < q->len; ++i )
+  if( dist >= q->max_dist ) { return; }
+
+  if( q->len >= q->cap ) 
   {
-    if( q->dists[i] > max_dist ) 
-    { 
-      q->max_dist_idx = i; 
-      max_dist = q->dists[q->max_dist_idx];
+    // if result set is filled to capacity, remove farthest element
+    std::pop_heap( q->dists, q->dists + q->len );
+    // std::pop_heap( q->indices, q->indices + q->len );
+    q->len--; // "remove the farthest"
+  }
+
+  // add new element
+  q->dists[ q->len ] = dist;
+  q->indices[ q->len ] = idx;
+
+  // book keep the index of max dist
+  // POSSIBLY REMOVE
+  if( q->is_heap )
+  {
+    if( q->max_dist_idx != -1 )
+    {
+      if( q->dists[ q->max_dist_idx ] < dist ) { q->max_dist_idx = q->len; }
     }
+    else
+    {
+      q->max_dist_idx = q->len;
+    }
+  }
+
+  if( q->is_heap) 
+  {
+    std::push_heap( q->dists, q->dists + q->len + 1 );
+    // std::push_heap( q->indices, q->indices + q->len + 1 );
+  }
+
+  q->len++;
+
+  if( q->len >= q->cap ) 
+  {
+    // when got to full capacity, make it a heap
+    if( !q->is_heap ) 
+    {
+      std::make_heap( q->dists, q->dists + q->len + 1 );
+      // std::make_heap( q->indices, q->indices + q->len + 1 );
+      q->is_heap = 1;
+    }
+    
+    // we replaced the farthest element, update worst distance
+    q->max_dist = q->dists[0];
+    q->max_dist_idx = 0;
   }
 }
 
 void
-msh_hash_grid_dist_storage_push( msh_hash_grid_dist_storage_t* q,
+msh_hash_grid_dist_storage_push_linear( msh_hash_grid_dist_storage_t* q,
                                  const float dist, const int32_t idx )
 {
   // We have storage left
@@ -699,8 +747,7 @@ msh_hash_grid_dist_storage_push( msh_hash_grid_dist_storage_t* q,
     }
     q->len++;
   }
-  // We are at capacity. 
-  // THIS IS A SLOW PATH
+  // We are at capacity.
   else
   {
     // Replace if new element hash smaller distance than current dist
@@ -710,7 +757,15 @@ msh_hash_grid_dist_storage_push( msh_hash_grid_dist_storage_t* q,
       q->indices[q->max_dist_idx] = idx;
 
       // Make sure we are really looking at the highest element after replacement
-      msh_hash_grid_dist_storage_find_highest_element( q );
+      q->max_dist = q->dists[q->max_dist_idx];
+      for( size_t i = 0; i < q->len; ++i )
+      {
+        if( q->dists[i] > q->max_dist ) 
+        { 
+          q->max_dist_idx = i; 
+          q->max_dist = q->dists[q->max_dist_idx];
+        }
+      }
     }
   }
 }
@@ -726,14 +781,14 @@ msh_hash_grid__find_neighbors_in_bin( const msh_hash_grid_t* hg, const uint64_t 
   if( !bin_table_idx ) { return; }
 
   msh_hg__bin_info_t bi = hg->offsets[ *bin_table_idx ];
-  int n_pts = bi.length;
+  uint32_t n_pts = bi.length;
   const msh_hg_v3i_t* data = &hg->data_buffer[bi.offset];
 
   float px = pt[0];
   float py = pt[1];
   float pz = (hg->_pts_dim == 2 ) ? 0.0 : pt[2];
 
-  for( int32_t i = 0; i < n_pts; ++i )
+  for( uint32_t i = 0; i < n_pts; ++i )
   {
     // TODO(maciej): Maybe SSE?
     float   dix = data[i].x;
@@ -748,7 +803,7 @@ msh_hash_grid__find_neighbors_in_bin( const msh_hash_grid_t* hg, const uint64_t 
 
     if( dist_sq < radius_sq )
     {
-      msh_hash_grid_dist_storage_push( s, dist_sq, dii );
+      msh_hash_grid_dist_storage_push_linear( s, dist_sq, dii );
     }
   }
 }
@@ -848,7 +903,7 @@ size_t msh_hash_grid_radius_search( const msh_hash_grid_t* hg,
         int64_t opz = pz - iz;
         int64_t onz = nz - iz;
 
-        int n_visited_bins = 0;
+        uint32_t n_visited_bins = 0;
         float dx, dy, dz;
         int64_t cx, cy, cz;
         for( int64_t oz = onz; oz <= opz; ++oz )
@@ -892,7 +947,7 @@ size_t msh_hash_grid_radius_search( const msh_hash_grid_t* hg,
 
         msh_hash_grid__sort( bin_dists_sq, bin_indices, n_visited_bins );
 
-        for( int i = 0; i < n_visited_bins; ++i )
+        for( uint32_t i = 0; i < n_visited_bins; ++i )
         {
           msh_hash_grid__find_neighbors_in_bin( hg, bin_indices[i], radius_sq, query_pt, &storage );
           if( storage.len >= row_size &&
@@ -951,7 +1006,7 @@ msh_hash_grid__add_bin_contents( const msh_hash_grid_t* hg, const uint64_t bin_i
     }
     float dist_sq = v.x * v.x + v.y * v.y + v.z * v.z;
 
-    msh_hash_grid_dist_storage_push( s, dist_sq, data[i].i );
+    msh_hash_grid_dist_storage_push_linear( s, dist_sq, data[i].i );
 
   }
   
@@ -1065,7 +1120,6 @@ size_t msh_hash_grid_knn_search( const msh_hash_grid_t* hg,
               {
                 cx = ix + ox;
                 if( cx < 0 || cx >= w ) continue;
-
 
                 if( ox < 0 )      { dx = pt_prime.x - (cx + 1) * cs; }
                 else if( ox > 0 ) { dx = cx * cs - pt_prime.x; }

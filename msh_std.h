@@ -101,11 +101,8 @@ extern "C" {
 // Credits
 //  Ginger Bill: System and architecture detection from gb.h
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-/* TODOs
- * [ ] inline keyword
- */ 
 
-#define msh_count_of(x) ( ( sizeof(x) / sizeof( *x ) ) )
+#define msh_count_of(x) ((sizeof(x)/sizeof(*x)))
 
 #ifdef MSH_STD_STATIC
 #define MSHDEF static
@@ -470,8 +467,16 @@ void    msh_discrete_distribution_free( msh_discrete_distrib_t* ctx );
 int     msh_discrete_distribution_sample( msh_discrete_distrib_t* ctx );
 
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Heap manipulation
+// Modelled after C++ algorithms
+// TODO:
+// [ ] Make generic
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
+void msh_make_heap( float* vals, size_t n_vals );
+void msh_push_heap( float* vals, size_t n_vals );
+void msh_pop_heap( float* vals, size_t n_vals );
 
 #ifdef __cplusplus
 }
@@ -1119,8 +1124,6 @@ msh_discrete_distribution_sample( msh_discrete_distrib_t* ctx )
   return coin_toss ? column : ctx->alias[column];
 }
 
-
-
 void
 msh_invert_cdf( const double* cdf, size_t n_vals, double* invcdf, size_t n_invcdf_bins )
 {
@@ -1156,6 +1159,58 @@ msh_pdfsample_linear( const double* pdf, double prob, size_t n_vals)
   return sample_idx;
 }
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// HEAP
+// Based on 'Matters Computational' by Joerg Arndt - Err, Joerg Code is GPL :<
+//   https://www.geeksforgeeks.org/binary-heap/
+//   https://en.wikipedia.org/wiki/Binary_heap#cite_note-heapbuildjalg-4
+//   https://en.wikipedia.org/wiki/Min-max_heap
+// This is exactly the wiki algorithm though..
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void msh__heapify( float *z, size_t n, size_t k )
+// Data expected in z[1,2,...,n].
+{ 
+  size_t m = k;
+  // index of max of k, left(k), and right(k)
+  
+  const size_t l = (k<<1); // left(k);
+  if ( (l <= n) && (z[l] > z[k]) ) { m = l; } // left child (exists and) greater than k
+  
+  const size_t r = (k<<1) + 1; // right(k);
+  if ( (r <= n) && (z[r] > z[m]) ) { m = r; } // right child (ex. and) greater than max(k,l)
+  
+  if ( m != k ) // need to swap
+  {
+    float tmp = z[k];
+    z[k] = z[m];
+    z[m] = tmp;
+    msh__heapify( z, n, m );
+  }
+}
+
+void msh_make_heap( real32_t* vals, size_t n_vals )
+{
+  real32_t *vals_one = vals - 1; // make one-based
+  
+  size_t j = (n_vals >> 1); // max index such that node has at least one child
+  while ( j > 0 ) 
+  {
+    msh__heapify( vals_one, n_vals, j ); 
+    --j;
+  }
+}
+
+void msh_push_heap( real32_t* vals, size_t n_vals )
+{
+
+}
+
+void msh_pop_heap( real32_t* vals, size_t n_vals )
+{
+
+}
 
 
 #endif /*MSH_STD_IMPLEMENTATION*/
