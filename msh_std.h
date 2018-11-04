@@ -160,40 +160,41 @@ extern "C" {
 // Debug 
 //
 // Not entirely sure if this is that useful over the assert.h
+// Deprecating this
 //
 // Credit
 //  This is taken from gb.h by Ginger Bill.
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#if defined(_MSC_VER)
-  #if _MSC_VER < 1300
-    #define MSH_DEBUG_TRAP() __asm int 3 /* Trap to debugger! */
-  #else
-    #define MSH_DEBUG_TRAP() __debugbreak()
-  #endif
-#elif defined(__TINYC__) /*If using tcc, just segfault*/
-  #define MSH_DEBUG_TRAP() do{ int* ptr=NULL; int val = *ptr; } while(0)
-#else
-  #define MSH_DEBUG_TRAP() __builtin_trap()
-#endif
+// #if defined(_MSC_VER)
+//   #if _MSC_VER < 1300
+//     #define MSH_DEBUG_TRAP() __asm int 3 /* Trap to debugger! */
+//   #else
+//     #define MSH_DEBUG_TRAP() __debugbreak()
+//   #endif
+// #elif defined(__TINYC__) /*If using tcc, just segfault*/
+//   #define MSH_DEBUG_TRAP() do{ int* ptr=NULL; int val = *ptr; } while(0)
+// #else
+//   #define MSH_DEBUG_TRAP() __builtin_trap()
+// #endif
 
-#ifndef MSH_NDEBUG
-  #define MSH_ASSERT_MSG(cond, msg) do {                                         \
-    if (!(cond)) {                                                               \
-      msh__assert_handler(#cond, __FILE__, (int64_t)__LINE__, msg );             \
-      MSH_DEBUG_TRAP();                                                          \
-    }                                                                            \
-  } while (0)
-#else
-  #define MSH_ASSERT_MSG(cond, msg) /* Expands to nothing */
-#endif /*MSH_NDEBUG*/
+// #ifndef MSH_NDEBUG
+//   #define MSH_ASSERT_MSG(cond, msg) do {                                         \
+//     if (!(cond)) {                                                               \
+//       msh__assert_handler(#cond, __FILE__, (int64_t)__LINE__, msg );             \
+//       MSH_DEBUG_TRAP();                                                          \
+//     }                                                                            \
+//   } while (0)
+// #else
+//   #define MSH_ASSERT_MSG(cond, msg) /* Expands to nothing */
+// #endif /*MSH_NDEBUG*/
 
 
-#define MSH_ASSERT(cond) MSH_ASSERT_MSG(cond, NULL)
+// #define MSH_ASSERT(cond) MSH_ASSERT_MSG(cond, NULL)
 
-#define MSH_ASSERT_NOT_NULL(ptr) MSH_ASSERT_MSG((ptr) != NULL, #ptr " must not be NULL")
+// #define MSH_ASSERT_NOT_NULL(ptr) MSH_ASSERT_MSG((ptr) != NULL, #ptr " must not be NULL")
 
-void msh__assert_handler( char const *condition, char const *file, int32_t line, char const *msg );
+// void msh__assert_handler( char const *condition, char const *file, int32_t line, char const *msg );
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -235,6 +236,10 @@ void msh__assert_handler( char const *condition, char const *file, int32_t line,
 // Memory
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// Look at Niklas Frykholm stuff on allocators to get some idea on when and what allocators are
+// relevant
+
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Array
 //
@@ -246,7 +251,7 @@ void msh__assert_handler( char const *condition, char const *file, int32_t line,
   [ ] Prepare docs
   [ ] Replace malloc with jemalloc or TC malloc?
   [ ] What about alignment issues? http://pzemtsov.github.io/2016/11/06/bug-story-alignment-on-x86.html
-  [ ] Convert this to a function based implementation with things like array bounds
+  [ ] Convert this to a function based implementation with things like array bounds (?)
   [ ] Change behaviour of msh_array_pop
 */
 
@@ -468,15 +473,15 @@ int     msh_discrete_distribution_sample( msh_discrete_distrib_t* ctx );
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// Heap manipulation
-// Modelled after C++ algorithms
+// Heap
 // TODO:
 // [ ] Make generic
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void msh_make_heap( float* vals, size_t n_vals );
-void msh_push_heap( float* vals, size_t n_vals );
-void msh_pop_heap( float* vals, size_t n_vals );
+void msh_heap_make( real32_t* vals, size_t n_vals );
+void msh_heap_push( real32_t* vals, size_t n_vals );
+void msh_heap_pop(  real32_t* vals, size_t n_vals );
+bool msh_heap_isvalid( real32_t* vals, size_t n_vals );
 
 #ifdef __cplusplus
 }
@@ -504,12 +509,15 @@ msh_array__grow(const void *array, size_t new_len, size_t elem_size) {
   size_t old_cap = msh_array_cap( array );
   size_t new_cap = (size_t)msh_array__grow_formula( old_cap );
   new_cap = (size_t)msh_max( new_cap, msh_max(new_len, 16) );
-  assert(new_len <= new_cap);
+  assert( new_len <= new_cap );
   size_t new_size = sizeof(msh_array_hdr_t) + new_cap * elem_size;
   msh_array_hdr_t *new_hdr;
-  if( array ) {
+  if( array )
+  {
     new_hdr = (msh_array_hdr_t*)realloc( msh_array__hdr( array ), new_size );
-  } else {
+  } 
+  else
+  {
     new_hdr = (msh_array_hdr_t*)malloc( new_size );
     new_hdr->len = 0;
   }
@@ -1162,55 +1170,67 @@ msh_pdfsample_linear( const double* pdf, double prob, size_t n_vals)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // HEAP
-// Based on 'Matters Computational' by Joerg Arndt - Err, Joerg Code is GPL :<
-//   https://www.geeksforgeeks.org/binary-heap/
-//   https://en.wikipedia.org/wiki/Binary_heap#cite_note-heapbuildjalg-4
-//   https://en.wikipedia.org/wiki/Min-max_heap
-// This is exactly the wiki algorithm though..
+// Modelled after 'Matters Computational' by Joerg Arndt, but interface mirrors stl
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void msh__heapify( float *z, size_t n, size_t k )
-// Data expected in z[1,2,...,n].
-{ 
-  size_t m = k;
-  // index of max of k, left(k), and right(k)
-  
-  const size_t l = (k<<1); // left(k);
-  if ( (l <= n) && (z[l] > z[k]) ) { m = l; } // left child (exists and) greater than k
-  
-  const size_t r = (k<<1) + 1; // right(k);
-  if ( (r <= n) && (z[r] > z[m]) ) { m = r; } // right child (ex. and) greater than max(k,l)
-  
-  if ( m != k ) // need to swap
+// TODO(Maciej): Check geeks for geeks
+void msh__heapify( float *vals, size_t vals_len, size_t cur )
+{
+  size_t max = cur;
+  const size_t left  = (cur<<1) + 1;
+  const size_t right = (cur<<1) + 2;
+
+  if( (left < vals_len) && (vals[left] > vals[cur]) )   { max = left; }
+  if( (right < vals_len) && (vals[right] > vals[max]) ) { max = right; }
+
+  if( max != cur ) // need to swap
   {
-    float tmp = z[k];
-    z[k] = z[m];
-    z[m] = tmp;
-    msh__heapify( z, n, m );
+    float tmp = vals[cur];
+    vals[cur] = vals[max];
+    vals[max] = tmp;
+    msh__heapify( vals, vals_len, max );
   }
 }
 
-void msh_make_heap( real32_t* vals, size_t n_vals )
+void msh_heap_make( real32_t* vals, size_t vals_len )
 {
-  real32_t *vals_one = vals - 1; // make one-based
-  
-  size_t j = (n_vals >> 1); // max index such that node has at least one child
-  while ( j > 0 ) 
+  int64_t i = vals_len >> 1;
+  while ( i >= 0 ) { msh__heapify( vals, vals_len, i-- ); }
+}
+
+void msh_heap_pop( real32_t* vals, size_t vals_len )
+{
+  float max = vals[0];
+  vals[0] = vals[vals_len-1];
+  vals[vals_len-1] = max;
+  vals_len--;
+
+  if( vals_len > 0 ){ msh__heapify( vals, vals_len, 0 ); }
+}
+
+void msh_heap_push( real32_t* vals, size_t vals_len )
+{
+  int64_t i = vals_len-1;
+  float v = vals[i];
+
+  while( i > 0 )
   {
-    msh__heapify( vals_one, n_vals, j ); 
-    --j;
+    int64_t j = (i-1) >> 1;
+    if( vals[j] >= v ) break;
+    vals[i] = vals[j];
+    i = j;
   }
+  vals[i] = v;
 }
 
-void msh_push_heap( real32_t* vals, size_t n_vals )
+bool msh_heap_isvalid( real32_t* vals, size_t vals_len )
 {
-
+  for( int i = vals_len - 1; i > 0; --i )
+  {
+    size_t parent = (i-1) >> 1;
+    if( vals[i] > vals[parent] ) { return false; }
+  }
+  return true;
 }
-
-void msh_pop_heap( real32_t* vals, size_t n_vals )
-{
-
-}
-
 
 #endif /*MSH_STD_IMPLEMENTATION*/
