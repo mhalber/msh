@@ -639,17 +639,82 @@ msh_hash_grid__quick_sort( float *dists, int32_t* indices, int n )
    }
 }
 
-void msh_hash_grid__sort( float* dists, int32_t* indices, int n )
+void 
+msh_hash_grid__sort( float* dists, int32_t* indices, int n )
 {
   msh_hash_grid__quick_sort( dists, indices, n );
   msh_hash_grid__ins_sort( dists, indices, n );
 }
 
+// Heap implementation with a twist that we swap array of indices based on the distance heap
+void
+msh_hash_grid__heapify( float *dists, int32_t* ind, size_t len, size_t cur )
+{
+  size_t max = cur;
+  const size_t left  = (cur<<1) + 1;
+  const size_t right = (cur<<1) + 2;
+
+  if( (left < len) && (dists[left] > dists[cur]) )   { max = left; }
+  if( (right < len) && (dists[right] > dists[max]) ) { max = right; }
+
+  if( max != cur ) // need to swap
+  {
+    float tmp_dist = dists[cur];
+    dists[cur] = dists[max];
+    dists[max] = tmp_dist;
+
+    int32_t tmp_idx = ind[cur];
+    ind[cur] = ind[max];
+    ind[max] = tmp_idx;
+    
+    msh_hash_grid__heapify( dists, ind, len, max );
+  }
+}
+
+void msh_hash_grid__heap_make( real32_t* dists, int32_t* ind, size_t len )
+{
+  int64_t i = len >> 1;
+  while ( i >= 0 ) { msh_hash_grid__heapify( dists, ind, len, i-- ); }
+}
+
+void msh_hash_grid__heap_pop( real32_t* dists, int32_t* ind, size_t len )
+{
+  float max_dist = dists[0];
+  dists[0] = dists[len-1];
+  dists[len-1] = max_dist;
+
+  float max_idx = ind[0];
+  ind[0] = ind[len-1];
+  ind[len-1] = max_idx;
+
+  len--;
+
+  if( len > 0 ){ msh_hash_grid__heapify( dists, ind, len, 0 ); }
+}
+
+void msh_hash_grid__heap_push( real32_t* dists, int32_t* ind, size_t len )
+{
+  int64_t i = len - 1;
+  float d = dists[i];
+  int32_t idx = ind[i];
+
+  while( i > 0 )
+  {
+    int64_t j = (i - 1) >> 1;
+    if( dists[j] >= d ) break;
+    dists[i] = dists[j];
+    ind[i] = ind[j];
+    i = j;
+  }
+  dists[i] = d;
+  ind[i] = idx;
+}
+
+
 typedef struct msh_hash_grid_dist_storage
 {
   size_t    cap;
   size_t    len;
-  int32_t   max_dist_idx;
   real32_t  max_dist;
   real32_t* dists;
   int32_t*  indices;
@@ -662,112 +727,44 @@ msh_hash_grid_dist_storage_init( msh_hash_grid_dist_storage_t* q,
 {
   q->cap          = k;
   q->len          = 0;
-  q->max_dist_idx = -1;
-  q->max_dist     = MSH_F32_MAX;
+  q->max_dist     = -MSH_F32_MAX;
   q->is_heap      = 0;
   q->dists        = dists;
   q->indices      = indices;
 }
 
-void
-msh_hash_grid_dist_storage_push_heap( msh_hash_grid_dist_storage_t* q,
-                                      const float dist, const int32_t idx )
+uint32_t query_counter = 0;
+uint32_t skip_counter = 0;
+uint32_t valid_counter = 0;
+
+MSH_HG_INLINE void
+msh_hash_grid_dist_storage_push( msh_hash_grid_dist_storage_t* q,
+                                 const float dist, const int32_t idx )
 {
-  if( dist >= q->max_dist ) { return; }
+  if( q->len >= q->cap && dist >= q->max_dist ) { return; }
 
   if( q->len >= q->cap ) 
   {
-    // if result set is filled to capacity, remove farthest element
-    std::pop_heap( q->dists, q->dists + q->len );
-    // std::pop_heap( q->indices, q->indices + q->len );
-    q->len--; // "remove the farthest"
+    // remove farthest if at capacity
+    msh_hash_grid__heap_pop( q->dists, q->indices, q->len );
+    q->len--;
   }
 
   // add new element
   q->dists[ q->len ] = dist;
   q->indices[ q->len ] = idx;
-
-  // book keep the index of max dist
-  // POSSIBLY REMOVE
-  if( q->is_heap )
-  {
-    if( q->max_dist_idx != -1 )
-    {
-      if( q->dists[ q->max_dist_idx ] < dist ) { q->max_dist_idx = q->len; }
-    }
-    else
-    {
-      q->max_dist_idx = q->len;
-    }
-  }
-
-  if( q->is_heap) 
-  {
-    std::push_heap( q->dists, q->dists + q->len + 1 );
-    // std::push_heap( q->indices, q->indices + q->len + 1 );
-  }
-
   q->len++;
 
-  if( q->len >= q->cap ) 
-  {
-    // when got to full capacity, make it a heap
-    if( !q->is_heap ) 
-    {
-      std::make_heap( q->dists, q->dists + q->len + 1 );
-      // std::make_heap( q->indices, q->indices + q->len + 1 );
-      q->is_heap = 1;
-    }
-    
-    // we replaced the farthest element, update worst distance
-    q->max_dist = q->dists[0];
-    q->max_dist_idx = 0;
-  }
-}
+  if( q->is_heap) { msh_hash_grid__heap_push( q->dists, q->indices, q->len ); }
 
-void
-msh_hash_grid_dist_storage_push_linear( msh_hash_grid_dist_storage_t* q,
-                                 const float dist, const int32_t idx )
-{
-  // We have storage left
-  if( q->len < q->cap )
+  if( q->len >= q->cap && !q->is_heap ) 
   {
-    // Push new element
-    q->dists[q->len]   = dist;
-    q->indices[q->len] = idx;
-
-    // book keep the index of max dist
-    if( q->max_dist_idx != -1 )
-    {
-      if( q->dists[ q->max_dist_idx ] < dist ) { q->max_dist_idx = q->len; }
-    }
-    else
-    {
-      q->max_dist_idx = q->len;
-    }
-    q->len++;
+    msh_hash_grid__heap_make( q->dists, q->indices, q->len );
+    q->is_heap = 1;
   }
-  // We are at capacity.
-  else
-  {
-    // Replace if new element hash smaller distance than current dist
-    if( q->dists[q->max_dist_idx] > dist )
-    {
-      q->dists[q->max_dist_idx]   = dist;
-      q->indices[q->max_dist_idx] = idx;
 
-      // Make sure we are really looking at the highest element after replacement
-      q->max_dist = q->dists[q->max_dist_idx];
-      for( size_t i = 0; i < q->len; ++i )
-      {
-        if( q->dists[i] > q->max_dist ) 
-        { 
-          q->max_dist_idx = i; 
-          q->max_dist = q->dists[q->max_dist_idx];
-        }
-      }
-    }
-  }
+  if( q->is_heap ) { q->max_dist = q->dists[0]; }
+  else if ( q->max_dist <= dist ) { q->max_dist = dist; }
 }
 
 void
@@ -803,7 +800,7 @@ msh_hash_grid__find_neighbors_in_bin( const msh_hash_grid_t* hg, const uint64_t 
 
     if( dist_sq < radius_sq )
     {
-      msh_hash_grid_dist_storage_push_linear( s, dist_sq, dii );
+      msh_hash_grid_dist_storage_push( s, dist_sq, dii );
     }
   }
 }
@@ -951,7 +948,7 @@ size_t msh_hash_grid_radius_search( const msh_hash_grid_t* hg,
         {
           msh_hash_grid__find_neighbors_in_bin( hg, bin_indices[i], radius_sq, query_pt, &storage );
           if( storage.len >= row_size &&
-              dists_sq[ storage.max_dist_idx ] <= bin_dists_sq[i] )
+              storage.max_dist <= bin_dists_sq[i] )
           {
             break;
           }
@@ -1006,8 +1003,7 @@ msh_hash_grid__add_bin_contents( const msh_hash_grid_t* hg, const uint64_t bin_i
     }
     float dist_sq = v.x * v.x + v.y * v.y + v.z * v.z;
 
-    msh_hash_grid_dist_storage_push_linear( s, dist_sq, data[i].i );
-
+    msh_hash_grid_dist_storage_push( s, dist_sq, data[i].i );
   }
   
 }
@@ -1128,7 +1124,7 @@ size_t msh_hash_grid_knn_search( const msh_hash_grid_t* hg,
                 float dist_sq = dz * dz + dy * dy + dx * dx;
 
                 if( storage.len >= k &&
-                    dist_sq > dists_sq[storage.max_dist_idx] ) { continue; }
+                    dist_sq > storage.max_dist ) { continue; }
 
                 assert( n_visited_bins < MAX_BIN_COUNT );
 
@@ -1144,6 +1140,7 @@ size_t msh_hash_grid_knn_search( const msh_hash_grid_t* hg,
             msh_hash_grid__add_bin_contents( hg, bin_indices[bin_idx], query_pt, &storage );
           }
           
+          
           layer++;
           if( should_break ) { break; }
           if( storage.len >= k ) { should_break = true; }
@@ -1152,6 +1149,7 @@ size_t msh_hash_grid_knn_search( const msh_hash_grid_t* hg,
         num_neighbors_per_thread[thread_idx] += storage.len;
 
         if( sort ) { msh_hash_grid__sort( dists_sq, indices, storage.len ); }
+
         // Advance pointers
         dists_sq += k;
         indices  += k;

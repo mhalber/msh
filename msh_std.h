@@ -77,6 +77,7 @@ extern "C" {
 #ifdef MSH_STD_INCLUDE_LIBC_HEADERS
 
 // c stdlib
+// Need to double check how many of those are actually needed
 #include <assert.h>
 #include <math.h>
 #include <string.h>
@@ -96,7 +97,7 @@ extern "C" {
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// Some basics to fix c shortcomings
+// Miscellaneous
 //
 // Credits
 //  Ginger Bill: System and architecture detection from gb.h
@@ -179,11 +180,11 @@ extern "C" {
 // #endif
 
 // #ifndef MSH_NDEBUG
-//   #define MSH_ASSERT_MSG(cond, msg) do {                                         \
-//     if (!(cond)) {                                                               \
-//       msh__assert_handler(#cond, __FILE__, (int64_t)__LINE__, msg );             \
-//       MSH_DEBUG_TRAP();                                                          \
-//     }                                                                            \
+//   #define MSH_ASSERT_MSG(cond, msg) do {                                         
+//     if (!(cond)) {                                                               
+//       msh__assert_handler(#cond, __FILE__, (int64_t)__LINE__, msg );             
+//       MSH_DEBUG_TRAP();                                                          
+//     }                                                                            
 //   } while (0)
 // #else
 //   #define MSH_ASSERT_MSG(cond, msg) /* Expands to nothing */
@@ -238,6 +239,7 @@ extern "C" {
 
 // Look at Niklas Frykholm stuff on allocators to get some idea on when and what allocators are
 // relevant
+// Maybe start with simple stack allocator --> it is going to be similar to msh_array
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1173,7 +1175,6 @@ msh_pdfsample_linear( const double* pdf, double prob, size_t n_vals)
 // Modelled after 'Matters Computational' by Joerg Arndt, but interface mirrors stl
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// TODO(Maciej): Check geeks for geeks
 void msh__heapify( float *vals, size_t vals_len, size_t cur )
 {
   size_t max = cur;
