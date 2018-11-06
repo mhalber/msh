@@ -527,15 +527,12 @@ msh_array__grow(const void *array, size_t new_len, size_t elem_size) {
   return (void*)((char*)new_hdr + sizeof(msh_array_hdr_t));
 }
 
-// NOTE(maciej): vsnprintf behaves wierd when under gcc/clang/tcc. if the cap is not enough
-// to hold string, instead of returning correct number of written characters, it returns 0.
-// Not sure if that will be a problem for visualc...
 MSHDEF char*
 msh_array__printf(char *buf, const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
   size_t cap = msh_array_cap(buf) - msh_array_len(buf) ;
-  size_t len = vsnprintf( msh_array_end(buf), cap, fmt, args );
+  int64_t len = vsnprintf( msh_array_end(buf), cap, fmt, args );
   if( len < 0 ) { len = cap; }
   size_t n = 1 + len;
   va_end(args);
