@@ -18,11 +18,11 @@ Overtime hopefully every single library in this repo will be moved to Tier 1.
 
 library                  |  version   | description  
 :------------------------|:----------:|:---------------------------------------------
-**msh_std.h**            |    0.5     | standard library functionality
+**msh_std.h**            |    0.6     | standard library functionality
 **msh_argparse.h**       |    0.75    | command-line argument parsing
 **msh_vec_math.h**       |    0.75    | glsl inspired vector math (vectors, matrices and quaternions)
 **msh_gfx.h**            |    0.1     | openGL wrapper
-**msh_ply.h**            |    0.6     | PLY File I/O
+**msh_ply.h**            |    0.7     | PLY File I/O
 **msh_hash_grid.h**      |    0.1     | Hash grid data structure for radius/knn queries in 2D/3D
 
 
@@ -30,15 +30,15 @@ library                  |  version   | description
 
 library                  |  version   | description                         | dependencies
 :------------------------|:----------:|:-----------------------------------:|:-------
-**msh_cam.h**            |    0.2     | various types of camera controls    | msh_vec_math.h
+**msh_cam.h**            |    0.4     | various types of camera controls    | msh_vec_math.h
 **msh_geometry.h**       |    0.01    | geometrical primitives manipulation | msh_vec_math.h
-
 
 
 ## Experimental folder
 
 Experimental folder contains some code that I am working on during my spare time, and is
-generally very unstable, might be completely changed or deleted. Would not encourage anyone to use it.
+generally very unstable, might be completely changed or deleted. Would not encourage anyone to use
+these files.
 
 ## Disclaimer
 

@@ -1,7 +1,7 @@
 /*
   ==============================================================================
   
-  MSH_STD.H 
+  MSH_STD.H v0.5
   
   A single header library for extending the C standard library.
   This file is partially written by myself, but also includes a lot
@@ -207,7 +207,7 @@ extern "C" {
 #define msh_cprintf(cond, fmt, ...) do {                      \
     if(cond)                                                  \
     {                                                         \
-      printf (fmt, ##__VA_ARGS__);                            \
+      printf( fmt, ##__VA_ARGS__);                            \
     }                                                         \
   }                                                           \
   while (0)

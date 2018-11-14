@@ -80,6 +80,15 @@
 
   ==============================================================================
   TODOs:
+  [ ] Replace openMP with portable implementation
+  [ ] Compatibility function
+    [ ] Allow user to specify compatibility function instead of just L2 norm
+    [ ] Allow user to provide some extra user data like normals for computing the distances
+    [ ] Write ICP example + visualization to test this. Question how well that helps icp converge
+  [ ] Docs
+      NOTE(maciej): Remember to tell the user about sensitivity to max_n_neigh, as it is essentially
+                    spreading out the memory. Should some functions to query point density be added?
+  [ ] Assert proof
   [x] Fix issue when _init function cannot be used if no implementation is declared.
   [x] Optimization - in both knn and radius I need a better way to determine whether I can early out
   [x] Optimization - see if I can simplify the radius search function for small search radii.
@@ -89,22 +98,14 @@
          --> Maybe morton curves will be better
   [x] Fix knn search
       [x] Multithread knn
-  [ ] Options for creating search tree
-      [ ] User specification of number of threads
-  [ ] Heap implementation for knn radius
-      [ ] Use <algorithm> first
-      [ ] Implement own version and compare
+  [x] Heap implementation for knn radius
+      [x] Use <algorithm> first
+      [x] Implement own version and compare
   [x] Multithreading
       [x] API for supplying more then a single point
       [x] OpenMP optional support ( if -fopenmp was supplied, sequential otherwise)
-      [ ] Replace openMP with portable implementation (subset of c11 API?)
   [x] Params struct for searching
-     [ ] Compatibility function?
   [x] Add 2d support on API level
-  [ ] Docs
-      NOTE(maciej): Remember to tell the user about sensitivity to max_n_neigh, as it is essentially
-                    spreading out the memory. Should some functions to query point density be added?
-  [ ] Assert proof
   ==============================================================================
 */
 
@@ -340,7 +341,7 @@ msh_hash_grid__init( msh_hash_grid_t* hg,
                      const float* pts, const int32_t n_pts, const int32_t dim,
                      const float radius )
 {
-  assert(dim == 2 || dim == 3);
+  assert( dim == 2 || dim == 3 );
 
   if( hg->_num_threads == 0 )
   {

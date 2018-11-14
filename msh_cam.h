@@ -1,7 +1,7 @@
 /*
   ==============================================================================
   
-  MSH_CAM.H - WIP!
+  MSH_CAM.H - v0.4
   
   A single header library for first person and arcball camera manipulation 
 
@@ -90,8 +90,8 @@
  */
 
 
-#ifndef MSH_CAM_H
-#define MSH_CAM_H
+#ifndef MSH_CAM
+#define MSH_CAM
 
 #ifdef __cplusplus
 extern "C" {
@@ -124,6 +124,8 @@ typedef struct msh_camera
   /* Params */
   msh_scalar_t fovy;
   msh_scalar_t aspect_ratio;
+  real32_t znear;
+  real32_t zfar;
 
   /* Generated -- Not sure if should be stored, or computed per request*/
   msh_mat4_t view;
@@ -246,6 +248,8 @@ msh_camera_init( msh_camera_t * camera,
   camera->proj = msh_perspective( fovy, aspect_ratio, znear, zfar );
   camera->fovy = fovy;
   camera->aspect_ratio = aspect_ratio;
+  camera->znear = znear;
+  camera->zfar = zfar;
 
   msh_mat4_t view_inverse = msh_mat4_inverse( camera->view );
 
@@ -263,6 +267,8 @@ msh_camera_update_perspective( msh_camera_t *camera,
   camera->proj = msh_perspective( fovy, aspect_ratio, znear, zfar );
   camera->fovy = fovy;
   camera->aspect_ratio = aspect_ratio;
+  camera->znear = znear;
+  camera->zfar = zfar;
 }
 
 MSHCAMDEF void
@@ -272,6 +278,8 @@ msh_camera_update_ortho( msh_camera_t *camera,
                          const msh_scalar_t znear, const msh_scalar_t zfar )
 {
   camera->proj = msh_ortho( left, right, bottom, top, znear, zfar );
+  camera->znear = znear;
+  camera->zfar = zfar;
 }
 
 MSHCAMDEF void 

@@ -96,14 +96,7 @@ extern "C" {
 #include <stdint.h>
 #endif
 
-// #ifdef __APPLE__
-  // #include <OpenGL/gl3.h>
-// #else
-  #include "glad/glad.h"
-// #endif
-
-#define GLFW_INCLUDE_NONE
-#include "GLFW/glfw3.h"
+#include "glad/glad.h"
 
 #ifndef MSH_VEC_MATH
 
@@ -376,7 +369,7 @@ void mshgfx_texture3d_free( mshgfx_texture3d_t *tex );
  * =============================================================================
  */
 
-int32_t  msh_viewport_init( mshgfx_viewport_t *v, msh_vec2_t p1, msh_vec2_t p2 );
+int32_t msh_viewport_init( mshgfx_viewport_t *v, msh_vec2_t p1, msh_vec2_t p2 );
 void msh_viewport_begin( const mshgfx_viewport_t *v);
 void msh_viewport_end();
 
