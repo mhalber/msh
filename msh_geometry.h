@@ -54,9 +54,18 @@
   ==============================================================================
   TODOs
   [ ] Simplify the ray through pixel function
+  [ ] Test u,v,w in triangle intersection
   [ ] Move the ray through pixel to msh_cam.h
-  [ ] Read more about separating axis test ( Ericsen 195 )
+  [ ] Read more about separating axis test ( Ericsen )
   [ ] Test and improve robustness
+  [ ] Improve aabb tree build time - change build iterative, non recursive function maybe?
+  [ ] Dynamic aabb tree rebuild
+  [ ] For aabb tree building - make handle to tree an opaque type (int) and use descriptor to build 
+      it. See sokol for how that is achieved.
+  [ ] Occlusion culling for ray-aabb traversal 
+      (Dont test agains boxes that are completly behind others)
+  [ ] AABB traversal could be made generic with callbacks..
+  [ ] Error handling
   ==============================================================================
   REFERENCES:
  */
@@ -107,6 +116,26 @@ typedef struct msh_geo_triangle
   msh_vec3_t v2;
 } msh_triangle_t;
 
+/* Based on https://github.com/rmitton/rjm/blob/master/rjm_raytrace.h 
+ * It is a little slow to build */
+typedef struct msh_geo_aabb_tree
+{
+  /* User filled */
+  size_t n_tris;
+  uint32_t* tris;
+  msh_vec3_t* verts;
+  int32_t max_tris_per_leaf;
+
+  uint32_t *leaf_tris;             /* Indices of tris in a leaf -> indices to original mesh */
+  struct msh_geo_aabb *nodes;
+  struct msh_geo_aabb_leaf *leafs; /* Stores indices to leaf_tris */
+  uint32_t first_leaf;
+  uint32_t n_nodes;
+  uint32_t n_leafs;
+  uint32_t n_lvls;
+
+} msh_aabb_tree_t;
+
 
 /* deprecated */
 typedef struct mshgeo_bbox
@@ -136,7 +165,7 @@ MSHGEODEF bool       mshgeo_bbox_intersect(msh_bbox_t* ba, msh_bbox_t* bb);
 
 #ifdef MSH_GEOMETRY_IMPLEMENTATION
 
-#ifdef MSH_CAM
+#define MSHGEO_SWAP(T, X, Y) { T _tmp = (X); (X) = (Y); (Y) = _tmp; }
 
 MSHGEODEF void
 mshgeo_aabb_init( msh_aabb_t* a )
@@ -161,6 +190,8 @@ mshgeo_aabb_expand( msh_aabb_t* a, const msh_vec3_t* p )
   a->max_pt.y = msh_max( a->max_pt.y, p->y );
   a->max_pt.z = msh_max( a->max_pt.z, p->z );
 }
+
+#ifdef MSH_CAM
 
 MSHGEODEF void
 mshgeo_ray_through_pixel( msh_ray_t* ray, msh_vec2_t p, msh_vec4_t* viewport, msh_camera_t* camera )
@@ -208,16 +239,19 @@ mshgeo_ray_through_pixel( msh_ray_t* ray, msh_vec2_t p, msh_vec4_t* viewport, ms
  * 
  * This file provides a simd implementation
  * https://github.com/rmitton/rjm/blob/master/rjm_raytrace.h
+ * 
+ * Given how time critical this is, I might consider doing this with simd.
  * */
 
 MSHGEODEF int
-msh_ray_triangle_intersect( msh_ray_t* ray, msh_vec3_t a, msh_vec3_t b, msh_vec3_t c,
+msh_ray_triangle_intersect( const msh_ray_t* ray, msh_vec3_t a, msh_vec3_t b, msh_vec3_t c,
                             float *u, float *v, float *w, float* t )
 {
   msh_vec3_t ab = msh_vec3_sub( b, a );
   msh_vec3_t ac = msh_vec3_sub( c, a );
   msh_vec3_t p = ray->origin;
-  msh_vec3_t q = msh_vec3_add( ray->origin, msh_vec3_scalar_mul( ray->direction, 1000 ) );
+  // msh_vec3_t q = msh_vec3_add( ray->origin, msh_vec3_scalar_mul( ray->direction, 1000 ) );
+  msh_vec3_t q = msh_vec3_add( ray->origin, ray->direction );
   msh_vec3_t qp = msh_vec3_sub( p, q );
 
   msh_vec3_t n = msh_vec3_cross( ab, ac );
@@ -319,39 +353,29 @@ mshgeo_point_aabb_dist_sq( const msh_vec3_t* p, const msh_aabb_t* b )
   if( p->y < b->min_pt.y) { dist_sq += (b->min_pt.y - p->y) * (b->min_pt.y - p->y); }
   if( p->y > b->max_pt.y) { dist_sq += (p->y - b->max_pt.y) * (p->y - b->max_pt.y); }
  
-  if( p->z < b->min_pt.x) { dist_sq += (b->min_pt.z - p->z) * (b->min_pt.z - p->z); }
-  if( p->z > b->max_pt.x) { dist_sq += (p->z - b->max_pt.z) * (p->z - b->max_pt.z); }
+  if( p->z < b->min_pt.z) { dist_sq += (b->min_pt.z - p->z) * (b->min_pt.z - p->z); }
+  if( p->z > b->max_pt.z) { dist_sq += (p->z - b->max_pt.z) * (p->z - b->max_pt.z); }
 
   return dist_sq;
 }
 
-MSHGEODEF int
+MSHGEODEF uint8_t
 mshgeo_sphere_aabb_test( const msh_sphere_t* sphere, const msh_aabb_t* box )
 {
   real32_t dist_sq = mshgeo_point_aabb_dist_sq( &sphere->center, box );
   return ( dist_sq <= sphere->radius * sphere->radius );
 }
 
-
-
-
-/* Based on https://github.com/rmitton/rjm/blob/master/rjm_raytrace.h */
-/* it is a little slow to build */
-#define MSH_AABB_TREE_MAX_LEAF_TRIS 256
-typedef struct msh_geo_aabb_tree
+MSHGEODEF int
+mshgeo_sphere_triangle_test_approx( const msh_sphere_t* sphere, 
+                                    const msh_vec3_t* a, const msh_vec3_t* b, const msh_vec3_t* c )
 {
-  size_t n_tris;
-  uint32_t* tris;
-  msh_vec3_t* verts;
-
-  uint32_t first_leaf;
-  uint32_t *leaf_tris;             /* Indices of tris in a leaf -> indices to original mesh */
-  struct msh_geo_aabb *nodes;
-  struct msh_geo_aabb_leaf *leafs; /* Stores indices to leaf_tris */
-  uint32_t n_nodes;
-  uint32_t n_leafs;
-
-} msh_aabb_tree_t;
+  real32_t rsq = sphere->radius * sphere->radius;
+  if( msh_vec3_norm_sq( msh_vec3_sub( sphere->center, *a ) ) < rsq ) { return 1; }
+  if( msh_vec3_norm_sq( msh_vec3_sub( sphere->center, *b ) ) < rsq ) { return 1; }
+  if( msh_vec3_norm_sq( msh_vec3_sub( sphere->center, *c ) ) < rsq ) { return 1; }
+  return 0;
+}
 
 typedef struct msh_geo_aabb msh_aabb_node_t;
 
@@ -360,8 +384,6 @@ typedef struct msh_geo_aabb_leaf
   uint32_t tri_idx;   /* Index to intermediate array storing indices to input mesh */
   uint32_t n_tris;   /* Number of tris in the leaf */
 } msh_aabb_leaf_t;
-
-#define MSHGEO_SWAP(T, X, Y) { T _tmp = (X); (X) = (Y); (Y) = _tmp; }
 
 static uint32_t *
 mshgeo__aabb_tree_partition( msh_aabb_tree_t *tree,
@@ -402,7 +424,7 @@ static void
 mshgeo__aabb_tree_quickselect( msh_aabb_tree_t *tree, 
                                uint32_t *left, uint32_t *right, uint32_t *mid, uint8_t dim )
 {
-  for (;;)
+  for(;;)
   {
     uint32_t *pivot = mshgeo__aabb_tree_partition( tree, left, right, dim );
     if ( mid < pivot )      { right = pivot - 1; }
@@ -412,11 +434,12 @@ mshgeo__aabb_tree_quickselect( msh_aabb_tree_t *tree,
 }
 
 static void 
-msh__aabb_tree_build_nodes( msh_aabb_tree_t *tree, uint32_t node_idx, uint32_t tri_idx, uint32_t n_tris )
+msh__aabb_tree_build_nodes( msh_aabb_tree_t *tree,
+                            uint32_t node_idx, uint32_t tri_idx, uint32_t n_tris )
 {
   if( node_idx >= tree->first_leaf  ) 
   {
-    assert( n_tris <= MSH_AABB_TREE_MAX_LEAF_TRIS );
+    assert( n_tris <= tree->max_tris_per_leaf );
     msh_aabb_leaf_t *leaf = tree->leafs + (node_idx - tree->first_leaf);
     leaf->tri_idx         = tri_idx;
     leaf->n_tris          = n_tris;
@@ -430,7 +453,6 @@ msh__aabb_tree_build_nodes( msh_aabb_tree_t *tree, uint32_t node_idx, uint32_t t
 
   /* Calculate bounds */
   msh_aabb_t *node = tree->nodes + node_idx;
-
   for( uint32_t n = 0; n < n_tris; n++ )
   {
     uint32_t idx = *(tree->tris + 3 * tree->leaf_tris[ tri_idx + n ]);
@@ -442,8 +464,8 @@ msh__aabb_tree_build_nodes( msh_aabb_tree_t *tree, uint32_t node_idx, uint32_t t
   /* Select dimension with the largest extend */
   msh_vec3_t extends = msh_vec3_sub( node->max_pt, node->min_pt );
   uint8_t dim = 0;
-  if( extends.data[1] > extends.data[dim] ) dim = 1;
-  if( extends.data[2] > extends.data[dim] ) dim = 2;
+  if( extends.data[1] > extends.data[dim] ) { dim = 1; }
+  if( extends.data[2] > extends.data[dim] ) { dim = 2; }
 
   // Partition
   assert( n_tris > 0 );
@@ -463,19 +485,27 @@ mshgeo_aabb_tree_build( msh_aabb_tree_t* tree )
   assert( tree->verts );
   assert( tree->n_tris > 0 );
 
+  if( tree->max_tris_per_leaf <= 0 ) { tree->max_tris_per_leaf = 64; }
+
   uint32_t leaf_count = 1;
-  while( leaf_count * MSH_AABB_TREE_MAX_LEAF_TRIS < tree->n_tris ) leaf_count <<= 1;
+  tree->n_lvls = 0;
+  while( leaf_count * tree->max_tris_per_leaf < tree->n_tris ) 
+  { 
+    leaf_count <<= 1;
+    tree->n_lvls++;
+  };
 
   tree->first_leaf = leaf_count - 1;
-  tree->nodes = (msh_aabb_node_t*)malloc( tree->first_leaf * sizeof( msh_aabb_node_t ) );
-  tree->leafs = (msh_aabb_leaf_t*)malloc( leaf_count * sizeof( msh_aabb_leaf_t ) );
-  tree->leaf_tris = (uint32_t*)malloc( tree->n_tris * sizeof( uint32_t ) );
+  tree->nodes      = (msh_aabb_node_t*)malloc( tree->first_leaf * sizeof( msh_aabb_node_t ) );
+  tree->leafs      = (msh_aabb_leaf_t*)malloc( leaf_count * sizeof( msh_aabb_leaf_t ) );
+  tree->leaf_tris  = (uint32_t*)malloc( tree->n_tris * sizeof( uint32_t ) );
+  tree->n_leafs    = 0;
+  tree->n_nodes    = 0;
+  
   for( size_t i = 0; i < tree->first_leaf; ++i )
   {
     mshgeo_aabb_init( &(tree->nodes[i]) );
   }
-  tree->n_leafs = 0;
-  tree->n_nodes = 0;
 
   for( uint32_t n = 0; n < tree->n_tris; ++n )
   {
@@ -487,15 +517,206 @@ mshgeo_aabb_tree_build( msh_aabb_tree_t* tree )
 
 }
 
-// MSHGEODEF int
-// mshgeo_ray_aabb_tree_intersect( const msh_ray_t* ray, const msh_aabb_tree_t* tree )
-// {
+typedef struct msh_ray_bvh_isect_info
+{
+  uint32_t intersects;
+  int32_t tri_idx;
+  real32_t u, v, w, t; /* TODO(maciej): Remove w */
 
-// }
+  /* Debug info -> Maybe disable when NDEBUG flag is available? */
+  int32_t n_nodes_visited;
+  int32_t n_leafs_visited;
+  int32_t n_tris_tested;
+
+  /* Optional, memory provided by user */
+  uint8_t* intersects_node;
+} msh_ray_bvh_isect_info_t;
+
+MSHGEODEF int32_t
+mshgeo_ray_aabb_tree_intersect( const msh_ray_t* ray, const msh_aabb_tree_t* tree,
+                                msh_ray_bvh_isect_info_t* isect_info )
+{
+  int32_t stack[256];
+  int32_t sp = 0;
+  int32_t node_idx = 0;
+
+  // Fill initial intersection info
+  isect_info->intersects      = 0;
+  isect_info->tri_idx         = -1;
+  isect_info->t               = MSH_F32_MAX;
+  isect_info->n_nodes_visited = 0;
+  isect_info->n_leafs_visited = 0;
+  isect_info->n_tris_tested   = 0;
+
+  // Trace the tree
+  stack[sp] = 0;
+  do {
+    int32_t leaf_idx = node_idx - tree->first_leaf;
+    if (leaf_idx >= 0)
+    {
+      // Leaf, test each triangle
+      msh_aabb_leaf_t *leaf = tree->leafs + leaf_idx;
+      uint32_t *inds = tree->leaf_tris + leaf->tri_idx;
+      int32_t n_tris = leaf->n_tris;
+
+      while( n_tris-- )
+      {
+        // Read triangle data
+        uint32_t tri_idx = *inds++;
+        uint32_t *tri    = tree->tris + (tri_idx * 3);
+        msh_vec3_t *v0   = tree->verts + tri[0];
+        msh_vec3_t *v1   = tree->verts + tri[1];
+        msh_vec3_t *v2   = tree->verts + tri[2];
+
+        // Ray-triangle intersection
+        real32_t t = MSH_F32_MAX;
+        uint8_t intersects = msh_ray_triangle_intersect( ray, *v0, *v1, *v2, 
+                                              &isect_info->u, &isect_info->v, &isect_info->w, &t );
+        if( intersects && t < isect_info->t )
+        {
+          isect_info->tri_idx    = tri_idx;
+          isect_info->t          = t;
+          isect_info->intersects = 1;
+        }
+      }
+
+      // Gather stats
+      isect_info->n_tris_tested += leaf->n_tris;
+      isect_info->n_leafs_visited++;
+    }
+    else
+    {
+      // Check if ray hits the box
+      uint8_t intersects = mshgeo_ray_aabb_test( ray, &tree->nodes[node_idx] );
+
+      // If hit, recurse down the trees
+      if( intersects )
+      {
+        // Gather stats
+        if( isect_info->intersects_node ) { isect_info->intersects_node[node_idx] = 1; }
+        isect_info->n_nodes_visited++;
+
+        // Push nodes onto stack
+        stack[sp++] = node_idx * 2 + 2;
+        node_idx = node_idx * 2 + 1;
+        continue;
+      }
+    }
+
+    // Pull a new node off the stack
+    node_idx = stack[--sp];
+  } while( sp >= 0 );
+
+  return isect_info->intersects;
+}
+
+typedef struct msh_sphere_bvh_isect_info
+{
+  uint32_t intersects;
+  uint32_t* tri_list;
+  uint32_t tri_list_len;
+  uint32_t tri_list_cap;
+
+  /* Debug info -> Maybe disable when NDEBUG flag is available? */
+  int32_t n_nodes_visited;
+  int32_t n_leafs_visited;
+  int32_t n_tris_tested;
+
+  /* Optional, memory provided by user */
+  uint8_t* intersects_node;
+
+} msh_sphere_bvh_isect_info_t;
+
+MSHGEODEF int32_t
+mshgeo_sphere_aabb_tree_intersect( const msh_sphere_t* sphere, const msh_aabb_tree_t* tree,
+                                   msh_sphere_bvh_isect_info_t* isect_info )
+{
+  int32_t stack[256];
+  int32_t sp = 0;
+  int32_t node_idx = 0;
+
+  // Fill initial intersection info
+  if( isect_info->tri_list == NULL ) 
+  { 
+    isect_info->tri_list_cap = 1024;
+    isect_info->tri_list = malloc( isect_info->tri_list_cap * sizeof( isect_info->tri_list[0] ) );
+  }
+  isect_info->tri_list_len = 0;
+  isect_info->intersects = 0;
+  isect_info->n_nodes_visited = 0;
+  isect_info->n_leafs_visited = 0;
+  isect_info->n_tris_tested   = 0;
+
+  // Trace the tree
+  stack[sp] = 0;
+  do {
+    int32_t leaf_idx = node_idx - tree->first_leaf;
+    if (leaf_idx >= 0)
+    {
+      // Leaf, test each triangle
+      msh_aabb_leaf_t *leaf = tree->leafs + leaf_idx;
+      uint32_t *inds = tree->leaf_tris + leaf->tri_idx;
+      int32_t n_tris = leaf->n_tris;
+
+      while( n_tris-- )
+      {
+        // Read triangle data
+        uint32_t tri_idx = *inds++;
+        uint32_t *tri    = tree->tris + (tri_idx * 3);
+        msh_vec3_t *v0   = tree->verts + tri[0];
+        msh_vec3_t *v1   = tree->verts + tri[1];
+        msh_vec3_t *v2   = tree->verts + tri[2];
+
+        // Ray-sphere intersection
+        uint8_t intersectiton_found = mshgeo_sphere_triangle_test_approx( sphere, v0, v1, v2 );
+        if( intersectiton_found )
+        {
+          // No more space, realloc
+          if( isect_info->tri_list_len >= isect_info->tri_list_cap )
+          {
+            isect_info->tri_list_cap *= 2;
+            size_t byte_size = isect_info->tri_list_cap * sizeof(isect_info->tri_list[0]);
+            isect_info->tri_list = realloc( isect_info->tri_list, byte_size );
+          }
+
+          isect_info->tri_list[isect_info->tri_list_len] = tri_idx;
+          isect_info->tri_list_len++;
+          isect_info->intersects = 1;
+        }
+      }
+      // Gather stats
+      isect_info->n_tris_tested += leaf->n_tris;
+      isect_info->n_leafs_visited++;
+    }
+    else
+    {
+      // Check if sphere intersects the box
+      uint8_t intersects = mshgeo_sphere_aabb_test( sphere, &tree->nodes[node_idx] );
+
+      // If hit, recurse down the trees
+      if( intersects )
+      {
+        // Gather stats
+        if( isect_info->intersects_node ) { isect_info->intersects_node[node_idx] = 1; }
+        isect_info->n_nodes_visited++;
+
+        // Push nodes onto stack
+        stack[sp++] = node_idx * 2 + 2;
+        node_idx = node_idx * 2 + 1;
+        continue;
+      }
+    }
+
+    // Pull a new node off the stack
+    node_idx = stack[--sp];
+  } while( sp >= 0 );
+
+  return isect_info->intersects;
+}
 
 
+/* deprecated */
 
-/* deprecated
 MSHGEODEF inline msh_bbox_t
 mshgeo_bbox_init()
 {
@@ -568,5 +789,5 @@ mshgeo_bbox_intersect( msh_bbox_t* ba, msh_bbox_t* bb )
           (ba->max_p.y >= bb->min_p.y && bb->max_p.y >= ba->min_p.y) &&
           (ba->max_p.z >= bb->min_p.z && bb->max_p.z >= ba->min_p.z) );
 }
-*/
+
 #endif
