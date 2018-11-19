@@ -309,8 +309,7 @@ msh_ap__are_options_valid( const char * name,
     return 0;
   }
 
-  /* TODO: Enforce that if argument its optional its length must be at least 3 and 
-     must have "--" */
+  /* TODO: Enforce that if argument its optional its length must be at least 3 and must have "--" */
   if (strlen(name) > 3 && name[0] == '-' && name[1] != '-' ) 
   {
     fprintf(stderr, "Argparse Error: All optional arguments must start with "

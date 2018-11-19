@@ -160,42 +160,9 @@ extern "C" {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Debug 
 //
-// Not entirely sure if this is that useful over the assert.h
-// Deprecating this
-//
-// Credit
-//  This is taken from gb.h by Ginger Bill.
+// TODO(maciej): Fill this in with stuff that casey is talking about, like automatic performance 
+//  counters
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// #if defined(_MSC_VER)
-//   #if _MSC_VER < 1300
-//     #define MSH_DEBUG_TRAP() __asm int 3 /* Trap to debugger! */
-//   #else
-//     #define MSH_DEBUG_TRAP() __debugbreak()
-//   #endif
-// #elif defined(__TINYC__) /*If using tcc, just segfault*/
-//   #define MSH_DEBUG_TRAP() do{ int* ptr=NULL; int val = *ptr; } while(0)
-// #else
-//   #define MSH_DEBUG_TRAP() __builtin_trap()
-// #endif
-
-// #ifndef MSH_NDEBUG
-//   #define MSH_ASSERT_MSG(cond, msg) do {                                         
-//     if (!(cond)) {                                                               
-//       msh__assert_handler(#cond, __FILE__, (int64_t)__LINE__, msg );             
-//       MSH_DEBUG_TRAP();                                                          
-//     }                                                                            
-//   } while (0)
-// #else
-//   #define MSH_ASSERT_MSG(cond, msg) /* Expands to nothing */
-// #endif /*MSH_NDEBUG*/
-
-
-// #define MSH_ASSERT(cond) MSH_ASSERT_MSG(cond, NULL)
-
-// #define MSH_ASSERT_NOT_NULL(ptr) MSH_ASSERT_MSG((ptr) != NULL, #ptr " must not be NULL")
-
-// void msh__assert_handler( char const *condition, char const *file, int32_t line, char const *msg );
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -337,6 +304,8 @@ void      msh_map_get_iterable_keys_and_vals( const msh_map_t* map, uint64_t** k
 
 char* msh_strdup( const char *src );
 
+char* msh_get_file_ext( const char* src );
+
 // inline void
 // msh__path_concat(char* buf, va_list ap)
 // {
@@ -349,6 +318,26 @@ char* msh_strdup( const char *src );
 
 // inline void
 //
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Colors
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+typedef union msh_rgb
+{
+  uint8_t data[3];
+  struct { uint8_t r; uint8_t g; uint8_t b; };
+} msh_rgb_t;
+
+typedef union msh_rgba
+{
+  uint8_t data[3];
+  struct { uint8_t r; uint8_t g; uint8_t b; uint8_t a; };
+} msh_rgba_t;
+
+#define msh_rgb( r, g, b ) (msh_rgb_t){{ r, g, b }};
+#define msh_rgba( r, g, b, a ) (msh_rgba_t){{ r, g, b, a }};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Time

@@ -690,7 +690,7 @@ msh_vec4_scalar_mul( msh_vec4_t v, msh_scalar_t s )
   double vy = (double)v.y * (double)s;
   double vz = (double)v.z * (double)s;
   double vw = (double)v.w * (double)s;
-  return MSHVM_INIT_CAST(msh_vec4_t){{ vx, vy, vz, vw }};
+  return MSHVM_INIT_CAST(msh_vec4_t){{ (float)vx, (float)vy, (float)vz, (float)vw }};
 }
 
 
@@ -2159,7 +2159,7 @@ msh_quat_from_axis_angle( msh_vec3_t axis, msh_scalar_t angle )
 {
   msh_scalar_t a = (msh_scalar_t)(angle * 0.5);
   msh_scalar_t s = (msh_scalar_t)sin(a);
-  return MSHVM_INIT_CAST(msh_quat_t){{ axis.x * s, axis.y * s, axis.z * s, cosf(a)}};
+  return MSHVM_INIT_CAST(msh_quat_t){{ axis.x * s, axis.y * s, axis.z * s, cos(a)}};
 }
 
 MSHVMDEF msh_quat_t
@@ -2604,6 +2604,58 @@ msh_mat4_print( msh_mat4_t m )
 {
   msh_mat4_fprint( m, stdout );
 }
+
+// Color conversion helpers
+
+#if 0
+msh_vec3_t msh_rgb_to_vec3( msh_rgb_t c )
+{
+  return msh_vec3( c.r, c.g, c.b );
+}
+
+msh_vec3_t msh_rgb_to_vec3_normalized( msh_rgb_t c )
+{
+  real32_t denom = 1.0f / 255.0f;
+  return msh_vec3( (real32_t)(c.r * denom), (real32_t)(c.g * denom), (real32_t)(c.b * denom) );
+}
+
+msh_vec3_t msh_rgba_to_vec4( msh_rgba_t c )
+{
+  return msh_vec4( c.r, c.g, c.b, c.a );
+}
+
+msh_vec3_t msh_rgba_to_vec4_normalized( msh_rgba_t c )
+{
+  real32_t denom = 1.0f / 255.0f;
+  return msh_vec4( (real32_t)( c.r * denom ),
+                   (real32_t)( c.g * denom ),
+                   (real32_t)( c.b * denom ),
+                   (real32_t)( c.a * denom ) );
+}
+
+msh_vec3_t msh_vec3_to_rgb( msh_vec3_t v )
+{
+  return msh_rgb( v.x, v.y, v.z );
+}
+
+msh_vec3_t msh_vec3_normalized_to_rgb( msh_vec3_t v )
+{
+  return msh_rgb( v.x * 255.0f, v.y * 255.0f, v.z * 255.0f );
+}
+
+msh_vec3_t msh_vec4_to_rgb( msh_vec4_t v )
+{
+  return msh_rgba( v.x, v.y, v.z, v.w );
+}
+
+msh_vec3_t msh_rgba_to_vec4_normalized( msh_vec4_t v )
+{
+  return msh_rgba( (real32_t)( v.x * 255.0f ),
+                   (real32_t)( v.y * 255.0f ),
+                   (real32_t)( v.z * 255.0f ),
+                   (real32_t)( v.w * 255.0f ) );
+}
+#endif
 
 #endif /* MSH_VEC_MATH_IMPLEMENTATION */
 

@@ -377,6 +377,71 @@ mshgeo_sphere_triangle_test_approx( const msh_sphere_t* sphere,
   return 0;
 }
 
+/* Again from Real-time collision detection by Ericsen */
+MSHGEODEF msh_vec3_t
+mshgeo_point_triangle_closest_point( const msh_vec3_t* p,
+                                     const msh_vec3_t* a, const msh_vec3_t* b, const msh_vec3_t* c )
+{
+  msh_vec3_t ab = msh_vec3_sub( *b, *a );
+  msh_vec3_t ac = msh_vec3_sub( *c, *a );
+  msh_vec3_t ap = msh_vec3_sub( *p, *a );
+  real32_t d1 = msh_vec3_dot( ab, ap );
+  real32_t d2 = msh_vec3_dot( ac, ap );
+  if( d1 <= 0.0f && d2 <= 0.0f ) { return *a; }
+
+  msh_vec3_t bp = msh_vec3_sub( *p, *b );
+  real32_t d3 = msh_vec3_dot( ab, bp );
+  real32_t d4 = msh_vec3_dot( ac, bp );
+  if( d3 >= 0.0f && d4 <= d3 ) { return *b; }
+
+  real32_t vc = d1*d4 - d3*d2;
+  if( vc <= 0.0f && d1 >= 0.0f && d3 <= 0.0f )
+  {
+    real32_t v = d1 / (d1 - d3);
+    return msh_vec3_add( *a, msh_vec3_scalar_mul( ab, v ) );
+  }
+
+  msh_vec3_t cp = msh_vec3_sub( *p, *c );
+  real32_t d5 = msh_vec3_dot( ab, cp );
+  real32_t d6 = msh_vec3_dot( ab, cp );
+  if( d6 >= 0.0f && d5 <= d6 ) { return *c; }
+
+  real32_t vb = d5*d2 - d1*d6;
+  if( vb <= 0.0f && d2 >= 0.0f && d6 <= 0.0f )
+  {
+    real32_t w = d2 / (d2 - d6 );
+    return msh_vec3_add( *a, msh_vec3_scalar_mul( ac, w ) );
+  }
+
+  real32_t va = d3*d6 - d5*d4;
+  if( va <= 0.0f && (d4 - d3) >= 0.0f && (d5 - d6) >= 0.0f )
+  {
+    real32_t w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+    msh_vec3_t bc =  msh_vec3_sub( *c, *b );
+    return msh_vec3_add( *b , msh_vec3_scalar_mul( bc, w ) );
+  }
+
+  real32_t denom = 1.0f / ( va + vb + vc );
+  real32_t v = vb * denom;
+  real32_t w = vc* denom;
+  return msh_vec3_add(*a, msh_vec3_add( msh_vec3_scalar_mul( ab, v ),
+                                        msh_vec3_scalar_mul( ac, w ) ) );
+}
+
+MSHGEODEF int32_t
+mshgeo_sphere_triangle_test( const msh_sphere_t* sphere, 
+                             const msh_vec3_t* a, const msh_vec3_t* b, const msh_vec3_t* c )
+{
+  msh_vec3_t p = mshgeo_point_triangle_closest_point( &sphere->center, a, b, c );
+
+  msh_vec3_t v      = msh_vec3_sub( p, sphere->center );
+  real64_t v_len_sq = msh_vec3_norm_sq( v );
+  real64_t r_sq     = sphere->radius * sphere->radius;
+
+  return v_len_sq < r_sq;
+}
+
+
 typedef struct msh_geo_aabb msh_aabb_node_t;
 
 typedef struct msh_geo_aabb_leaf
@@ -502,6 +567,7 @@ mshgeo_aabb_tree_build( msh_aabb_tree_t* tree )
   tree->n_leafs    = 0;
   tree->n_nodes    = 0;
   
+  // Initialize aabbs;
   for( size_t i = 0; i < tree->first_leaf; ++i )
   {
     mshgeo_aabb_init( &(tree->nodes[i]) );
@@ -514,8 +580,22 @@ mshgeo_aabb_tree_build( msh_aabb_tree_t* tree )
 
   msh__aabb_tree_build_nodes( tree, 0, 0, tree->n_tris );
   return 1;
-
 }
+
+MSHGEODEF void
+mshgeo_aabb_tree_free( msh_aabb_tree_t* tree )
+{
+  free( tree->nodes );
+  free( tree->leafs );
+  free( tree->leaf_tris );
+  tree->first_leaf = 0;
+  tree->n_nodes = 0;
+  tree->n_leafs = 0;
+  tree->n_lvls = 0;
+}
+
+// NOTE(maciej): Both intersection traversals are extremly similar - I should look into how
+//               to ensure that the code is more compressed ( as in semantic compression by casey )
 
 typedef struct msh_ray_bvh_isect_info
 {
@@ -544,9 +624,17 @@ mshgeo_ray_aabb_tree_intersect( const msh_ray_t* ray, const msh_aabb_tree_t* tre
   isect_info->intersects      = 0;
   isect_info->tri_idx         = -1;
   isect_info->t               = MSH_F32_MAX;
+  isect_info->u               = MSH_F32_MAX;
+  isect_info->v               = MSH_F32_MAX;
+  isect_info->w               = MSH_F32_MAX;
   isect_info->n_nodes_visited = 0;
   isect_info->n_leafs_visited = 0;
   isect_info->n_tris_tested   = 0;
+  if( isect_info->intersects_node )
+  {
+    size_t byte_size = tree->n_nodes * sizeof(isect_info->intersects_node[0]);
+    memset( isect_info->intersects_node, 0, byte_size );
+  }
 
   // Trace the tree
   stack[sp] = 0;
@@ -570,13 +658,16 @@ mshgeo_ray_aabb_tree_intersect( const msh_ray_t* ray, const msh_aabb_tree_t* tre
 
         // Ray-triangle intersection
         real32_t t = MSH_F32_MAX;
-        uint8_t intersects = msh_ray_triangle_intersect( ray, *v0, *v1, *v2, 
-                                              &isect_info->u, &isect_info->v, &isect_info->w, &t );
+        real32_t u, v, w;
+        uint8_t intersects = msh_ray_triangle_intersect( ray, *v0, *v1, *v2, &u, &v, &w, &t );
         if( intersects && t < isect_info->t )
         {
           isect_info->tri_idx    = tri_idx;
           isect_info->t          = t;
           isect_info->intersects = 1;
+          isect_info->u          = u;
+          isect_info->v          = v;
+          isect_info->w          = w;
         }
       }
 
@@ -636,16 +727,21 @@ mshgeo_sphere_aabb_tree_intersect( const msh_sphere_t* sphere, const msh_aabb_tr
   int32_t node_idx = 0;
 
   // Fill initial intersection info
-  if( isect_info->tri_list == NULL ) 
+  if( !isect_info->tri_list  ) 
   { 
     isect_info->tri_list_cap = 1024;
-    isect_info->tri_list = malloc( isect_info->tri_list_cap * sizeof( isect_info->tri_list[0] ) );
+    isect_info->tri_list = (uint32_t*)malloc( isect_info->tri_list_cap * sizeof( isect_info->tri_list[0] ) );
   }
   isect_info->tri_list_len = 0;
   isect_info->intersects = 0;
   isect_info->n_nodes_visited = 0;
   isect_info->n_leafs_visited = 0;
   isect_info->n_tris_tested   = 0;
+  if( isect_info->intersects_node )
+  {
+    size_t byte_size = tree->n_nodes * sizeof(isect_info->intersects_node[0]);
+    memset( isect_info->intersects_node, 0, byte_size );
+  }
 
   // Trace the tree
   stack[sp] = 0;
@@ -676,7 +772,7 @@ mshgeo_sphere_aabb_tree_intersect( const msh_sphere_t* sphere, const msh_aabb_tr
           {
             isect_info->tri_list_cap *= 2;
             size_t byte_size = isect_info->tri_list_cap * sizeof(isect_info->tri_list[0]);
-            isect_info->tri_list = realloc( isect_info->tri_list, byte_size );
+            isect_info->tri_list = (uint32_t*)realloc( isect_info->tri_list, byte_size );
           }
 
           isect_info->tri_list[isect_info->tri_list_len] = tri_idx;
