@@ -277,7 +277,7 @@ typedef struct msh_map
 
 uint64_t  msh_hash_uint64( uint64_t x );
 uint64_t  msh_hash_ptr( void *ptr );
-uint64_t  msh_hash_str( char *str );
+uint64_t  msh_hash_str( const char *str );
 
 void      msh_map_init( msh_map_t *map, uint32_t cap );
 void      msh_map_free( msh_map_t* map );
@@ -557,10 +557,10 @@ msh_hash_ptr( void *ptr )
 }
 
 uint64_t 
-msh_hash_str( char *str ) 
+msh_hash_str( const char *str ) 
 {
   uint64_t x = 0xcbf29ce484222325;
-  char *buf = str;
+  char *buf = (char*)str;
   while( *buf != 0 )
   {
     x ^= *buf;
@@ -695,7 +695,7 @@ msh_map_get_iterable_keys( const msh_map_t* map, uint64_t** keys )
   size_t j = 0;
   for( size_t i = 0; i < map->_cap; ++i )
   {
-    if( !map->keys[i] ) { (*keys)[j++] = map->keys[i] - 1; }
+    if( map->keys[i] ) { (*keys)[j++] = map->keys[i] - 1; }
   }
 }
 
@@ -707,7 +707,7 @@ msh_map_get_iterable_vals( const msh_map_t* map, uint64_t** vals )
   size_t j = 0;
   for( size_t i = 0; i < map->_cap; ++i )
   {
-    if( !map->keys[i] ) { (*vals)[j++] = map->vals[i]; }
+    if( map->keys[i] ) { (*vals)[j++] = map->vals[i]; }
   }
 }
 

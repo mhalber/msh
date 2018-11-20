@@ -124,7 +124,7 @@ typedef struct msh_geo_aabb_tree
   size_t n_tris;
   uint32_t* tris;
   msh_vec3_t* verts;
-  int32_t max_tris_per_leaf;
+  uint32_t max_tris_per_leaf;
 
   uint32_t *leaf_tris;             /* Indices of tris in a leaf -> indices to original mesh */
   struct msh_geo_aabb *nodes;
