@@ -16,21 +16,10 @@
 
   ==============================================================================
   DEPENDENCIES
-    This file includes and depends a number c stdlib headers at this point:
-     - <assert.h>
-     - <math.h>
-     - <string.h>
-     - <stdint.h>
-     - <stdarg.h>
-     - <stddef.h>
-     - <stdbool.h>
-     - <stdio.h>
-     - <stdlib.h>
-     - <float.h>
-     - <sys/stat.h> (on Linux)
+    This file depends on a number c stdlib header (see below).
     By default, these are not included by this library. If you'd like these to be included,
     define:
-    #define MSH_STD_INCLUDE_C_HEADERS
+    #define MSH_STD_INCLUDE_LIBC_HEADERS
 
 
   ==============================================================================
@@ -88,9 +77,10 @@ extern "C" {
 #include <stdio.h>
 #include <stdlib.h>
 #include <float.h>
+#include <ctype.h>
 
 // system specific
-#ifdef __linux__ 
+#ifdef __linux__
 #include <sys/stat.h>
 #endif
 
