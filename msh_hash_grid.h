@@ -80,7 +80,7 @@
 
   ==============================================================================
   TODOs:
-  [ ] Replace openMP with portable implementation
+  [ ] Replace openMP with a custom threading/scheduler implementation
   [ ] Compatibility function
     [ ] Allow user to specify compatibility function instead of just L2 norm
     [ ] Allow user to provide some extra user data like normals for computing the distances
@@ -218,8 +218,30 @@ typedef struct msh_hash_grid
   float _inv_cell_size;
   uint8_t _pts_dim;
   uint16_t _num_threads;
+  int32_t _dont_use_omp;
   uint32_t max_n_pts_in_bin;
 } msh_hash_grid_t;
+
+typedef struct msh_hg_map
+{
+  uint64_t* keys;
+  uint64_t* vals;
+  size_t _len;
+  size_t _cap;
+} msh_hg_map_t;
+
+typedef struct msh_hg_bin_data
+{
+  int32_t n_pts;
+  msh_hg_v3i_t* data;
+} msh_hg__bin_data_t;
+
+typedef struct msh_hg_bin_info
+{
+  uint32_t offset;
+  uint32_t length;
+} msh_hg__bin_info_t;
+
 
 
 #ifdef __cplusplus
@@ -271,14 +293,6 @@ void* msh_hg__array_grow(const void *array, size_t new_len, size_t elem_size);
 // Copy of msh_map
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-typedef struct msh_hg_map
-{
-  uint64_t* keys;
-  uint64_t* vals;
-  size_t _len;
-  size_t _cap;
-} msh_hg_map_t;
-
 uint64_t  msh_hg_hash_uint64( uint64_t x );
 void      msh_hg_map_init( msh_hg_map_t* map, uint32_t cap );
 void      msh_hg_map_free( msh_hg_map_t* map );
@@ -309,18 +323,6 @@ msh_hg__vec3_sub( msh_hg_v3_t a, msh_hg_v3_t b )
 {
   return (msh_hg_v3_t) { a.x - b.x, a.y - b.y, a.z - b.z };
 }
-
-typedef struct msh_hg_bin_data
-{
-  int32_t n_pts;
-  msh_hg_v3i_t* data;
-} msh_hg__bin_data_t;
-
-typedef struct msh_hg_bin_info
-{
-  uint32_t offset;
-  uint32_t length;
-} msh_hg__bin_info_t;
 
 MSH_HG_INLINE uint64_t
 msh_hash_grid__bin_pt( const msh_hash_grid_t* hg, uint64_t ix, uint64_t iy, uint64_t iz )
@@ -354,6 +356,9 @@ msh_hash_grid__init( msh_hash_grid_t* hg,
       hg->_num_threads = 1;
     #endif
   }
+  #if defined(_OPENMP)
+  if( hg->_num_threads == 1 ) { hg->_dont_use_omp = 1; }
+  #endif
 
   hg->_pts_dim = dim;
 
@@ -397,8 +402,8 @@ msh_hash_grid__init( msh_hash_grid_t* hg,
 
   // Create hash table
   hg->bin_table = (msh_hg_map_t*)MSH_HG_CALLOC( 1, sizeof(msh_hg_map_t) );
-  msh_hg_map_init( hg->bin_table, 1024 );
-  msh_hg_array( msh_hg__bin_data_t ) bin_table_data = 0;
+  msh_hg_map_init( hg->bin_table, 128 );
+  msh_hg_array( msh_hg__bin_data_t ) bin_table_data = {0};
   uint64_t n_bins = 0;
   for( int i = 0 ; i < n_pts; ++i )
   {
@@ -419,7 +424,6 @@ msh_hash_grid__init( msh_hash_grid_t* hg,
 
     uint64_t bin_idx = msh_hash_grid__bin_pt( hg, ix, iy, iz );
 
-    // NOTE(maciej): In msh_map we can't have 0 as key
     uint64_t* bin_table_idx = msh_hg_map_get( hg->bin_table, bin_idx );
 
     if( bin_table_idx )
@@ -836,7 +840,7 @@ size_t msh_hash_grid_radius_search( const msh_hash_grid_t* hg,
   assert( num_threads <= MAX_THREAD_COUNT );
 
 #if defined(_OPENMP)
-  #pragma omp parallel num_threads( num_threads )
+  #pragma omp parallel if (!hg->_dont_use_omp)
   {
     if( n_query_pts < num_threads ) { num_threads = n_query_pts; }
     n_pts_per_thread = ceilf((float)n_query_pts / num_threads);
@@ -1036,7 +1040,7 @@ size_t msh_hash_grid_knn_search( const msh_hash_grid_t* hg,
   uint32_t num_threads = hg->_num_threads;
   assert( num_threads <= MAX_THREAD_COUNT );
 #if defined(_OPENMP)
-  #pragma omp parallel
+  #pragma omp parallel if (!hg->_dont_use_omp)
   {
     if( n_query_pts < num_threads ) { num_threads = n_query_pts; }
     uint32_t thread_idx = omp_get_thread_num();
@@ -1178,7 +1182,7 @@ msh_hg__array_grow(const void *array, size_t new_len, size_t elem_size) {
   size_t new_cap = (size_t)msh_hg_array__grow_formula( old_cap );
   new_cap = (size_t)MSH_HG_MAX( new_cap, MSH_HG_MAX(new_len, 16) );
   size_t new_size = sizeof(msh_hg_array_hdr_t) + new_cap * elem_size;
-  msh_hg_array_hdr_t *new_hdr;
+  msh_hg_array_hdr_t *new_hdr = NULL;
 
   if( array ) {
     new_hdr = (msh_hg_array_hdr_t*)MSH_HG_REALLOC( msh_hg_array__hdr( array ), new_size );

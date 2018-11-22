@@ -111,9 +111,6 @@ extern "C" {
 #define MSHCAMDEF extern
 #endif
 
-#ifndef MSH_VEC_MATH
-typedef msh_scalar_t float 
-#endif
 
 typedef struct msh_camera
 {
@@ -122,8 +119,8 @@ typedef struct msh_camera
   msh_quat_t orientation;
   
   /* Params */
-  msh_scalar_t fovy;
-  msh_scalar_t aspect_ratio;
+  float fovy;
+  float aspect_ratio;
   real32_t znear;
   real32_t zfar;
 
@@ -138,22 +135,22 @@ msh_camera_init( msh_camera_t * camera,
                          const msh_vec3_t eye,
                          const msh_vec3_t center, 
                          const msh_vec3_t up,
-                         const msh_scalar_t fovy,
-                         const msh_scalar_t aspect_ratio,
-                         const msh_scalar_t znear,
-                         const msh_scalar_t zfar );
+                         const float fovy,
+                         const float aspect_ratio,
+                         const float znear,
+                         const float zfar );
 
 MSHCAMDEF void
 msh_camera_update_perspective( msh_camera_t *camera,
-                               const msh_scalar_t fovy, 
-                               const msh_scalar_t aspect_ratio,
-                               const msh_scalar_t znear, 
-                               const msh_scalar_t zfar );
+                               const float fovy, 
+                               const float aspect_ratio,
+                               const float znear, 
+                               const float zfar );
 MSHCAMDEF void
 msh_camera_update_ortho( msh_camera_t *camera,
-                         const msh_scalar_t left,  const msh_scalar_t right, 
-                         const  msh_scalar_t bottom, const msh_scalar_t top, 
-                         const msh_scalar_t znear, const msh_scalar_t zfar );
+                         const float left,  const float right, 
+                         const  float bottom, const float top, 
+                         const float znear, const float zfar );
 
 MSHCAMDEF void 
 msh_arcball_camera_update( msh_camera_t *camera, 
@@ -161,7 +158,7 @@ msh_arcball_camera_update( msh_camera_t *camera,
                            const msh_vec2_t scrn_p1,
                            const int lmb_state,
                            const int rmb_state,
-                           const msh_scalar_t scroll_state, 
+                           const float scroll_state, 
                            const msh_vec4_t viewport );
 
 
@@ -173,24 +170,24 @@ msh_arcball_camera_update( msh_camera_t *camera,
 
 MOST BASIC / ADVANCED API --->  Everything else will build from this method.
 
-void msh_arcball_camera_update( msh_scalar_t pos[3],
-                                msh_scalar_t look_at[3]
-                                msh_scalar_t up[3],
+void msh_arcball_camera_update( float pos[3],
+                                float look_at[3]
+                                float up[3],
 
-                                msh_scalar_t fovy,
-                                msh_scalar_t aspect_ratio,
-                                msh_scalar_t near, msh_scalar_t far,
+                                float fovy,
+                                float aspect_ratio,
+                                float near, float far,
                                 
-                                msh_scalar_t p0_x, msh_scalar_t p1_y,
-                                msh_scalar_t p1_x, msh_scalar_t p1_y,
+                                float p0_x, float p1_y,
+                                float p1_x, float p1_y,
                                 int lmb_press, int rmb_press,
-                                msh_scalar_t scroll,
+                                float scroll,
                                 
-                                msh_scalar_t w, ms_scalar_t h,
+                                float w, ms_scalar_t h,
                                 
-                                msh_scalar_t * view,
-                                msh_scalar_t * quaternion,
-                                msh_scalar_t * proj );
+                                float * view,
+                                float * quaternion,
+                                float * proj );
 */
 
 
@@ -217,17 +214,17 @@ void msh_arcball_camera_update( msh_scalar_t pos[3],
 #ifdef MSH_CAM_IMPLEMENTATION
 
 static msh_vec3_t
-msh__screen_to_sphere( msh_scalar_t x, msh_scalar_t y, msh_vec4_t viewport )
+msh__screen_to_sphere( float x, float y, msh_vec4_t viewport )
 {
-  msh_scalar_t w = viewport.data[2] - viewport.data[0];
-  msh_scalar_t h = viewport.data[3] - viewport.data[1];
-  msh_scalar_t r = (w > h)? h : w;
+  float w = viewport.data[2] - viewport.data[0];
+  float h = viewport.data[3] - viewport.data[1];
+  float r = (w > h)? h : w;
   msh_vec3_t p = msh_vec3( (x - w * 0.5f) / r, 
                            ((h - y) - h*0.5f) / r, 
                            0.0f );
-  msh_scalar_t l_sq = p.x * p.x + p.y * p.y;
-  msh_scalar_t l = (msh_scalar_t)sqrt( l_sq );
-  p.z = (msh_scalar_t)((l_sq > 0.5) ? (0.5 / l) : (sqrt( 1.0 - l_sq)));
+  float l_sq = p.x * p.x + p.y * p.y;
+  float l = (float)sqrt( l_sq );
+  p.z = (float)((l_sq > 0.5) ? (0.5 / l) : (sqrt( 1.0 - l_sq)));
   p = msh_vec3_normalize(p);
   return p;
 }
@@ -239,10 +236,10 @@ msh_camera_init( msh_camera_t * camera,
                          const msh_vec3_t eye,
                          const msh_vec3_t center, 
                          const msh_vec3_t up,
-                         const msh_scalar_t fovy,
-                         const msh_scalar_t aspect_ratio,
-                         const msh_scalar_t znear,
-                         const msh_scalar_t zfar )
+                         const float fovy,
+                         const float aspect_ratio,
+                         const float znear,
+                         const float zfar )
 {
   camera->view = msh_look_at( eye, center, up );
   camera->proj = msh_perspective( fovy, aspect_ratio, znear, zfar );
@@ -259,10 +256,10 @@ msh_camera_init( msh_camera_t * camera,
 
 MSHCAMDEF void
 msh_camera_update_perspective( msh_camera_t *camera,
-                               const msh_scalar_t fovy, 
-                               const msh_scalar_t aspect_ratio,
-                               const msh_scalar_t znear, 
-                               const msh_scalar_t zfar )
+                               const float fovy, 
+                               const float aspect_ratio,
+                               const float znear, 
+                               const float zfar )
 {
   camera->proj = msh_perspective( fovy, aspect_ratio, znear, zfar );
   camera->fovy = fovy;
@@ -273,9 +270,9 @@ msh_camera_update_perspective( msh_camera_t *camera,
 
 MSHCAMDEF void
 msh_camera_update_ortho( msh_camera_t *camera,
-                         const msh_scalar_t left,  const msh_scalar_t right, 
-                         const  msh_scalar_t bottom, const msh_scalar_t top, 
-                         const msh_scalar_t znear, const msh_scalar_t zfar )
+                         const float left,  const float right, 
+                         const  float bottom, const float top, 
+                         const float znear, const float zfar )
 {
   camera->proj = msh_ortho( left, right, bottom, top, znear, zfar );
   camera->znear = znear;
@@ -288,7 +285,7 @@ msh_arcball_camera_update( msh_camera_t *camera,
                            const msh_vec2_t scrn_p1,
                            const int lmb_state,
                            const int rmb_state,
-                           const msh_scalar_t scroll_state, 
+                           const float scroll_state, 
                            const msh_vec4_t viewport ) 
 {
   if( scroll_state )
@@ -300,8 +297,8 @@ msh_arcball_camera_update( msh_camera_t *camera,
   else if(rmb_state)
   {
     msh_mat3_t cur_rot = msh_quat_to_mat3( camera->orientation );
-    msh_scalar_t w = viewport.data[2] - viewport.data[0]; 
-    msh_scalar_t h = viewport.data[3] - viewport.data[1];
+    float w = viewport.data[2] - viewport.data[0]; 
+    float h = viewport.data[3] - viewport.data[1];
     msh_vec2_t disp = msh_vec2( (scrn_p1.x - scrn_p0.x) / w,
                                 (scrn_p1.y - scrn_p0.y) / h );
     msh_vec3_t u = msh_vec3_scalar_mul( cur_rot.col[0], 5 * -disp.x );
@@ -357,7 +354,7 @@ msh_flythrough_camera( msh_camera_t *camera,
                        int key_d_state )
 {
   msh_mat3_t r  = msh_quat_to_mat3( camera->orientation );
-  msh_scalar_t speed = 0.2;
+  float speed = 0.2;
   msh_vec3_t n  = msh_vec3( -speed * r.col[2].x, -speed * r.col[2].y, -speed * r.col[2].z );
   msh_vec3_t in = msh_vec3(  speed * r.col[2].x,  speed * r.col[2].y,  speed * r.col[2].z );
   msh_vec3_t v  = msh_vec3(  speed * r.col[0].x,  speed * r.col[0].y,  speed * r.col[0].z );

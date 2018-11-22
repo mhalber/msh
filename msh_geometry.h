@@ -813,7 +813,7 @@ mshgeo_sphere_aabb_tree_intersect( const msh_sphere_t* sphere, const msh_aabb_tr
 
 /* deprecated */
 
-MSHGEODEF inline msh_bbox_t
+MSHGEODEF msh_bbox_t
 mshgeo_bbox_init()
 {
   msh_bbox_t bb;
@@ -822,7 +822,7 @@ mshgeo_bbox_init()
   return bb;
 }
 
-MSHGEODEF inline void
+MSHGEODEF void
 mshgeo_bbox_reset(msh_bbox_t* bb)
 {
   bb->min_p = msh_vec3(1e9, 1e9, 1e9);
