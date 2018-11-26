@@ -79,11 +79,11 @@ extern "C" {
 #include <float.h>
 #include <ctype.h>
 
+#endif
+
 // system specific
 #ifdef __linux__
 #include <sys/stat.h>
-#endif
-
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -346,6 +346,10 @@ enum msh__time_units
 
 uint64_t msh_time_now();
 double msh_time_diff( int32_t unit, uint64_t new_time, uint64_t old_time );
+double msh_time_diff_sec( uint64_t new_time, uint64_t old_time );
+double msh_time_diff_ms( uint64_t new_time, uint64_t old_time );
+double msh_time_diff_us( uint64_t new_time, uint64_t old_time );
+double msh_time_diff_ns( uint64_t new_time, uint64_t old_time );
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // PCG-based random number generation 

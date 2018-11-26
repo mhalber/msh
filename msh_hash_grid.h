@@ -220,6 +220,7 @@ typedef struct msh_hash_grid
   uint16_t _num_threads;
   int32_t _dont_use_omp;
   uint32_t max_n_pts_in_bin;
+  size_t _n_pts;
 } msh_hash_grid_t;
 
 typedef struct msh_hg_map
@@ -399,6 +400,7 @@ msh_hash_grid__init( msh_hash_grid_t* hg,
   hg->depth     = (int)(dim_z / hg->cell_size + 1.0) ;
   hg->_inv_cell_size = 1.0f / hg->cell_size;
   hg->_slab_size = hg->height * hg->width;
+  hg->_n_pts = 0;
 
   // Create hash table
   hg->bin_table = (msh_hg_map_t*)MSH_HG_CALLOC( 1, sizeof(msh_hg_map_t) );
@@ -471,6 +473,7 @@ msh_hash_grid__init( msh_hash_grid_t* hg,
     msh_hg__bin_data_t* bin = &bin_table_data[ *bin_index ];
     assert( bin );
     uint32_t n_bin_pts = bin->n_pts;
+    hg->_n_pts += n_bin_pts;
     hg->max_n_pts_in_bin = MSH_HG_MAX( n_bin_pts, hg->max_n_pts_in_bin );
     for( uint32_t j = 0; j < n_bin_pts; ++j )
     {
@@ -851,6 +854,7 @@ size_t msh_hash_grid_radius_search( const msh_hash_grid_t* hg,
 #endif
     if( thread_idx < num_threads )
     {
+      // printf("TEST %d %d\n", thread_idx, num_threads );
       uint32_t low_lim      = thread_idx * n_pts_per_thread;
       uint32_t high_lim     = MSH_HG_MIN((thread_idx + 1) * n_pts_per_thread, n_query_pts);
       uint32_t cur_n_pts    = high_lim - low_lim;
@@ -946,7 +950,7 @@ size_t msh_hash_grid_radius_search( const msh_hash_grid_t* hg,
             }
           }
         }
-
+        
         msh_hash_grid__sort( bin_dists_sq, bin_indices, n_visited_bins );
 
         for( uint32_t i = 0; i < n_visited_bins; ++i )
@@ -958,6 +962,7 @@ size_t msh_hash_grid_radius_search( const msh_hash_grid_t* hg,
             break;
           }
         }
+        
 
         if( hg_sd->sort ) { msh_hash_grid__sort( dists_sq, indices, storage.len ); }
 
