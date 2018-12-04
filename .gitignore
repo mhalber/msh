@@ -1,5 +1,7 @@
 *.dSYM
 **/*.dSYM
+*.exe
+**/*.exe
 libs/**
 extern/**
 example/
