@@ -16,19 +16,18 @@
 #define MSH_JOBS_PLATFORM_MACOS 0
 
 // TODO(maciej): include correct headers depending on the platform
-// #if defined(_WIN32) || defined(_WIN64)
-// #undef  MSH_JOBS_PLATFORM_WINDOWS
-// #define MSH_JOBS_PLATFORM_WINDOWS 1
-// #elif defined(__linux__)
-// #undef MSH_JOBS_PLATFORM_LINUX
-// #define MSH_JOBS_PLATFORM_LINUX 1
-// #elif defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__)
-// #undef MSH_JOBS_PLATFORM_MACOS
-// #define MSH_JOBS_PLATFORM_MACOS 1
-// #endif
-// #define MSH_JOBS_PLATFORM_POSIX (0 || MSH_JOBS_PLATFORM_MACOS || MSH_JOBS_PLATFORM_LINUX )
+#if defined(_WIN32) || defined(_WIN64)
+#undef  MSH_JOBS_PLATFORM_WINDOWS
+#define MSH_JOBS_PLATFORM_WINDOWS 1
+#elif defined(__linux__)
+#undef MSH_JOBS_PLATFORM_LINUX
+#define MSH_JOBS_PLATFORM_LINUX 1
+#elif defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__)
+#undef MSH_JOBS_PLATFORM_MACOS
+#define MSH_JOBS_PLATFORM_MACOS 1
+#endif
+#define MSH_JOBS_PLATFORM_POSIX (0 || MSH_JOBS_PLATFORM_MACOS || MSH_JOBS_PLATFORM_LINUX )
 
-#define MSH_JOBS_PLATFORM_POSIX 1
 
 #if MSH_JOBS_PLATFORM_WINDOWS
 #define MSH_JOBS_PLATFORM_NAME "windows"
@@ -67,9 +66,9 @@ typedef DWORD WINAPI (*msh_jobs_thrd_proc_t)(void *params);
 #elif MSH_JOBS_PLATFORM_POSIX
 typedef sem_t msh_jobs_semaphore_t;
 typedef pthread_t msh_jobs_thread_t;
-#define MSH_JOBS_READ_WRITE_BARRIER() _mm_fence(); asm volatile("" ::: "memory")
-#define MSH_JOBS_READ_BARRIER() _mm_rfence(); asm volatile("" ::: "memory")
-#define MSH_JOBS_WRITE_BARRIER() _mm_sfence(); asm volatile("" ::: "memory")
+#define MSH_JOBS_READ_WRITE_BARRIER() _mm_fence(); __asm__ volatile("" ::: "memory")
+#define MSH_JOBS_READ_BARRIER() _mm_rfence(); __asm__ volatile("" ::: "memory")
+#define MSH_JOBS_WRITE_BARRIER() _mm_sfence(); __asm__ volatile("" ::: "memory")
 typedef void* (*msh_jobs_thrd_proc_t)(void *params);
 #endif
 
