@@ -1,11 +1,16 @@
 // NOTE(maciej): This is very closely modelled after Casey Muratori's work queue, designed
 // in handmade hero streams.
+// Credits : bgfx for platform detection
 
 /* TODOs:
+[ ] Header / docs
+[ ] Better example?
 [x] Implement functions wrappers fro winapi
-[ ] Implement function wrappers for posix
-   [ ] Posix semaphores seem to behave differently. Will need to test it on server
-[ ] See how to implement queue with condition variables?
+[x] Implement function wrappers for posix
+[ ] MacOS/FreeBSD testing?
+[ ] Multiple priority queues?
+[ ] Fiber job system / consumer producer
+[ ] Error handling
 */
 
 #ifndef MSH_JOBS
@@ -15,7 +20,6 @@
 #define MSH_JOBS_PLATFORM_LINUX 0
 #define MSH_JOBS_PLATFORM_MACOS 0
 
-// TODO(maciej): include correct headers depending on the platform
 #if defined(_WIN32) || defined(_WIN64)
 #undef  MSH_JOBS_PLATFORM_WINDOWS
 #define MSH_JOBS_PLATFORM_WINDOWS 1
@@ -28,11 +32,12 @@
 #endif
 #define MSH_JOBS_PLATFORM_POSIX (0 || MSH_JOBS_PLATFORM_MACOS || MSH_JOBS_PLATFORM_LINUX )
 
-
 #if MSH_JOBS_PLATFORM_WINDOWS
 #define MSH_JOBS_PLATFORM_NAME "windows"
-#elif MSH_JOBS_PLATFORM_POSIX
-#define MSH_JOBS_PLATFORM_NAME "posix"
+#elif MSH_JOBS_PLATFORM_LINUX
+#define MSH_JOBS_PLATFORM_NAME "linux"
+#elif MSH_JOBS_PLATFORM_MACOS
+#define MSH_JOBS_PLATFORM_NAME "macos"
 #else 
 #error "MSH_JOBS: Compiling on unknown platform!"
 #endif
@@ -40,10 +45,17 @@
 #if MSH_JOBS_PLATFORM_WINDOWS
 #define WIN32_LEAN_AND_MEAN 1
 #include "windows.h"
-#elif MSH_JOBS_PLATFORM_POSIX
-#include <pthread.h>
-#include <semaphore.h>
-#include <x86intrin.h>
+#elif MSH_JOBS_PLATFORM_LINUX
+#include <pthread.h>    // threads, duh
+#include <semaphore.h>  // semaphore, duh
+#include <x86intrin.h>  // fences
+#include <unistd.h>     // sysconf
+#elif MSH_JOBS_PLATFORM_MACOS
+#include <pthread.h>    // threads, duh
+#include <semaphore.h>  // semaphore, duh
+#include <x86intrin.h>  // fences
+#include <unistd.h>     // sysconf
+#include <sys/sysctl.h>
 #else
 #error "MSH_JOBS: Platform not supported!"
 #endif
@@ -53,16 +65,18 @@
 #include <string.h>
 
 
-#define MSH_JOBS_JOB_SIGNATURE(name) uint32_t name(int thread_idx, void* data)
+#define MSH_JOBS_JOB_SIGNATURE(name) uint32_t name(int thread_idx, void* params)
 typedef uint32_t (*msh_jobs_job_signature_t)( int thread_idx, void* data);
 
 #if MSH_JOBS_PLATFORM_WINDOWS
+
 typedef HANDLE msh_jobs_semaphore_t;
 typedef HANDLE msh_jobs_thread_t;
 #define MSH_JOBS_READ_WRITE_BARRIER() _mm_mfence(); _ReadWriteBarrier()
 #define MSH_JOBS_READ_BARRIER() _mm_rfence(); _ReadBarrier()
 #define MSH_JOBS_WRITE_BARRIER() _mm_sfence(); _WriteBarrier()
 typedef DWORD WINAPI (*msh_jobs_thrd_proc_t)(void *params);
+
 #elif MSH_JOBS_PLATFORM_POSIX
 typedef sem_t msh_jobs_semaphore_t;
 typedef pthread_t msh_jobs_thread_t;
@@ -70,14 +84,16 @@ typedef pthread_t msh_jobs_thread_t;
 #define MSH_JOBS_READ_BARRIER() _mm_rfence(); __asm__ volatile("" ::: "memory")
 #define MSH_JOBS_WRITE_BARRIER() _mm_sfence(); __asm__ volatile("" ::: "memory")
 typedef void* (*msh_jobs_thrd_proc_t)(void *params);
+
 #endif
 
+#define MSH_JOBS_DEFAULT_THREAD_COUNT 0
 
 // NOTE(maciej): What other info about the processor we might want to have?
 typedef struct msh_jobs_processor_info
 {
   uint32_t logical_core_count;
-  uint32_t physical_core_count;
+  int32_t physical_core_count;
 } msh_jobs_processor_info_t;
 
 typedef struct msh_jobs_job_entry
@@ -107,7 +123,6 @@ typedef struct msh_jobs_ctx
   msh_jobs_processor_info_t processor_info;
   struct msh_jobs_thread_info* thread_infos;
   uint32_t thread_count;
-  int32_t is_done;
 } msh_jobs_ctx_t;
 
 typedef struct msh_jobs_thread_info
@@ -118,9 +133,12 @@ typedef struct msh_jobs_thread_info
 } msh_jobs_thread_info_t;
 
 
-char* msh_jobs_get_platform_name();
-int msh_jobs_get_processor_info( msh_jobs_processor_info_t* info );
-int msh_jobs_init_ctx( msh_jobs_ctx_t* ctx, uint32_t n_threads );
+char*   msh_jobs_get_platform_name();
+int32_t msh_jobs_get_processor_info( msh_jobs_processor_info_t* info );
+int32_t msh_jobs_init_ctx( msh_jobs_ctx_t* ctx, uint32_t n_threads );
+int32_t msh_jobs_push_work( msh_jobs_ctx_t* ctx, msh_jobs_job_signature_t task, void* data );
+int32_t msh_jobs_wait_for_all_to_finish( msh_jobs_ctx_t* ctx );
+void    msh_jobs_term_ctx( msh_jobs_ctx_t* ctx );
 
 #endif /* MSH_JOBS */
 
@@ -159,6 +177,12 @@ msh_jobs_thread_detach( msh_jobs_thread_t *thread )
   pthread_detach( *thread );
 #endif
 }
+
+// NOTE(maciej): Possibly follow manual implementation of semaphores from https://github.com/septag/sx/blob/master/src/threads.c
+#if MSH_JOBS_PLATFORM_POSIX
+  #pragma GCC diagnostic push
+  #pragma GCC diagnostic ignored "-Wunused-parameter"
+#endif
 
 void
 msh_jobs_semaphore_create( msh_jobs_semaphore_t* sem, uint32_t initial_count, uint32_t maximum_count )
@@ -200,7 +224,11 @@ msh_jobs_semaphore_wait( msh_jobs_semaphore_t* sem )
 #endif
 }
 
-// NOTE(maciej): Returns original value, PRIOR to adding!
+#if MSH_JOBS_PLATFORM_POSIX
+  #pragma GCC diagnostic pop
+#endif
+
+
 uint32_t
 msh_jobs_atomic_increment( uint32_t volatile *value )
 {
@@ -223,7 +251,8 @@ msh_jobs_atomic_compare_exchange( uint32_t volatile *dest, uint32_t new_val, uin
 
 
 int32_t
-msh_jobs_push_work( msh_jobs_ctx_t* ctx, uint32_t (*task)(int, void*), void* data )
+// msh_jobs_push_work( msh_jobs_ctx_t* ctx, uint32_t (*task)(int, void*), void* data )
+msh_jobs_push_work( msh_jobs_ctx_t* ctx, msh_jobs_job_signature_t task, void* data )
 {
   msh_jobs_work_queue_t* queue = &ctx->queue;
   uint32_t next_entry_to_write = queue->next_entry_to_write;
@@ -260,7 +289,6 @@ msh_jobs_execute_next_job_entry( int32_t thread_idx, msh_jobs_work_queue_t* queu
       msh_jobs_job_entry_t* entry = queue->entries + idx;
       entry->task( thread_idx, entry->data );
       msh_jobs_atomic_increment( &queue->completion_count );
-      printf("%d | %d %d %d %d\n", thread_idx, queue->completion_count, queue->completion_goal, idx, queue->next_entry_to_write );
     }
   }
   else
@@ -312,9 +340,9 @@ void* msh_jobs_thread_procedure(void* params )
 int32_t
 msh_jobs__create_threads( msh_jobs_ctx_t* ctx, uint32_t n_threads )
 {
-  // assert( ctx->processor_info.logical_core_count > 0 );
-  ctx->is_done = 0;
-  // Queue stuff
+  assert( ctx->processor_info.logical_core_count > 0 );
+
+  // Queue initialization
   ctx->queue.max_job_count = 256;
   ctx->queue.completion_goal = 0;
   ctx->queue.completion_count = 0;
@@ -405,6 +433,10 @@ int32_t msh_jobs_get_processor_info( msh_jobs_processor_info_t* info  )
 {
   int32_t error = MSH_JOBS_NO_ERR;
 #if MSH_JOBS_PLATFORM_WINDOWS
+  // Since we dont really need the number of physical cores, we could just do this:
+    // SYSTEM_INFO sysinfo;
+    // GetSystemInfo(&sysinfo);
+    // return sysinfo.dwNumberOfProcessors;
 
   PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = NULL;
   DWORD buffer_byte_size = 0;
@@ -435,8 +467,22 @@ int32_t msh_jobs_get_processor_info( msh_jobs_processor_info_t* info  )
     ptr++;
   }
   free( buffer );
-#elif MSH_JOBS_PLATFORM_POSIX
+
+#elif MSH_JOBS_PLATFORM_LINUX
+  info->logical_core_count = sysconf( _SC_NPROCESSORS_ONLN );
+  // For now we dont know. If this is really needed on unix, one can try to parse /sys/devices/system/cpu/cpu<n>/topology/thread_siblings_list
+  // Or even better /proc/cpu info -> cpu cores field seems to give the number
+  info->physical_core_count = -1;
   goto msh_jobs_get_processor_info_exit;
+
+#elif MSH_JOBS_PLATFORM_MACOS
+#warning "NOT TESTED ON MACOS - ASSUME IT DOES NOT WORK!"
+  size_t physical_count_len = sizeof(count);
+  size_t logical_count_len = sizeof(count);
+  sysctlbyname("hw.physicalcpu", &info->physical_core_count, &physical_count_len, NULL, 0);
+  sysctlbyname("hw.logicalcpu", &info->logical_core_count, &logical_count_len, NULL, 0);
+  goto msh_jobs_get_processor_info_exti;
+
 #endif
 
 msh_jobs_get_processor_info_exit:
