@@ -1197,6 +1197,7 @@ void msh_heap_push( real32_t* vals, size_t vals_len )
   while( i > 0 )
   {
     int64_t j = (i-1) >> 1;
+    
     if( vals[j] >= v ) break;
     vals[i] = vals[j];
     i = j;
