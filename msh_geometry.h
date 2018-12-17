@@ -9,7 +9,7 @@
   To use the library you simply following once in your source
   
   #define MSH_GEOMETRY_IMPLEMENTATION
-  #include "msh_gizon.h"
+  #include "msh_geometry.h"
 
   All functions can be made static by definining:
 

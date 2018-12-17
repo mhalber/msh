@@ -1,17 +1,16 @@
-# msh
+# msh - Maciej's Toolbox
 
 [Examples repository](https://github.com/mhalber/msh_examples)
 
-Set of C99/C11 libraries under the public-domain / MIT license (please see particular files for details).  
-These are libraries that I use for daily development and intend to extend the set and improve them over time.
+This repository contains a number of libraries that I use for my daily development, written in C. 
+While not all of them follow strictly 'single-header' lib paradigm, but together they provide a 
+nice set of building blocks for various applications.
 
 Currently libraries are grouped in two tiers:
 
-- Tier 1: Truly single header file library with no dependencies other than c standard library
+- Tier 1: Single header file library - no dependencies other than c standard library
 
-- Tier 2: Work in progress libraries that might require other msh library to be used
-
-Overtime hopefully every single library in this repo will be moved to Tier 1.
+- Tier 2: Library requires a different msh_lib to work.
 
 
 ## TIER 1
@@ -21,10 +20,9 @@ library                  |  version   | description
 **msh_std.h**            |    0.6     | standard library functionality
 **msh_argparse.h**       |    0.75    | command-line argument parsing
 **msh_vec_math.h**       |    0.75    | glsl inspired vector math (vectors, matrices and quaternions)
+**msh_ply.h**            |    1.0     | Very fast PLY File I/O [Benchmark](https://github.com/mhalber/ply_io_benchmark)
+**msh_hash_grid.h**      |    0.5     | Hash grid data structure for radius/knn queries in 2D/3D
 **msh_gfx.h**            |    0.1     | openGL wrapper
-**msh_ply.h**            |    0.7     | PLY File I/O
-**msh_hash_grid.h**      |    0.1     | Hash grid data structure for radius/knn queries in 2D/3D
-
 
 ## TIER 2
 
@@ -32,7 +30,6 @@ library                  |  version   | description                         | de
 :------------------------|:----------:|:-----------------------------------:|:-------
 **msh_cam.h**            |    0.4     | various types of camera controls    | msh_vec_math.h
 **msh_geometry.h**       |    0.01    | geometrical primitives manipulation | msh_vec_math.h
-
 
 ## Experimental folder
 
@@ -42,9 +39,8 @@ these files.
 
 ## Disclaimer
 
-These libraries have been inspired and modelled after excellent
-[libraries](https://github.com/nothings/stb) by Sean Barret. I'd also like to point you
-to many other single file libraries:
+These libraries have been inspired by excellent [libraries](https://github.com/nothings/stb) by Sean Barret. 
+I'd also like to point you to many other single file libraries:
 
 - [gb](https://github.com/gingerBill/gb)
 
@@ -52,4 +48,8 @@ to many other single file libraries:
 
 - [matthias gustavsson's libs](https://github.com/mattiasgustavsson/libs)
 
-They are excellent quality and you should do yourself a favor to try them out!
+- [rjm](https://github.com/rmitton/rjm)
+
+- [sokol](https://github.com/floooh/sokol)
+
+They are excellent and you should do yourself a favor and try them out!
