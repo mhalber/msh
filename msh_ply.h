@@ -51,7 +51,8 @@
   TriMesh_t mesh;
   your_function_to_initialize_mesh( &mesh );
 
-  msh_ply_desc_t descriptors[2];
+  
+  _t descriptors[2];
   descriptors[0] = { .element_name = "vertex",
                      .property_names = (const char*[]){"x", "y", "z"},
                      .num_properties = 3,

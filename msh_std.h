@@ -243,7 +243,7 @@ void* msh_array__grow(const void *array, size_t new_len, size_t elem_size);
 #define msh_array_fit(a, n)           ( (n) <= msh_array_cap(a) ? (0) : ( *(void**)&(a) = msh_array__grow((a), (n), sizeof(*(a))) )) 
 #define msh_array_push(a, ...)        ( msh_array_fit((a), 1 + msh_array_len((a))), (a)[msh_array__hdr(a)->len++] = (__VA_ARGS__))
 
-#define msh_array_cpy( dst, src, n )  ( msh_array_fit( (dst), (n) ), msh_array__hdr((dst))->len = (n), memcpy( (void*)(dst), (void*)(src), (n) * sizeof(*(dst) )))
+#define msh_array_copy( dst, src, n )  ( msh_array_fit( (dst), (n) ), msh_array__hdr((dst))->len = (n), memcpy( (void*)(dst), (void*)(src), (n) * sizeof(*(dst) )))
 #define msh_array_printf(b, ...)      ( (b) = msh_array__printf((b), __VA_ARGS__))
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -168,6 +168,9 @@ typedef struct msh_hash_grid_search_desc
   };
 
   int sort;
+#ifdef MSH_JOBS
+  msh_jobs_ctx_t* work_ctx;
+#endif
 } msh_hash_grid_search_desc_t;
 
 void   msh_hash_grid_init_2d( msh_hash_grid_t* hg,
@@ -812,6 +815,229 @@ msh_hash_grid__find_neighbors_in_bin( const msh_hash_grid_t* hg, const uint64_t 
     }
   }
 }
+
+uint32_t
+msh_hash_grid__radius_search( const msh_hash_grid_t* hg, 
+                              msh_hash_grid_search_desc_t* hg_sd, 
+                              uint32_t start_idx, uint32_t end_idx  )
+{
+  if( !hg || !hg_sd ) { return 0; }
+  enum { MAX_BIN_COUNT = 128 };
+  int32_t bin_indices[ MAX_BIN_COUNT ];
+  float bin_dists_sq[ MAX_BIN_COUNT ];
+
+  float radius          = hg_sd->radius;
+  double radius_sq      = (double)radius * (double)radius;
+  size_t row_size       = hg_sd->max_n_neigh;
+
+  msh_hash_grid_dist_storage_t storage;
+
+  uint32_t total_num_neighbors = 0;
+  for( uint32_t pt_idx = start_idx; pt_idx < end_idx; ++pt_idx )
+  {
+    float* query_pt       = hg_sd->query_pts + (hg->_pts_dim * pt_idx);
+    size_t* n_neighbors   = hg_sd->n_neighbors ? (hg_sd->n_neighbors + pt_idx) : NULL;
+    float* dists_sq       = hg_sd->distances_sq + (pt_idx * row_size);
+    int32_t* indices      = hg_sd->indices + (pt_idx * row_size);
+
+    // Prep the storage for the next point
+    msh_hash_grid_dist_storage_init( &storage, row_size, dists_sq, indices );
+
+    // Normalize query pt with respect to grid
+    msh_hg_v3_t q;
+    if( hg->_pts_dim == 2 )
+    {
+      q = (msh_hg_v3_t) { query_pt[0] - hg->min_pt.x,
+                          query_pt[1] - hg->min_pt.y,
+                          0.0 };
+    }
+    else
+    {
+      q = (msh_hg_v3_t) { query_pt[0] - hg->min_pt.x,
+                          query_pt[1] - hg->min_pt.y,
+                          query_pt[2] - hg->min_pt.z };
+    }
+
+    // Get base bin idx for query pt
+    int64_t ix = (int64_t)( q.x * hg->_inv_cell_size );
+    int64_t iy = (int64_t)( q.y * hg->_inv_cell_size );
+    int64_t iz = (int64_t)( q.z * hg->_inv_cell_size );
+
+    // Decide where to look
+    int64_t px  = (int64_t)( (q.x + radius) * hg->_inv_cell_size );
+    int64_t nx  = (int64_t)( (q.x - radius) * hg->_inv_cell_size );
+    int64_t opx = px - ix;
+    int64_t onx = nx - ix;
+
+    int64_t py  = (int64_t)( (q.y + radius) * hg->_inv_cell_size );
+    int64_t ny  = (int64_t)( (q.y - radius) * hg->_inv_cell_size );
+    int64_t opy = py - iy;
+    int64_t ony = ny - iy;
+
+    int64_t pz  = (int64_t)( (q.z + radius) * hg->_inv_cell_size );
+    int64_t nz  = (int64_t)( (q.z - radius) * hg->_inv_cell_size );
+    int64_t opz = pz - iz;
+    int64_t onz = nz - iz;
+
+    uint32_t n_visited_bins = 0;
+    float dx, dy, dz;
+    int64_t cx, cy, cz;
+    for( int64_t oz = onz; oz <= opz; ++oz )
+    {
+      cz = (int64_t)iz + oz;
+      if( cz < 0 || cz >= (int64_t)hg->depth ) { continue; }
+      uint64_t idx_z = cz * hg->_slab_size;
+
+      if( oz < 0 )      { dz = q.z - (cz + 1) * hg->cell_size; }
+      else if( oz > 0 ) { dz = cz * hg->cell_size - q.z; }
+      else              { dz = 0.0f; }
+
+      for( int64_t oy = ony; oy <= opy; ++oy )
+      {
+        cy = iy + oy;
+        if( cy < 0 || cy >= (int64_t)hg->height ) { continue; }
+        uint64_t idx_y = cy * hg->width;
+
+        if( oy < 0 )      { dy = q.y - (cy + 1) * hg->cell_size; }
+        else if( oy > 0 ) { dy = cy * hg->cell_size - q.y; }
+        else              { dy = 0.0f; }
+
+        for( int64_t ox = onx; ox <= opx; ++ox )
+        {
+          cx = ix + ox;
+          if( cx < 0 || cx >= (int64_t)hg->width ) { continue; }
+
+          assert( n_visited_bins < MAX_BIN_COUNT );
+
+          bin_indices[n_visited_bins] = idx_z + idx_y + cx;
+
+          if( ox < 0 )      { dx = q.x - (cx + 1) * hg->cell_size; }
+          else if( ox > 0 ) { dx = cx * hg->cell_size - q.x; }
+          else              { dx = 0.0f; }
+
+          bin_dists_sq[n_visited_bins] = dz * dz + dy * dy + dx * dx;
+          n_visited_bins++;
+        }
+      }
+    }
+    
+    msh_hash_grid__sort( bin_dists_sq, bin_indices, n_visited_bins );
+
+    for( uint32_t i = 0; i < n_visited_bins; ++i )
+    {
+      msh_hash_grid__find_neighbors_in_bin( hg, bin_indices[i], radius_sq, query_pt, &storage );
+      if( storage.len >= row_size &&
+          storage.max_dist <= bin_dists_sq[i] )
+      {
+        break;
+      }
+    }
+
+    if( hg_sd->sort ) { msh_hash_grid__sort( dists_sq, indices, storage.len ); }
+
+    if( n_neighbors ) { (*n_neighbors++) = storage.len; }
+
+    total_num_neighbors += storage.len;
+  }
+  return total_num_neighbors;;
+}
+
+#ifdef MSH_JOBS
+typedef struct msh_hash_grid__work_opts
+{
+  const msh_hash_grid_t* hg;
+  msh_hash_grid_search_desc_t* hg_sd;
+  uint32_t start_idx;
+  uint32_t end_idx;
+  uint32_t volatile *total_num_neighbors;
+} msh_hash_grid__work_opts_t;
+
+MSH_JOBS_JOB_SIGNATURE(msh_hash_grid__run_radius_search)
+{
+  msh_hash_grid__work_opts_t opts = *((msh_hash_grid__work_opts_t*)params);
+  uint32_t cur_num_neighbors = msh_hash_grid__radius_search( opts.hg, opts.hg_sd, opts.start_idx, opts.end_idx );
+  msh_jobs_atomic_add( opts.total_num_neighbors, cur_num_neighbors );
+  return 0;
+}
+#endif
+
+size_t 
+msh_hash_grid_radius_search2( const msh_hash_grid_t* hg,
+                             msh_hash_grid_search_desc_t* hg_sd )
+{
+  assert( hg_sd->query_pts );
+  assert( hg_sd->distances_sq );
+  assert( hg_sd->indices );
+  assert( hg_sd->radius > 0.0 );
+  assert( hg_sd->n_query_pts > 0 );
+  assert( hg_sd->max_n_neigh > 0 );
+
+#ifdef MSH_JOBS
+  uint32_t single_thread_limit = 64;
+  if( !hg_sd->work_ctx || hg_sd->n_query_pts < single_thread_limit )
+  {
+    return msh_hash_grid__radius_search( hg, hg_sd, 0, hg_sd->n_query_pts );
+  }
+  else
+  {
+#if 1
+    uint32_t volatile total_num_neighbors = 0;
+    enum{ MSH_HASH_GRID__N_TASKS = 128 };
+    msh_hash_grid__work_opts_t work_array[MSH_HASH_GRID__N_TASKS];
+    uint32_t n_pts_per_task = hg_sd->n_query_pts / MSH_HASH_GRID__N_TASKS + 1;
+    n_pts_per_task = n_pts_per_task < single_thread_limit ? single_thread_limit : n_pts_per_task;
+    for( uint32_t work_idx = 0; work_idx < MSH_HASH_GRID__N_TASKS; ++work_idx )
+    {
+      uint32_t start_idx = work_idx * n_pts_per_task;
+      uint32_t end_idx = msh_min( (work_idx + 1) * n_pts_per_task, hg_sd->n_query_pts );
+      if( start_idx > hg_sd->n_query_pts ) { break; }
+      msh_hash_grid__work_opts_t* work_entry = work_array + work_idx;
+      work_entry->hg = hg;
+      work_entry->hg_sd = hg_sd;
+      work_entry->total_num_neighbors = &total_num_neighbors;
+      work_entry->start_idx = start_idx;
+      work_entry->end_idx = end_idx;
+      msh_jobs_push_work( hg_sd->work_ctx, msh_hash_grid__run_radius_search, work_entry );
+    }
+    msh_jobs_complete_all_work( hg_sd->work_ctx );
+
+    return total_num_neighbors;
+#else
+    // NOTE(maciej): This does not work completely, as it sometimes overflows the queue
+    uint32_t volatile total_num_neighbors = 0;
+    uint32_t start_idx = 0;
+    int64_t pts_left = hg_sd->n_query_pts;
+
+    // NOTE(maciej): We could always just generate 16 jobs or smth like that to avoid malloc. Will need to test.
+    uint32_t work_idx = 0;
+    uint32_t n_tasks = pts_left / single_thread_limit + 1;
+    msh_hash_grid__work_opts_t* work_array = malloc( n_tasks * sizeof(msh_hash_grid__work_opts_t) );
+    while( pts_left > 0 )
+    {
+      uint32_t count = (pts_left >= single_thread_limit) ? single_thread_limit : pts_left;
+      msh_hash_grid__work_opts_t* work_entry = work_array + work_idx++;
+      work_entry->hg = hg;
+      work_entry->hg_sd = hg_sd;
+      work_entry->total_num_neighbors = &total_num_neighbors;
+      work_entry->start_idx = start_idx;
+      work_entry->end_idx = start_idx + count;
+      msh_jobs_push_work( hg_sd->work_ctx, msh_hash_grid__run_radius_search, work_entry );
+      
+      pts_left -= single_thread_limit;
+      start_idx += single_thread_limit;
+    }
+    msh_jobs_complete_all_work( hg_sd->work_ctx );
+    free( work_array );
+
+    return total_num_neighbors;
+#endif
+  }
+#else
+  return msh_hash_grid__radius_search( hg, hg_sd, 0, hg_sd->n_query_pts );
+#endif
+}
+
+
 
 size_t msh_hash_grid_radius_search( const msh_hash_grid_t* hg,
                                     msh_hash_grid_search_desc_t* hg_sd )

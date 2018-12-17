@@ -35,8 +35,10 @@ int main()
   msh_jobs_ctx_t work_ctx = {0};
   msh_jobs_init_ctx( &work_ctx, MSH_JOBS_DEFAULT_THREAD_COUNT );
   printf("Running on %s\n", msh_jobs_get_platform_name() );
-  printf("No. of threads: %d | %d %d\n", 
-          work_ctx.thread_count, work_ctx.processor_info.logical_core_count, work_ctx.processor_info.physical_core_count );
+  printf("Spawned Thread Count: %d | Logical Core Count: %d\n", 
+          work_ctx.thread_count,
+          work_ctx.processor_info.logical_core_count );
+
   msh_jobs_push_work( &work_ctx, task_a, "0" );
   msh_jobs_push_work( &work_ctx, task_b, "1" );
   msh_jobs_push_work( &work_ctx, task_a, "2" );
@@ -47,21 +49,9 @@ int main()
   msh_jobs_push_work( &work_ctx, task_b, "7" );
   msh_jobs_push_work( &work_ctx, task_a, "8" );
   msh_jobs_push_work( &work_ctx, task_b, "9" );
-  msh_jobs_push_work( &work_ctx, task_a, "10" );
-  msh_jobs_push_work( &work_ctx, task_b, "11" );
-  msh_jobs_push_work( &work_ctx, task_a, "12" );
-  msh_jobs_push_work( &work_ctx, task_b, "13" );
-  msh_jobs_push_work( &work_ctx, task_a, "14" );
-  msh_jobs_push_work( &work_ctx, task_b, "15" );
-  msh_jobs_push_work( &work_ctx, task_a, "16" );
-  msh_jobs_push_work( &work_ctx, task_b, "17" );
-  msh_jobs_push_work( &work_ctx, task_a, "18" );
-  msh_jobs_push_work( &work_ctx, task_b, "19" );
-  msh_jobs_push_work( &work_ctx, task_a, "20" );
-  msh_jobs_push_work( &work_ctx, task_b, "21" );
-  msh_jobs_push_work( &work_ctx, task_a, "22" );
 
   msh_jobs_wait_for_all_to_finish( &work_ctx );
   msh_jobs_term_ctx( &work_ctx );
+  
   return 0;
 }

@@ -3,14 +3,17 @@
 // Credits : bgfx for platform detection
 
 /* TODOs:
+[ ] When enqueing wait if the queue is full - I don't think it will work correctly with warping...
 [ ] Header / docs
-[ ] Better example?
+[ ] Conext should be returned to the user as an opaque handle( as sokol does )
+[ ] Error handling
+[ ] Multiple priority queues?
+[ ] Improve the test code
 [x] Implement functions wrappers fro winapi
 [x] Implement function wrappers for posix
 [ ] MacOS/FreeBSD testing?
-[ ] Multiple priority queues?
-[ ] Fiber job system / consumer producer
-[ ] Error handling
+[ ] Multiple Producer / Multiple Consumer Queues?
+[ ] Async reading?
 */
 
 #ifndef MSH_JOBS
@@ -33,18 +36,20 @@
 #define MSH_JOBS_PLATFORM_POSIX (0 || MSH_JOBS_PLATFORM_MACOS || MSH_JOBS_PLATFORM_LINUX )
 
 #if MSH_JOBS_PLATFORM_WINDOWS
-#define MSH_JOBS_PLATFORM_NAME "windows"
+#define MSH_JOBS_PLATFORM_NAME (char*)"windows"
 #elif MSH_JOBS_PLATFORM_LINUX
-#define MSH_JOBS_PLATFORM_NAME "linux"
+#define MSH_JOBS_PLATFORM_NAME (char*)"linux"
 #elif MSH_JOBS_PLATFORM_MACOS
-#define MSH_JOBS_PLATFORM_NAME "macos"
+#define MSH_JOBS_PLATFORM_NAME (char*)"macos"
 #else 
 #error "MSH_JOBS: Compiling on unknown platform!"
 #endif
 
 #if MSH_JOBS_PLATFORM_WINDOWS
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN 1
 #include "windows.h"
+#endif
 #elif MSH_JOBS_PLATFORM_LINUX
 #include <pthread.h>    // threads, duh
 #include <semaphore.h>  // semaphore, duh
@@ -120,7 +125,9 @@ struct msh_jobs_thread_into;
 typedef struct msh_jobs_ctx
 {
   msh_jobs_work_queue_t queue;
+  msh_jobs_work_queue_t low_priority_queue;
   msh_jobs_processor_info_t processor_info;
+
   struct msh_jobs_thread_info* thread_infos;
   uint32_t thread_count;
 } msh_jobs_ctx_t;
@@ -137,7 +144,7 @@ char*   msh_jobs_get_platform_name();
 int32_t msh_jobs_get_processor_info( msh_jobs_processor_info_t* info );
 int32_t msh_jobs_init_ctx( msh_jobs_ctx_t* ctx, uint32_t n_threads );
 int32_t msh_jobs_push_work( msh_jobs_ctx_t* ctx, msh_jobs_job_signature_t task, void* data );
-int32_t msh_jobs_wait_for_all_to_finish( msh_jobs_ctx_t* ctx );
+int32_t msh_jobs_complete_all_work( msh_jobs_ctx_t* ctx );
 void    msh_jobs_term_ctx( msh_jobs_ctx_t* ctx );
 
 #endif /* MSH_JOBS */
@@ -148,12 +155,6 @@ typedef enum msh_jobs_error_codes
 {
   MSH_JOBS_NO_ERR = 0,
 } msh_jobs_error_codes_t;
-
-// TODO(maciej): Semaphore -> Create Release
-// TODO(maciej): Thread -> Create, Close
-// TODO(maciej): WriteBarriers
-// TODO(maciej): InterlockedCompareExchange, InterlockedIncrement
-// TODO(maciej): Processor info
 
 int32_t
 msh_jobs_thread_create( msh_jobs_thread_t* thread, msh_jobs_thrd_proc_t func, void* params )
@@ -230,6 +231,16 @@ msh_jobs_semaphore_wait( msh_jobs_semaphore_t* sem )
 
 
 uint32_t
+msh_jobs_atomic_add( uint32_t volatile *value, uint32_t val )
+{
+#if MSH_JOBS_PLATFORM_WINDOWS
+  return (uint32_t)InterlockedAdd( (LONG volatile*)value, val );
+#else
+  return (uint32_t)__sync_fetch_and_add( value, val );
+#endif
+}
+
+uint32_t
 msh_jobs_atomic_increment( uint32_t volatile *value )
 {
 #if MSH_JOBS_PLATFORM_WINDOWS
@@ -251,14 +262,13 @@ msh_jobs_atomic_compare_exchange( uint32_t volatile *dest, uint32_t new_val, uin
 
 
 int32_t
-// msh_jobs_push_work( msh_jobs_ctx_t* ctx, uint32_t (*task)(int, void*), void* data )
 msh_jobs_push_work( msh_jobs_ctx_t* ctx, msh_jobs_job_signature_t task, void* data )
 {
   msh_jobs_work_queue_t* queue = &ctx->queue;
   uint32_t next_entry_to_write = queue->next_entry_to_write;
   uint32_t new_next_entry_to_write = (next_entry_to_write + 1) % queue->max_job_count;
-  assert( new_next_entry_to_write != queue->next_entry_to_read );
-  msh_jobs_job_entry_t *job = queue->entries+ next_entry_to_write;
+  while( new_next_entry_to_write == queue->next_entry_to_read ) {printf("Spin!\n"); };// Spin until we can write again
+  msh_jobs_job_entry_t *job = queue->entries + next_entry_to_write;
   job->task = task;
   job->data = data;
   ++queue->completion_goal;
@@ -299,7 +309,7 @@ msh_jobs_execute_next_job_entry( int32_t thread_idx, msh_jobs_work_queue_t* queu
 }
 
 int32_t
-msh_jobs_wait_for_all_to_finish( msh_jobs_ctx_t* ctx )
+msh_jobs_complete_all_work( msh_jobs_ctx_t* ctx )
 {
   uint32_t thrd_idx = 0;
   if( !ctx->thread_infos || !ctx->queue.entries ) 
@@ -343,22 +353,21 @@ msh_jobs__create_threads( msh_jobs_ctx_t* ctx, uint32_t n_threads )
   assert( ctx->processor_info.logical_core_count > 0 );
 
   // Queue initialization
-  ctx->queue.max_job_count = 256;
+  ctx->queue.max_job_count = 1024;
   ctx->queue.completion_goal = 0;
   ctx->queue.completion_count = 0;
   ctx->queue.next_entry_to_read = 0;
   ctx->queue.next_entry_to_write = 0;
-  ctx->queue.entries = malloc( ctx->queue.max_job_count * sizeof( msh_jobs_job_entry_t) );
+  ctx->queue.entries = (msh_jobs_job_entry_t*)malloc( ctx->queue.max_job_count * sizeof(msh_jobs_job_entry_t) );
   assert( ctx->queue.entries );
   
   // Semaphore
   uint32_t initial_count = 0;
   ctx->thread_count = n_threads ? n_threads : ctx->processor_info.logical_core_count - 1;
-  // ctx->queue.semaphore_handle = CreateSemaphoreA( 0, initial_count, ctx->thread_count, NULL );
   msh_jobs_semaphore_create( &ctx->queue.semaphore_handle, initial_count, ctx->thread_count );
 
   // Thread info
-  ctx->thread_infos = malloc( ctx->thread_count * sizeof( msh_jobs_thread_info_t ) );
+  ctx->thread_infos = (msh_jobs_thread_info_t*)malloc( ctx->thread_count * sizeof( msh_jobs_thread_info_t ) );
   assert( ctx->thread_infos );
   
   for( uint32_t thrd_idx = 0; thrd_idx < ctx->thread_count; ++thrd_idx )
@@ -386,7 +395,7 @@ msh_jobs_init_ctx( msh_jobs_ctx_t* ctx, uint32_t n_threads )
 void
 msh_jobs_term_ctx( msh_jobs_ctx_t* ctx )
 {
-  msh_jobs_wait_for_all_to_finish( ctx );
+  msh_jobs_complete_all_work( ctx );
   for( uint32_t i = 0; i < ctx->thread_count; ++i )
   {
     msh_jobs_thread_detach( &ctx->thread_infos[i].handle );
@@ -400,7 +409,7 @@ msh_jobs_term_ctx( msh_jobs_ctx_t* ctx )
   ctx->queue.next_entry_to_write = 0;
   free( ctx->queue.entries );
   ctx->queue.entries = NULL;
-  msh_jobs_semaphore_release( &ctx->queue.semaphore_handle,ctx->thread_count );
+  msh_jobs_semaphore_release( &ctx->queue.semaphore_handle, ctx->thread_count );
   msh_jobs_semaphore_destroy( &ctx->queue.semaphore_handle );
 }
 
@@ -444,9 +453,9 @@ int32_t msh_jobs_get_processor_info( msh_jobs_processor_info_t* info  )
 
   // TODO(maciej): Introduce proper error handling
   success = GetLogicalProcessorInformation( buffer, &buffer_byte_size );
-  buffer  = malloc(buffer_byte_size);
+  buffer  = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(buffer_byte_size);
   success = GetLogicalProcessorInformation( buffer, &buffer_byte_size  );
-  if( !success ) { error = 1; goto msh_jobs_get_processor_info_exit; } 
+  if( !success ) { error = 1; return error; } 
   
   PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = buffer;
   int32_t byte_offset = 0;
@@ -481,11 +490,9 @@ int32_t msh_jobs_get_processor_info( msh_jobs_processor_info_t* info  )
   size_t logical_count_len = sizeof(count);
   sysctlbyname("hw.physicalcpu", &info->physical_core_count, &physical_count_len, NULL, 0);
   sysctlbyname("hw.logicalcpu", &info->logical_core_count, &logical_count_len, NULL, 0);
-  goto msh_jobs_get_processor_info_exti;
 
 #endif
 
-msh_jobs_get_processor_info_exit:
   return error;
 }
 
