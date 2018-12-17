@@ -1,58 +1,100 @@
 /*
   ==============================================================================
   
-  MSH_HASH_GRID.H v0.1
+  MSH_HASH_GRID.H v0.5
   
-  A single header library for low-dimensional(2d and 3d) range and nearest neighbor 
-  queries.
+  A single header library for low-dimensional(2d and 3d) range and nearest neighbor queries.
 
-  To use the library you simply following line once in your project:
-  
-  #define MSH_HASH_GRID_IMPLEMENTATION
-  #include "msh_hash_grid.h"
-
-  Additionally, since this library does do memory allocation, you have an option
-  to provide alternate memory allocatio functions, by defining following macros
-  prior to inclusion of this file:
-  - MSH_HG_MALLOC
-  - MSH_HG_MEMSET
-  - MSH_HG_CALLOC
-  - MSH_HG_REALLOC
-  - MSH_HG_FREE
+  To use the library you simply add:
+    #define MSH_HASH_GRID_IMPLEMENTATION
+    #include "msh_hash_grid.h"
 
   ==============================================================================
-  USAGE:
+  API DOCUMENTATION
+
   This library focuses on the radius search, which is done by first creating
-  hashgrid from your input pointset, and then calling search procedure. Both 
-  initialization functions 'msh_hash_grid_init_2d' and 'msh_hash_grid_init_3d'
-  take in contiguous point buffer and radius as input.
+  hash grid from your input pointset, and then calling search procedure. 
 
-  The search functions take the pointer to previously created 'msh_hash_grid_t'
-  object and search descriptor structure, that allows user to specify all search
-  related options. The members of 'msh_hash_grid_search_desc':
+  It is important to note that this library produces search structures that are initialization
+  depended - the radius supplied during initialization should be close to the radius used in
+  search queries
 
-    float* query_pts     - INPUT: array of query points. Provided and owned by the user
-    size_t n_query_pts   - INPUT: size of query points array. Provided by the user.
+  Customization
+  -------------
+  'msh_hash_grid.h' performs dynamic memory allocation. You have an option to provide alternate memory
+  allocation functions, by defining following macros prior to inclusion of this file:
+    - MSH_HG_MALLOC
+    - MSH_HG_MEMSET
+    - MSH_HG_CALLOC
+    - MSH_HG_REALLOC
+    - MSH_HG_FREE
 
-    float radius         - OPTION: radius within which we wish to find neighbors for each query
-    int sort             - OPTION: should the results be sorted from closest to farthest
-    size_t max_n_neigh/k - OPTION: maximum number of neighbors allowed for each query.
+  msh_hash_grid_init_2d
+  ---------------------
+    void msh_hash_grid_init_2d( msh_hash_grid_t* hg,
+                                const float* pts, const int32_t n_pts, const float radius );
 
-    float* distances_sq  - OUTPUT: max_n_neigh * n_query_pts matrix of squared distances to neighbors 
-                                   of query pts that are within radius. Each row contains up
-                                   to max_n_neigh neighbors for i-th query pts. This array is allocated
-                                   internally by library, but ownership is then passed to the user.
-    int32_t* indices     - OUTPUT: max_n_neigh * n_query_pts array of indices to neighbors of query 
-                                   pts that are within radius. Each row contains up
-                                   to max_n_neigh neighbors for i-th query pts. This array is allocated
-                                   internally by library, but ownership is then passed to the user.
-    size_t* n_neighbors  - OUTPUT: n_query_pts array of number of number neighbors found for 
-                                   each of query pts. Note that for i-th points we could find less
-                                   than max_n_neighbors. This array should be used when iterating over
-                                   indices and distances_sq matrices.
+  Initializes the 2d hash grid 'hg' using the data passed in 'pts' where the cell size is
+  selected to best serve queries with 'radius' search distance. 'pts' is expected to
+  be continuous array of 2d point corrdinates.
 
-    This libray also has knn function implemenation. 
-    Depending on how large k is, these queries might not be very fast.
+  msh_hash_grid_init_3d
+  ---------------------
+    void msh_hash_grid_init_3d( msh_hash_grid_t* hg,
+                                const float* pts, const int32_t n_pts, const float radius );
+
+  Initializes the 3d hash grid 'hg' using the data passed in 'pts' where the cell size is
+  selected to best serve queries with 'radius' search distance. 'pts' is expected to
+  be continuous array of 3d point corrdinates.
+
+  msh_hash_grid_term
+  ---------------------
+    void msh_hash_grid_term( msh_hash_grid_t* hg );
+  
+  Terminates storage for grid 'hg'. 'hg' should not be used after this call.
+  
+  
+  msh_hash_grid_radius_search
+  ---------------------
+    size_t msh_hash_grid_radius_search( const msh_hash_grid_t* hg,
+                                    msh_hash_grid_search_desc_t* search_desc );
+
+  Performs radius search using 'hg' as acceleration structure, with search queries described
+  in 'search_desc'. Returns the total number of neighbors found. The members of 
+  'msh_hash_grid_search_desc_t' are:
+
+  float* query_pts     - INPUT: array of query points. Provided and owned by the user
+  size_t n_query_pts   - INPUT: size of query points array. Provided by the user.
+
+  float radius         - OPTION: radius within which we wish to find neighbors for each query
+  int sort             - OPTION: should the results be sorted from closest to farthest
+  size_t max_n_neigh/k - OPTION: maximum number of neighbors allowed for each query.
+
+  float* distances_sq  - OUTPUT: max_n_neigh * n_query_pts matrix of squared distances to neighbors 
+                                 of query pts that are within radius. Each row contains up
+                                 to max_n_neigh neighbors for i-th query pts. This array is allocated
+                                 internally by library, but ownership is then passed to the user.
+  int32_t* indices     - OUTPUT: max_n_neigh * n_query_pts array of indices to neighbors of query 
+                                 pts that are within radius. Each row contains up
+                                 to max_n_neigh neighbors for i-th query pts. This array is allocated
+                                 internally by library, but ownership is then passed to the user.
+  size_t* n_neighbors  - OUTPUT: n_query_pts array of number of number neighbors found for 
+                                 each of query pts. Note that for i-th points we could find less
+                                 than max_n_neighbors. This array should be used when iterating over
+                                 indices and distances_sq matrices.
+  
+  Note that when doing searches, 'max_n_neigh' parameter is important - set it too low and
+  you will not find all neighbors within the radius (the k returned will still be the k closest though).
+  Set it too high, and there will be a decent amount of memory wasting and cache misses.
+
+  msh_hash_grid_knn_search
+  ---------------------
+    size_t msh_hash_grid_knn_search( const msh_hash_grid_t* hg,
+                                   msh_hash_grid_search_desc_t* search_desc );
+
+  Exactly the same as 'msh_hash_grid_radius_search', except search will be performed until
+  'k' (specified in 'search_desc') neighbors will be found.  Depending on how large 'k' is, 
+  these queries might not be very fast.
 
   ==============================================================================
   DEPENDENCIES
@@ -64,9 +106,10 @@
       - <stdio.h>
       - <stdbool.h>
       - <stddef.h>
-    Note that this file will not pull them in automatically to prevent pulling same
-    files multiple time. If you do not like this behaviour and want this file to
-    pull in c headers, simply define following before including the library:
+
+    Note that this file will not pull them in. This is to prevent pulling the same
+    files multiple times, especially within single compilation unit. 
+    To actually include the headers, simply define following before including the library:
 
     #define MSH_HASH_GRID_INCLUDE_HEADERS
 
@@ -75,9 +118,10 @@
     Maciej Halber
 
   CREDITS:
-    Inspiration for single header ply reader:   tinyply    by ddiakopoulos
+    Map implementation based on                 bitwise    by Per Vogsnen
     Dynamic array based on                      stb.h      by Sean T. Barrett
 
+  Licensing information can be found at the end of the file.
   ==============================================================================
   TODOs:
   [ ] Replace openMP with a custom threading/scheduler implementation
@@ -85,10 +129,8 @@
     [ ] Allow user to specify compatibility function instead of just L2 norm
     [ ] Allow user to provide some extra user data like normals for computing the distances
     [ ] Write ICP example + visualization to test this. Question how well that helps icp converge
-  [ ] Docs
-      NOTE(maciej): Remember to tell the user about sensitivity to max_n_neigh, as it is essentially
-                    spreading out the memory. Should some functions to query point density be added?
   [ ] Assert proof
+  [ ] Docs
   [x] Fix issue when _init function cannot be used if no implementation is declared.
   [x] Optimization - in both knn and radius I need a better way to determine whether I can early out
   [x] Optimization - see if I can simplify the radius search function for small search radii.
@@ -265,8 +307,12 @@ typedef struct msh_hg_bin_info
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// Copy of msh_array
-////////////////////////////////////////////////////////////////////////////////////////////////////
+// THIS IS A SIMPLIFIED VERSION OF MSH_STD_ARRAY
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct msh_hg_array_header
 {
   size_t len;
@@ -293,9 +339,12 @@ void* msh_hg__array_grow(const void *array, size_t new_len, size_t elem_size);
 #define MSH_HG_MIN(a, b) ((a) <= (b) ? (a) : (b))
 #define MSH_HG_MAX3(a, b, c) MSH_HG_MAX(MSH_HG_MAX(a,b), MSH_HG_MAX(b,c))
 
+#ifdef __cplusplus
+}
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// Copy of msh_map
-////////////////////////////////////////////////////////////////////////////////////////////////////
+// THIS IS A COPY OF MSH_MAP
 
 uint64_t  msh_hg_hash_uint64( uint64_t x );
 void      msh_hg_map_init( msh_hg_map_t* map, uint32_t cap );
@@ -305,10 +354,7 @@ size_t    msh_hg_map_cap( msh_hg_map_t* map );
 void      msh_hg_map_insert( msh_hg_map_t* map, uint64_t key, uint64_t val );
 uint64_t* msh_hg_map_get( const msh_hg_map_t* map, uint64_t key );
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Actual start of implementation
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
+// NOTE(maciej): This is not very comprehensive as far as platform detection macros go. 
 #if defined(_MSC_VER)
 #define MSH_HG_INLINE __forceinline
 #else
@@ -1080,7 +1126,6 @@ size_t msh_hash_grid_radius_search( const msh_hash_grid_t* hg,
 #endif
     if( thread_idx < num_threads )
     {
-      // printf("TEST %d %d\n", thread_idx, num_threads );
       uint32_t low_lim      = thread_idx * n_pts_per_thread;
       uint32_t high_lim     = MSH_HG_MIN((thread_idx + 1) * n_pts_per_thread, n_query_pts);
       uint32_t cur_n_pts    = high_lim - low_lim;
@@ -1549,3 +1594,60 @@ msh_hg_map_free( msh_hg_map_t* map )
 }
 
 #endif /* MSH_HASH_GRID_IMPLEMENTATION */
+
+
+/*
+------------------------------------------------------------------------------
+
+This software is available under 2 licenses - you may choose the one you like.
+
+------------------------------------------------------------------------------
+
+ALTERNATIVE A - MIT License
+
+Copyright (c) 2018 Maciej Halber
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of 
+this software and associated documentation files (the "Software"), to deal in 
+the Software without restriction, including without limitation the rights to 
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies 
+of the Software, and to permit persons to whom the Software is furnished to do 
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all 
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE 
+SOFTWARE.
+
+------------------------------------------------------------------------------
+
+ALTERNATIVE B - Public Domain (www.unlicense.org)
+
+This is free and unencumbered software released into the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or distribute this 
+software, either in source code form or as a compiled binary, for any purpose, 
+commercial or non-commercial, and by any means.
+
+In jurisdictions that recognize copyright laws, the author or authors of this 
+software dedicate any and all copyright interest in the software to the public 
+domain. We make this dedication for the benefit of the public at large and to 
+the detriment of our heirs and successors. We intend this dedication to be an 
+overt act of relinquishment in perpetuity of all present and future rights to 
+this software under copyright law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN 
+ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION 
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+------------------------------------------------------------------------------
+*/

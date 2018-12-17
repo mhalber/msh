@@ -1,39 +1,121 @@
 /*
   ==============================================================================
   
-  MSH_PLY.H v0.6
+  MSH_PLY.H v1.0
   
   A single header library for reading and writing ply files.
 
   To use the library you simply add:
-  
-  #define MSH_PLY_IMPLEMENTATION
-  #include "msh_ply.h"
-
-  The define should only include once in your source. If you need to include 
-  library in multiple places, simply use the include:
-
-  #include "msh_ply.h"
-
-  Additionally if for your purpose you might only need decoder or encoder, you
-  can disable compilation of unnecessary code by defining:
-
-  #define MSH_PLY_ENCODER_ONLY  - we only pull in writing functionality
-  #define MSH_PLY_DECODER_ONLY  - we only pull in reading functionality
-
-  By default this file uses malloc, realloc and free. You can provide your own
-  custom allocators by defining MSH_PLY_MALLOC, MSH_PLY_REALLOC, MSH_PLY_FREE
-  before including this file.
+    #define MSH_PLY_IMPLEMENTATION
+    #include "msh_ply.h"
 
   ==============================================================================
-  USAGE:
+  API DOCUMENTATION
+
+  Customization
+  -------------------
+  'msh_ply.h' performs dynamic memory allocation. You have an option to provide alternate memory
+  allocation functions, by defining following macros prior to inclusion of this file:
+    - MSH_PLY_MALLOC
+    - MSH_PLY_REALLOC
+    - MSH_PLY_FREE
+  
+  You have an option to specify whether you need only encoding/decoding parts of the library.
+    #define MSH_PLY_ENCODER_ONLY  - only pull in writing functionality
+    #define MSH_PLY_DECODER_ONLY  - only pull in reading functionality
+
+  msh_ply_open
+  -------------------
+    msh_ply_t* msh_ply_open( const char* filename, const char* mode );
+  
+  Creates a new ply file handle and returns pointer to it. 'filename' is the path to the ply file
+  and 'mode' describes in what mode file should be used:
+    'r'  - read ASCII
+    'rb' - read binary
+    'w'  - write ASCII
+    'wb' - write binary(will write endianness based on your system)
+  Note that this does not perform any reading / writing.
+
+  msh_ply_add_descriptor
+  -------------------
+    int32_t msh_ply_add_descriptor( msh_ply_t *pf, msh_ply_desc_t *desc );
+  
+  Adds a data descriptor 'desc' to ply file object 'pf'. Descriptors provide information that is 
+  requested from ply file object. See example for more details. Returns 0 on success and error
+  code on failure.
+
+  msh_ply_read
+  -------------------
+    int32_t msh_ply_read( msh_ply_t* pf );
+  
+  Performs reading of ply file described by 'pf'. Should be called after adding descriptors. 
+  Returns 0 on success and error  code on failure.
+    
+  msh_ply_write
+  -------------------
+    int32_t msh_ply_write( msh_ply_t* pf );
+  
+  Performs writing of ply file described by 'pf'. Should be called after adding descriptors.
+  Returns 0 on success and error code on failure.
+
+  msh_ply_parse_header
+  -------------------
+    int32_t msh_ply_parse_header( msh_ply_t* pf );
+
+  Parses just the header of the file. Needs to be called to programatically check what
+  contents file has, but will not read any of the actual data. Returns 0 on success and error 
+  code on failure.
+  
+  msh_ply_has_properties
+  -------------------
+    bool msh_ply_has_properties( const msh_ply_t* pf, const msh_ply_desc_t* desc );
+  
+  Returns true if the ply file 'pf' contains properties contained in descriptor 'desc'. This is 
+  the preffered  method to check whether some property exist in ply file 'pf'. 
+  Can only be called after header has been parsed!
+
+  msh_ply_find_element
+  -------------------
+    msh_ply_element_t*  msh_ply_find_element( const msh_ply_t* pf, const char* element_name );
+
+  Returns a pointer to element if the element of given name has been found in 'pf'. Returns NULL 
+  otherwise. Can only be called after header has been parsed!
+ 
+  msh_ply_find_property
+  -------------------
+    msh_ply_property_t* msh_ply_find_property( const msh_ply_element_t* el, const char* property_name );
+
+  Returns a pointer to property if the property of given name has been found in 'pf'.
+  Returns NULL otherwise. Can be called after header has been parsed!
+
+  msh_ply_close
+  -------------------
+    void msh_ply_close( msh_ply_t* pf );
+
+  Closes the ply file 'pf'. 
+
+  msh_ply_get_error_msg
+  -------------------
+    const char* msh_ply_get_error_msg( int32_t err );
+
+  Get pointer to a error message string from the error code. 
+  
+  void msh_ply_print_header( msh_ply_t* pf );
+  -------------------
+    void msh_ply_print_header( msh_ply_t* pf );
+
+  Pretty print of the ply file header.
+    
+  ==============================================================================
+  EXAMPLES:
+
   This library usage focuses around the concept of descriptors. User describes his/her/their 
   data with a set of descriptors. Descriptors tell us what element and properties is
   the data describing, what is the data type, as well as storing pointer to actual data.
   Once descriptors are prepared they can be added to each of ply files and written out.
   System for reading is exactly the same, but you'd be describing requested data.
   Note that ply file does not own pointers to the data, so you will need to delete these
-  separately.   Additionally, every function returns an error code, which can be turned 
+  separately. Additionally, every function returns an error code, which can be turned 
   into string message using "msh_ply_get_error_msg( ply_err_t err )" function. Not used
   below for clarity.
 
@@ -51,8 +133,7 @@
   TriMesh_t mesh;
   your_function_to_initialize_mesh( &mesh );
 
-  
-  _t descriptors[2];
+  msh_ply_desc_t descriptors[2];
   descriptors[0] = { .element_name = "vertex",
                      .property_names = (const char*[]){"x", "y", "z"},
                      .num_properties = 3,
@@ -161,6 +242,7 @@
     Inspiration for single header ply reader:   tinyply    by ddiakopoulos
     Dynamic array based on                      stb.h      by Sean T. Barrett
 
+  Licensing information can be found at the end of the file.
   ==============================================================================
   TODOs:
   [x] Investigate why different pointers are needed for reading / writing
@@ -176,7 +258,7 @@
     [x] Replace duplicated code
     [x] Replace syscalls with redefineable macros
 
-  [ ] Write C++ support
+  [ ] Write C++ support(?)
   [ ] Add static function definition macro
   [ ] Getting raw data for list property - different function.
   [x] Add 'msh_ply_has_properties' function
@@ -264,67 +346,32 @@ struct msh_ply_desc
   uint8_t           list_size_hint;
 };
 
-/* Create a new ply file object.
-    # filename - name to the file we wish to read/write
-    # mode - what mode we want to use file in:
-      'r'  - read ASCII
-      'rb' - read binary
-      'w'  - write ASCII
-      'wb' - write binary(will write endianness based on your system) */
-msh_ply_t* msh_ply_open( const char* filename, const char* mode );
-
-/* Add data descriptor to ply file object, needed for both reading and writing
-   to let msh_ply know how your data is layed out */
-int32_t msh_ply_add_descriptor( msh_ply_t *pf, msh_ply_desc_t *desc );
+msh_ply_t*          msh_ply_open( const char* filename, const char* mode );
+void                msh_ply_close( msh_ply_t* pf );
+int32_t             msh_ply_add_descriptor( msh_ply_t *pf, msh_ply_desc_t *desc );
+int32_t             msh_ply_parse_header( msh_ply_t* pf );
+bool                msh_ply_has_properties( const msh_ply_t* pf, const msh_ply_desc_t* desc );
+msh_ply_element_t*  msh_ply_find_element( const msh_ply_t* pf, const char* element_name );
+msh_ply_property_t* msh_ply_find_property( const msh_ply_element_t* el, const char* property_name );
+const char*         msh_ply_get_error_msg( int32_t err );
+void                msh_ply_print_header( msh_ply_t* pf );
 
 #ifndef MSH_PLY_ENCODER_ONLY
-
-/* Simple API for reading. Just call after adding descriptors. */
-int32_t msh_ply_read( msh_ply_t* pf );
-
+int32_t             msh_ply_read( msh_ply_t* pf );
 #endif
 
 #ifndef MSH_PLY_DECODER_ONLY
-
-/* Simple API for writting. Just call after adding descriptors. */
-int32_t msh_ply_write( msh_ply_t* pf );
-
+int32_t             msh_ply_write( msh_ply_t* pf );
 #endif
-
-/* Parses just the header of the file. Needs to be called to programatically check what
-   contents file has, but will not read any of the actual data. */
-int32_t msh_ply_parse_header( msh_ply_t* pf );
-
-
-/* Returns true if the ply file contains properties contained in descriptors
-   Preffered method to check whether some property exist in ply file
-   Can be called after header has been parsed */
-bool msh_ply_has_properties( const msh_ply_t* pf, const msh_ply_desc_t* desc );
-
-/* Returns pointer to element if element of given name has been found, NULL otherwise.
-   Can be used to check if a ply file contains given element. 
-   Can be called after header has been parsed */
-msh_ply_element_t*  msh_ply_find_element( const msh_ply_t* pf, const char* element_name );
-
-/* Returns pointer to property if property of given name has been found, NULL otherwise.
-   Can be used to check if a ply file contains given element. 
-   Can be called after header has been parsed */
-msh_ply_property_t* msh_ply_find_property( const msh_ply_element_t* el, const char* property_name );
-
-/* Close the ply file. Should be called by user if error is encountered */
-int32_t msh_ply_close( msh_ply_t* pf );
-
-/* Get error message from error code */
-const char* msh_ply_get_error_msg( int32_t err );
-
-/* Pretty print for header */
-void msh_ply_print_header( msh_ply_t* pf );
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* MSH_PLY */
+
+
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // IMPLEMENTATION
@@ -365,9 +412,6 @@ void* msh_ply__array_grow(const void *array, size_t new_len, size_t elem_size);
 #ifdef __cplusplus
 }
 #endif
-
-// ARRAY END
-////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct msh_ply_property
 {
@@ -2146,7 +2190,7 @@ msh_ply_open( const char* filename, const char* mode )
   return pf;
 }
 
-int
+void
 msh_ply_close( msh_ply_t* pf )
 {
   if(pf->_fp) { fclose(pf->_fp); pf->_fp = NULL; }
@@ -2162,8 +2206,62 @@ msh_ply_close( msh_ply_t* pf )
   }
   if(pf->descriptors) msh_ply_array_free(pf->descriptors);
   MSH_PLY_FREE(pf);
-
-  return MSH_PLY_NO_ERR;
 }
 
 #endif /* MSH_PLY_IMPLEMENTATION */
+
+/*
+------------------------------------------------------------------------------
+
+This software is available under 2 licenses - you may choose the one you like.
+
+------------------------------------------------------------------------------
+
+ALTERNATIVE A - MIT License
+
+Copyright (c) 2018 Maciej Halber
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of 
+this software and associated documentation files (the "Software"), to deal in 
+the Software without restriction, including without limitation the rights to 
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies 
+of the Software, and to permit persons to whom the Software is furnished to do 
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all 
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE 
+SOFTWARE.
+
+------------------------------------------------------------------------------
+
+ALTERNATIVE B - Public Domain (www.unlicense.org)
+
+This is free and unencumbered software released into the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or distribute this 
+software, either in source code form or as a compiled binary, for any purpose, 
+commercial or non-commercial, and by any means.
+
+In jurisdictions that recognize copyright laws, the author or authors of this 
+software dedicate any and all copyright interest in the software to the public 
+domain. We make this dedication for the benefit of the public at large and to 
+the detriment of our heirs and successors. We intend this dedication to be an 
+overt act of relinquishment in perpetuity of all present and future rights to 
+this software under copyright law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN 
+ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION 
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+------------------------------------------------------------------------------
+*/

@@ -1,10 +1,9 @@
 
 /*
-  MSH_ARGPARSE.H 
-
   ==============================================================================
-  DESCRIPTION
   
+  MSH_ARGPARSE.H v0.75 
+
   msh_argparse.h is single-header c11 library for command-line argument
   parsing, with dependencies only on standard c library. I allows easy setup of
   arguments and will automatically produce help info. 

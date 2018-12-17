@@ -1,7 +1,7 @@
 /*
   ==============================================================================
   
-  MSH_STD.H v0.5
+  MSH_STD.H v0.6
   
   A single header library for extending the C standard library.
   This file is partially written by myself, but also includes a lot
@@ -20,7 +20,6 @@
     By default, these are not included by this library. If you'd like these to be included,
     define:
     #define MSH_STD_INCLUDE_LIBC_HEADERS
-
 
   ==============================================================================
   AUTHORS:
@@ -43,7 +42,7 @@
   [ ] Sorting and Searching
     [ ] Common qsort comparator functions
     [ ] binary and linear searches over arrays
-  [ ] Multithreading / Scheduling
+  [x] Multithreading / Scheduling <-- separate lib, msh_jobs.h
   [x] Stats - cdf inversion
   [ ] Custom prints (stb_sprintf inlined, look at replacing sprintf with "write" function in linux (unistd.h))
 

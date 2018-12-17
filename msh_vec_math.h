@@ -1,7 +1,7 @@
 /*
   ==============================================================================
 
-  MSH_VEC_MATH.H
+  MSH_VEC_MATH.H v0.75
 
   A single header library for a simple 2-4 dimensional vector/
   matrix operations (and quaternions).
