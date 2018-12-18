@@ -11,64 +11,96 @@
   #define MSH_VEC_MATH_IMPLEMENTATION
   #include "msh_vec_math.h"
 
-  The define should only include once in your source. If you need to include
-  library in multiple places, simply use the include:
+  ==============================================================================
+  API DOCUMENTATION
+  
+  This library provides the utilites for creating and manipulating 2-4 dimentional
+  vector and matrices, as well as quaternions.
 
-  #include "msh_vec_math.h"
+  Standard functions:
+  -------------------
+  Most function definitions follow a structure:
 
-  All functions can be made static by definining:
+    msh_<entity><dimension>_t  msh_<entity><dimention>_<action>( operands...)
+  
+  Examples:
+    4d vector addition       : msh_vec4_t msh_vec4_add( msh_vec4_t vec_a, msh_vec4_t vec_b );
+    3d matrix multiplication : msh_mat3_t msh_mat3_mul( msh_mat4_t mat_a, msh_mat4_t mat_b );
 
-  #ifdef MSH_VEC_MATH_STATIC
+  If operands of the function don't have same type, following structure is used instead:
 
-  before including the "msh_vec_math.h"
+    msh_<entity><dimension>_t return_value = msh_<entinty><dimension>_<entity><dimension>_>action( operands ...)
 
-  By default all calculations are done using floating point operations
-  If you wish to use double, please define(as usual, before including the file):
+  Examples:
+    Vector-Scalar multiplication: msh_vec4_t vec_b = msh_vec4_scalar_mul( msh_vec4_t vec_a, real32_t scalar );
+    Matrix-Vector multiplication: msh_vec4_t vec_b = msh_mat4_vec4_mul( msh_mat4_t mat, msh_vec4_t vec_a );
 
-  #define MSH_VEC_MATH_USE_DOUBLE
+  NOTE(maciej): Writing these examples I can see that msh_vec4_scalar_mul should really be msh_scalar_vec4_mul...
+
+  Special functions:
+  -------------------
+    Helper function for SE3( rigid body) transformations:
+
+      msh_mat4_t msh_rotate( msh_mat4_t m, real32_t angle, msh_vec3_t axis )
+    
+      msh_mat4_t msh_translate( msh_mat4_t m, msh_vec3_t translation )
+    
+      msh_mat4_t msh_scale( msh_mat4_t m, msh_vec3_t scale )
+    
+    TODO(maciej): Write how to chain them to get the transformation
+
+    OpenGL Helpers:
+      Reimplementations of standard GLU procedures.
+
+        msh_mat4_t msh_perspective( real32_t fovy, real32_t aspect_raio, real32_t z_near, real32_t z_far );
+        
+        msh_mat4_t msh_ortho(real32_t left, real32_t right, real32_t bottom, real32_t top, real32_t z_near, real32_t z_far );
+        
+        msh_mat4_t msh_look_at( msh_vec3_t eye, msh_vec3_t center, msh_vec3_t up );
+
+        msh_vec3_t msh_project( msh_vec4_t obj, msh_mat4_t model_matrix, msh_mat4_t projection_matrix, msh_vec4_t viewport );
+
+        msh_vec4_t msh_unproject( msh_vec3_t win, msh_mat4_t model, msh_mat4_t project, msh_vec4_t viewport );
+
+
+    Point/Normal transformation Helpers:
+      msh_mat4_vec3_mul
+      ------------------
+
+        msh_vec3_t msh_mat4_vec3_mul( msh_mat4_t m, msh_vec3_t v, int32_t is_point );
+
+      Applies transformation described in 'm' to 'v'. For points 'is_point' should be true, 
+      for normals it should be false. This function is useful for applying transformations to
+      mesh points and normals, without having to transform 3d points/vectors to 4d homogenous
+      coordinates.
+
+      NOTE(maciej): Writing this it seems to me that the name of the function should be more explicit,
+      like msh_apply_xform( msh_mat4_t xform, msh_vec3_t v, int32_t is_point );
 
   ==============================================================================
   DEPENDENCIES
 
-  This library requires anonymous structs, which is a C11 extension.
-  Tested compilers:
-    clang 3.9.1
-    apple clang (Apple LLVM version 8.0.0 (clang-800.0.42.1))
-    gcc 5.3.0
+  This file requires following c stdlib headers:
+    - <float.h>  -- FLT_EPSILON
+    - <math.h>   -- sinf, cosf, sqrtf
+    - <stdio.h>  -- fprintf, printf
 
-  This library depends on following standard headers:
-    <float.h>  -- FLT_EPSILON
-    <math.h>   -- sinf, cosf, sqrtf
-    <stdio.h>  -- fprintf, printf
-
-  By default this library does not import these headers. Please see
-  docs/no_headers.md for explanation. Importing heades is enabled by:
+  Note that this file will not pull them in. This is to prevent pulling the same
+  files multiple times, especially within single compilation unit. 
+  To actually include the headers, simply define following before including the library:
 
   #define MSH_VEC_MATH_INCLUDE_HEADERS
 
-
   ==============================================================================
   AUTHORS
+    Maciej Halber
 
-    Maciej Halber (macikuh@gmail.com)
-
-  ==============================================================================
-  LICENSE
-
-  This software is in the public domain. Where that dedication is not
-  recognized, you are granted a perpetual, irrevocable license to copy,
-  distribute, and modify this file as you see fit.
-
-  ==============================================================================
-  NOTES
-
-    1. For small structs the pass/return by value has no performance penalty
-       as compared to passing pointers
-
+  Licensing information can be found at the end of the file.
   ==============================================================================
   TODOs:
   [ ] Make all functions for doubles as well
       Use generic__ to select correct function. C99 support is pretty wide now.
+  [ ] Make use of Per Vogsnen template idea?
   [ ] Write tests
   [ ] Determine the effect of static inline on performance.
   [x] Add quat from axis-angle
@@ -91,11 +123,6 @@
    [10] 2016 Math Lib         http://www.codersnotes.com/notes/maths-lib-2016/
  */
 
-/*
- * =============================================================================
- *       INCLUDES, TYPES AND DEFINES
- * =============================================================================
- */
 
 #ifndef MSH_VEC_MATH
 #define MSH_VEC_MATH
@@ -181,11 +208,9 @@ typedef msh_mat4f_t msh_mat4_t;
 
 typedef msh_quatf_t msh_quat_t;
 
-/*
- * =============================================================================
- *       VECTORS
- * =============================================================================
- */
+////////////////////////////////////////////////////////////////////////////////////////////////////
+//       VECTORS
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // NOTE(maciej): CPP mode in MSVC is wierd, boy
 #if defined(__cplusplus) && defined(_MSC_VER)
@@ -2667,3 +2692,58 @@ msh_vec3_t msh_rgba_to_vec4_normalized( msh_vec4_t v )
 
 #endif /* MSH_VEC_MATH_IMPLEMENTATION */
 
+/*
+------------------------------------------------------------------------------
+
+This software is available under 2 licenses - you may choose the one you like.
+
+------------------------------------------------------------------------------
+
+ALTERNATIVE A - MIT License
+
+Copyright (c) 2018 Maciej Halber
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of 
+this software and associated documentation files (the "Software"), to deal in 
+the Software without restriction, including without limitation the rights to 
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies 
+of the Software, and to permit persons to whom the Software is furnished to do 
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all 
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE 
+SOFTWARE.
+
+------------------------------------------------------------------------------
+
+ALTERNATIVE B - Public Domain (www.unlicense.org)
+
+This is free and unencumbered software released into the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or distribute this 
+software, either in source code form or as a compiled binary, for any purpose, 
+commercial or non-commercial, and by any means.
+
+In jurisdictions that recognize copyright laws, the author or authors of this 
+software dedicate any and all copyright interest in the software to the public 
+domain. We make this dedication for the benefit of the public at large and to 
+the detriment of our heirs and successors. We intend this dedication to be an 
+overt act of relinquishment in perpetuity of all present and future rights to 
+this software under copyright law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN 
+ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION 
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+------------------------------------------------------------------------------
+*/
