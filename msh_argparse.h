@@ -4,20 +4,22 @@
   
   MSH_ARGPARSE.H v0.75 
 
-  msh_argparse.h is single-header c11 library for command-line argument
-  parsing, with dependencies only on standard c library. I allows easy setup of
-  arguments and will automatically produce help info. 
-  To use it simply add following lines to your project:
+  msh_argparse.h is single-header library for command-line argument
+  parsing, with dependencies only on standard c library.
+
+  To use the library you simply add:
 
   #define MSH_ARGPARSE_IMPLEMENTATION
   #include "msh_argparse.h"
 
-  Note that #define 'MSH_ARGPARSE_IMPLEMENTATION', should occur only once in 
-  your source.
+ 
+  ==============================================================================
+  API DOCUMENTATION
 
-  ----------------------
 
-  msh_argparse.h does not allocate any memory on the heap, and what is allocated 
+  Memory management
+  ------------------------
+  msh_argparse.h does not allocate any memory on the heap. The size of datastructures allocated 
   on stack is controlled via user-defineable #define flags. See below for specific
   options. For example if you want to change the maximum number of arguments
   allowed do the following when including library:
@@ -26,25 +28,22 @@
   #define MSH_AP_MAX_N_ARGS 128
   #include "msh_argparse.h"
 
+  msh_ap_init
+  -------------------
+    void msh_ap_init( msh_argparse_t * argparse, const char * program_name, 
+                      const char * program_description )
+  
+  Initializes parsing structure. Allows user to specify the program name and program description
+  to be displayed in the automatic 'Usage' message.
+
+
+  Argument addition
   -----------------------
-
-  By default msh_argparse will require you to include necessary libraries before
-  including the msh_argparse.h. List of required libraries (c standard library
-  headers only) is below. If you do not like this behaviour, and would like
-  library to include the headers, do the following:
-
-  #define MSH_ARGPARSE_IMPLEMENTATION
-  #define MSH_ARGPARSE_INCLUDE_HEADERS
-  #include "msh_argparse.h"
-
-  -----------------------
-
-  Main functions of this library is msh_add_<type>_argument. Parameters for
-  this functions specify what program will expect from the command line.
-
-  msh_add_<type>_argument(char *name, char *shorthand, char *description, 
+  Definitions of functions used to add arguments follow structure:
+    msh_ap_add_<type>_argument(char *name, char *shorthand, char *description, 
                      <type> *values, size_t num_values, msh_argparse_t &parser);
-
+  
+  parser      -> Pointer to the parser structure
   name        -> Argument identifier. Argument's type is decided based on this 
                  name. Names starting with "--" will be treated as optional 
                  arguments, otherwise argument will be required. Required 
@@ -53,27 +52,67 @@
                  arguments). 
   shorthand   -> An alternative way of supplying argument to the command line 
                  just single letter. So for an argument name '--verbose', we
-                 can set shorthand '-v'. This can be ignored by passing NULL
+                 can set shorthand '-v'. This can be ignored by passing NULL.
   description -> Description of argument purpose that will be displayed
   values      -> Pointer to the first element of the array of values you want to
                  write the parsed values into 
-  num_values  -> Number of expected values per argument. Can be used to create 
-                 following arguments:
-                 '--window_size 1024 768'
-  parser      -> Pointer to the parser structure
+  num_values  -> Number of expected values per argument. With this one can define
+                 arguments like flowing examples:
+                  '--window_size 1024 768' or '--world_origin 1.3 4.5 4.2'
+
+  Parameters for this functions specify what program will expect from the command line - based
+  on these options an automatic 'Usage' message will be generated if argument parsing fails.
+  This functions returns 'true' on success and 'false' on failure. Should be called after
+  'msh_ap_init'
+  
+  By default library adds the '--help / -h' paramter which can be used to display help message.
+  If this behaviour is not desired it can be disabled with:
+  #define MSH_AP_NO_HELP
+
+  msh_ap_parse
+  ------------------
+    int msh_ap_parse( msh_argparse_t *argparse, int argc, char **argv );
+  
+  Takes in 'argparse' struct and standard argc/argv pair and parses the data from command line
+  into the structure described by the 'msh_app_add_<type>_argument' functions. Returns 'true' on
+  success and 'false' on failure. Should be called after all 'msh_app_add_<type>_argument' functions.
 
   ==============================================================================
-  ADDITIONAL NOTES 
-    1. This code is macro heavy which is probably not great, especially for 
-       debugging. However, macros are uses solely for the purpose of 
-       code-generating functions.
-    2. User should not touch any of the members of defined structs 
-       msh_arg and msh_argparse.
+  EXAMPLE
 
+  #include <stdio.h>
+
+  int main( int argc, char* argv )
+  {
+    // declare some variables
+    char* input_filename = NULL;
+    int iteration_count = 0;
+    double exponent = 0.0;
+    float point[3] = { 0.0f, 0.0f, 0.0f };
+
+    msh_argparse_t parser = {0};
+    msh_ap_init( &parser, "Argument parsing program",  "This program showcases argument parsing");
+    msh_ap_add_string_argument( &parser, "input_filename", NULL, "Path to the input file", &input_filename, 1 );
+    msh_ap_add_int_argument( &parser, "--iteration_count", "-e", "Number of iterations to run", &iteration_count, 1 );
+    msh_ap_add_float_argument( &parser, "--position", "-p", "Initial position", &point, 3 );
+    msh_ap_add_double_argument( &parser, "--exponent, "-e", "Exponent value for computation", &exponent, 1 );
+
+    if( !msh_ap_parse( &parser, argc, argv ) )
+    {
+      printf("Failed to parse command line arguments!");
+      return EXIT_FAILURE;
+    }
+
+    // Do computation with parsed value here...
+    
+    return EXIT_SUCCESS;
+  }
+  
   ==============================================================================
   AUTHORS
     Maciej Halber (macikuh@gmail.com)
 
+  Licensing information can be found at the end of the file.
   ==============================================================================
   DEPENDENCES
 
@@ -91,25 +130,14 @@
 
   ==============================================================================
   TODOs:
+    [ ] Come up with a better example code
     [ ] Support for enums?
     [ ] Meta-variables
     [ ] Default values
     [ ] Better support for multiline argument descriptions
     [ ] Check for the validity based on type 
-    [ ] C++ API 
+    [ ] C++ API
 
-  ==============================================================================
-  LICENSE
-
-  This software is in the public domain. Where that dedication is not
-  recognized, you are granted a perpetual, irrevocable license to copy,
-  distribute, and modify this file as you see fit.
-
-  The software is provided "as is", without any kind of warranty, including
-  any implied warranty. If it breaks, you get to keep both pieces.
-
-  While not required, attribution is certainly appreciated.
-  
  */
 
 /*
@@ -202,7 +230,7 @@ typedef struct msh_argparse
 } msh_argparse_t;
 
 
-MSHAPDEF int msh_ap_init( msh_argparse_t *argparse,
+MSHAPDEF void msh_ap_init( msh_argparse_t *argparse,
                           const char *program_name, 
                           const char *program_description );
 
@@ -593,7 +621,7 @@ MSH_AP_ADD_ARGUMENT_IMPL(double, double)
 MSH_AP_ADD_ARGUMENT_IMPL(string, char*)
 
 
-MSHAPDEF int 
+MSHAPDEF void
 msh_ap_init( msh_argparse_t * argparse,
              const char * program_name,
              const char * program_description )
@@ -639,7 +667,6 @@ msh_ap_init( msh_argparse_t * argparse,
                             &argparse->print_help, 0 );
 #endif
 
-  return 1;
 }
 
 MSHAPDEF int
@@ -737,3 +764,60 @@ msh_ap_display_help( msh_argparse_t *argparse )
 }
 
 #endif  /* MSH_ARGPARSE_IMPLEMENTATION */
+
+
+/*
+------------------------------------------------------------------------------
+
+This software is available under 2 licenses - you may choose the one you like.
+
+------------------------------------------------------------------------------
+
+ALTERNATIVE A - MIT License
+
+Copyright (c) 2018 Maciej Halber
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of 
+this software and associated documentation files (the "Software"), to deal in 
+the Software without restriction, including without limitation the rights to 
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies 
+of the Software, and to permit persons to whom the Software is furnished to do 
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all 
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE 
+SOFTWARE.
+
+------------------------------------------------------------------------------
+
+ALTERNATIVE B - Public Domain (www.unlicense.org)
+
+This is free and unencumbered software released into the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or distribute this 
+software, either in source code form or as a compiled binary, for any purpose, 
+commercial or non-commercial, and by any means.
+
+In jurisdictions that recognize copyright laws, the author or authors of this 
+software dedicate any and all copyright interest in the software to the public 
+domain. We make this dedication for the benefit of the public at large and to 
+the detriment of our heirs and successors. We intend this dedication to be an 
+overt act of relinquishment in perpetuity of all present and future rights to 
+this software under copyright law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN 
+ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION 
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+------------------------------------------------------------------------------
+*/
