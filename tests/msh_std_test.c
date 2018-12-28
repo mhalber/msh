@@ -4,6 +4,61 @@
 #define MSH_STD_IMPLEMENTATION
 #include "msh/msh_std.h"
 
+
+#define MSH_TEST_TIME_ACCURACY_MS 2.5
+
+void 
+msh_time_test()
+{
+  uint64_t t1, t2;
+  t1 = msh_time_now();
+  msh_sleep( 100 );
+  t2 = msh_time_now();
+
+  assert( fabs( msh_time_diff_ms( t2, t1 ) - 100 ) < MSH_TEST_TIME_ACCURACY_MS );
+
+  t1 = msh_time_now();
+  msh_sleep( 200 );
+  t2 = msh_time_now();
+
+  assert( fabs( msh_time_diff_ms( t2, t1 ) - 200 ) < MSH_TEST_TIME_ACCURACY_MS );
+}
+
+
+void 
+msh_block_timers_test()
+{
+  MSH_BEGIN_TIMED_BLOCK( 0 );
+
+  MSH_BEGIN_TIMED_BLOCK( 1 );
+  msh_sleep(1);
+  MSH_END_TIMED_BLOCK( 1 );
+
+  MSH_BEGIN_TIMED_BLOCK( 3 );
+  MSH_BEGIN_TIMED_BLOCK( 4 );
+  msh_sleep(1);
+  MSH_END_TIMED_BLOCK( 4 );
+  MSH_BEGIN_TIMED_BLOCK( 5 );
+  msh_sleep(1);
+  MSH_END_TIMED_BLOCK( 5 );
+  MSH_END_TIMED_BLOCK( 3 );
+
+
+  MSH_BEGIN_TIMED_BLOCK( 2 );
+  msh_sleep(1);
+  MSH_END_TIMED_BLOCK( 2 );
+
+  MSH_END_TIMED_BLOCK( 0 );
+
+  msh_debug_report_debug_events();
+}
+
+void 
+msh_memleak_test()
+{
+  
+}
+
 void
 msh_array_test()
 {
@@ -111,6 +166,14 @@ void run_tests()
 {
   printf( "Running msh_std.h tests!\n" );
 
+  printf( "| Testing msh_time\n" );
+  msh_time_test();
+  printf( "|    -> Passed!\n" );
+
+  printf( "| Testing msh block timers\n" );
+  msh_block_timers_test();
+  printf( "|    -> Passed!\n" );
+
   printf( "| Testing msh_array\n" );
   msh_array_test();
   printf( "|    -> Passed!\n" );
@@ -126,39 +189,8 @@ void run_tests()
 
 
 int
-main( int argc, char** argv )
+main( void )
 {
   run_tests();
-
-  // uint64_t t2, t1;
-  // size_t n = 10000000;
-  // real32_t* dists_a = (real32_t*)malloc( (n+1) * sizeof(real32_t) );
-  // real32_t* dists_b = (real32_t*)malloc( (n+1) * sizeof(real32_t) );
-  // msh_rand_ctx_t rand_gen;
-  // msh_rand_init( &rand_gen, 12346ULL );
-  // for( size_t i = 0; i < n; ++i )
-  // {
-  //   dists_a[i] = msh_rand_range( &rand_gen, 1.0, msh_max( n, 10 ) );
-  //   dists_b[i] = dists_a[i];
-  // }
-
-  // for( size_t i = 0; i < msh_min(n, 10); ++i ) { printf("%6.1f ", dists_a[i]); }
-  // printf("\n");
-  // t1 = msh_time_now();
-  // std::make_heap( dists_a, dists_a + n);
-  // t2 = msh_time_now();
-  // for( size_t i = 0; i < msh_min(n, 10); ++i ) { printf("%6.1f ", dists_a[i]); }
-  // printf("\n std::make_heap completed in %fms.\n", msh_time_diff_ms( t2, t1) );
-  
-  // t1 = msh_time_now();
-  // msh_heap_make( dists_b, n );
-  // t2 = msh_time_now();
-  // for( size_t i = 0; i < msh_min(n, 10); ++i ) { printf("%6.1f ", dists_b[i]); }
-  // printf("\n msh_heap_make completed in %fms.\n", msh_time_diff_ms( t2, t1) );
-
-  // // for( size_t i = 0; i < n ; ++i ) { msh_cprintf(dists_a[i] != dists_b[i], "Dissagreement at %d :%f %f\n", i, dists_a[i], dists_b[i]); }
-
-  // msh_cprintf( std::is_heap(dists_a, dists_a + n), "A is heap!\n" );
-  // msh_cprintf( std::is_heap(dists_b, dists_b + n), "B is heap!\n" );
   return 1;
 }

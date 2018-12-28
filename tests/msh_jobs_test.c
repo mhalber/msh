@@ -1,9 +1,7 @@
+#define MSH_STD_INCLUDE_LIBC_HEADERS
 #define MSH_JOBS_IMPLEMENTATION
-#include <stdio.h>
-#include <assert.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <unistd.h>
+#define MSH_STD_IMPLEMENTATION
+#include "msh/msh_std.h"
 #include "msh/experimental/msh_jobs.h"
 
 
@@ -50,7 +48,7 @@ int main()
   msh_jobs_push_work( &work_ctx, task_a, "8" );
   msh_jobs_push_work( &work_ctx, task_b, "9" );
 
-  msh_jobs_wait_for_all_to_finish( &work_ctx );
+  msh_jobs_complete_all_work( &work_ctx );
   msh_jobs_term_ctx( &work_ctx );
   
   return 0;

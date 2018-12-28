@@ -62,6 +62,67 @@
 extern "C" {
 #endif
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Miscellaneous
+//
+// Credits
+//  Ginger Bill: System and architecture detection from gb.h and bgfx
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define msh_count_of(x) ((sizeof(x)/sizeof(*x)))
+
+#ifdef MSH_STD_STATIC
+#define MSHDEF static
+#else
+#define MSHDEF extern
+#endif
+
+#define msh_persistent  static // Local variables with persisting values
+#define msh_global     static // Global variables
+#define msh_internal   static // Internal linkage
+
+#define MSH_PLATFORM_WINDOWS 0
+#define MSH_PLATFORM_LINUX 0
+#define MSH_PLATFORM_MACOS 0
+
+#if defined(_WIN32) || defined(_WIN64)
+  #undef  MSH_PLATFORM_WINDOWS
+  #define MSH_PLATFORM_WINDOWS 1
+#elif defined(__linux__)
+  #undef MSH_PLATFORM_LINUX
+  #define MSH_PLATFORM_LINUX 1
+#elif defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__)
+  #undef MSH_PLATFORM_MACOS
+  #define MSH_PLATFORM_MACOS 1
+#else
+  #error "Platform not recognized!"
+#endif
+
+#define MSH_PLATFORM_POSIX (0 || MSH_PLATFORM_MACOS || MSH_PLATFORM_LINUX )
+
+
+#if defined(_WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__64BIT__) || defined(__powerpc64__) || defined(__ppc64__)
+  #ifndef MSH_ARCH_64_BIT
+    #define MSH_ARCH_64_BIT 1
+  #endif
+#else
+  #ifndef MSH_ARCH_32_BIT
+    #define MSH_ARCH_32_BIT 1
+  #endif  
+#endif
+
+#if MSH_SYSTEM_WINDOWS
+  #ifndef LLU_SYMBOL
+    #define LLU_SYMBOL "%I64d"
+  #endif
+#else
+  #ifndef LLU_SYMBOL
+    #define LLU_SYMBOL "%llu"
+  #endif
+#endif
+
+
+
 #ifdef MSH_STD_INCLUDE_LIBC_HEADERS
 
 // c stdlib
@@ -77,82 +138,54 @@ extern "C" {
 #include <stdlib.h>
 #include <float.h>
 #include <ctype.h>
-
 #endif
 
 // system specific
-#ifdef __linux__
+#if MSH_PLATFORM_WINDOWS
 #include <sys/stat.h>
+#include <unistd.h>
+#include <time.h>
 #endif
+
+#if MSH_PLATFORM_WINDOWS
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN 1
+#include <windows.h>
+#endif
+
+#if MSH_PLATFORM_MACOS
+#include <mach/mach_time.h>
+#endif
+
+#endif
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// Miscellaneous
-//
-// Credits
-//  Ginger Bill: System and architecture detection from gb.h
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#define msh_count_of(x) ((sizeof(x)/sizeof(*x)))
-
-#ifdef MSH_STD_STATIC
-#define MSHDEF static
-#else
-#define MSHDEF extern
-#endif
-
-#define msh_local_persitent static // Local variables with persisting values
-#define msh_global          static // Global variables
-#define msh_internal        static // Internal linkage
-
-#if defined(_WIN32) || defined(_WIN64)
-  #if defined(__MINGW32__)
-    #ifndef MSH_SYSTEM_MSYS
-    #define MSH_SYSTEM_MSYS 1
-    #endif
-  #else
-    #ifndef MSH_SYSTEM_WINDOWS
-    #define MSH_SYSTEM_WINDOWS 1
-    #endif
-  #endif
-#elif defined(__APPLE__) && defined(__MACH__)
-  #ifndef MSH_SYSTEM_OSX
-  #define MSH_SYSTEM_OSX 1
-  #endif
-#elif defined(__unix__)
-  #ifndef MSH_SYSTEM_UNIX
-  #define MSH_SYSTEM_UNIX 1
-  #endif
-#else
-  #error This operating system is not supported
-#endif
-
-#if defined(_WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__64BIT__) || defined(__powerpc64__) || defined(__ppc64__)
-  #ifndef MSH_ARCH_64_BIT
-    #define MSH_ARCH_64_BIT 1
-  #endif
-#else
-  #ifndef MSH_ARCH_32_BIT
-    #define MSH_ARCH_32_BIT 1
-  #endif
-#endif
-
-#if MSH_SYSTEM_WINDOWS
-  #ifndef LLU_SYMBOL
-    #define LLU_SYMBOL "%I64d"
-  #endif
-#else
-  #ifndef LLU_SYMBOL
-    #define LLU_SYMBOL "%llu"
-  #endif
-#endif
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Debug 
+// Debug / Time
 //
 // TODO(maciej): Fill this in with stuff that casey is talking about, like automatic performance 
 //  counters
+// Credits: Timings based on cute headers by Randy Gaul
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+enum msh__time_units
+{
+  MSHT_SEC,
+  MSHT_MS,
+  MSHT_US,
+  MSHT_NS
+};
+
+void     msh_sleep( size_t ms );
+int32_t  msh_time_rdtsc();
+int32_t  msh_time_rdtscp();
+
+uint64_t msh_time_now();
+double   msh_time_diff( int32_t unit, uint64_t new_time, uint64_t old_time );
+double   msh_time_diff_sec( uint64_t new_time, uint64_t old_time );
+double   msh_time_diff_ms( uint64_t new_time, uint64_t old_time );
+double   msh_time_diff_us( uint64_t new_time, uint64_t old_time );
+double   msh_time_diff_ns( uint64_t new_time, uint64_t old_time );
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Printing
@@ -329,28 +362,6 @@ typedef union msh_rgba
 #define msh_rgba( r, g, b, a ) (msh_rgba_t){{ r, g, b, a }};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// Time
-// 
-// Credits
-//   Randy Gaul: based on tinyheaders https://github.com/RandyGaul/tinyheaders
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-enum msh__time_units
-{
-  MSHT_SECONDS,
-  MSHT_MILLISECONDS,
-  MSHT_MICROSECONDS,
-  MSHT_NANOSECONDS
-};
-
-uint64_t msh_time_now();
-double msh_time_diff( int32_t unit, uint64_t new_time, uint64_t old_time );
-double msh_time_diff_sec( uint64_t new_time, uint64_t old_time );
-double msh_time_diff_ms( uint64_t new_time, uint64_t old_time );
-double msh_time_diff_us( uint64_t new_time, uint64_t old_time );
-double msh_time_diff_ns( uint64_t new_time, uint64_t old_time );
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
 // PCG-based random number generation 
 //
 // Credits:
@@ -459,7 +470,7 @@ int     msh_discrete_distribution_sample( msh_discrete_distrib_t* ctx );
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Heap
 // TODO:
-// [ ] Make generic
+// [ ] Make this generic, currently using only single precision float
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void msh_heap_make( real32_t* vals, size_t n_vals );
@@ -723,22 +734,6 @@ msh_map_get_iterable_keys_and_vals( const msh_map_t* map, uint64_t** keys, uint6
   }
 }
 
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// ASSERT
-////////////////////////////////////////////////////////////////////////////////////////////////////
-MSHDEF void 
-msh__assert_handler( char const *condition, char const *file, int32_t line, char const *msg ) {
-  fprintf( stderr, "%s:%4d: Assert Failure: ", file, line );
-  if( condition ) { fprintf( stderr, "`%s` ", condition); }
-  if( msg ) 
-  {
-    fprintf( stderr, "-> %s", msg );
-  }
-  fprintf( stderr, "\n" );
-}
-
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // STRINGS
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -831,100 +826,259 @@ msh_rand_range( msh_rand_ctx_t* pcg, int32_t min, int32_t max )
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// TIME
+// DEBUG + TIME
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// NOTE(maciej): This time measurement might actually be bad. Model it after sokol_time.h
+
+void
+msh_sleep( uint64_t ms ) {
+#if MSH_PLATFORM_WINDOWS
+  Sleep( ms );
+#elif MSH_PLATFORM_LINUX || MSH_PLATFORM_MACOS
+  usleep( 1000 * ms );
+#endif
+}
+
+// NOTE(maciej): http://codearcana.com/posts/2013/05/15/a-cross-platform-monotonic-timer.html
+uint64_t
+msh_rdtsc()
+{
+#if MSH_PLATFORM_WINDOWS
+  return __rdtsc();
+#elif MSH_PLATFORM_LINUX || MSH_PLATFORM_MACOS
+  /* From: 
+     https://stackoverflow.com/questions/9887839/how-to-count-clock-cycles-with-rdtsc-in-gcc-x86 
+  */
+  uint32_t hi, lo;
+  __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
+  return ( ((uint64_t)lo) | (((uint64_t)hi) << 32) );
+#endif
+}
+
+// GCC Does not deal with inline well...
+double
+msh_time_nano_to( int32_t unit, uint64_t time )
+{
+  switch(unit)
+  {
+    case MSHT_SEC: return (double)(time * 1e-9);
+    case MSHT_MS:  return (double)(time * 1e-6);
+    case MSHT_US:  return (double)(time * 1e-3);
+    case MSHT_NS:  return (double)(time);
+  }
+  return (double)(time);
+}
 
 double 
 msh_time_diff( int32_t unit, uint64_t new_time, uint64_t old_time )
 {
   uint64_t diff = new_time - old_time;
-  switch(unit)
-  {
-    case MSHT_SECONDS:      return (double)(diff * 1e-9);
-    case MSHT_MILLISECONDS: return (double)(diff * 1e-6);
-    case MSHT_MICROSECONDS: return (double)(diff * 1e-3);
-    case MSHT_NANOSECONDS:  return (double)(diff);
-  }
-  return(double)diff;
+  return msh_time_nano_to( unit, diff );
 }
 
 double
 msh_time_diff_sec( uint64_t t2, uint64_t t1 )
 {
-  return msh_time_diff( MSHT_SECONDS, t2, t1 );
+  return msh_time_diff( MSHT_SEC, t2, t1 );
 }
 
 double
 msh_time_diff_ms( uint64_t t2, uint64_t t1 )
 {
-  return msh_time_diff( MSHT_MILLISECONDS, t2, t1 );
+  return msh_time_diff( MSHT_MS, t2, t1 );
 }
 
 double
-msh_time_diff_us( uint64_t t2, uint64_t t1 )
-{
-  return msh_time_diff( MSHT_MICROSECONDS, t2, t1 );
+mse_diff_us( uint64_t t2, uint64_t t1 )
+{ 
+   return msh_time_diff( MSHT_US, t2, t1 );
 }
 
 double
 msh_time_diff_ns( uint64_t t2, uint64_t t1 )
 {
-  return msh_time_diff( MSHT_NANOSECONDS, t2, t1 );
+  return msh_time_diff( MSHT_NS, t2, t1 );
 }
 
-#if defined(_WIN32)
-#if !defined(WIN32_LEAN_AND_MEAN)
-#define WIN32_LEAN_AND_MEAN
-#endif
+/* prevent 64-bit overflow when computing relative timestamp
+    see https://gist.github.com/jspohr/3dc4f00033d79ec5bdaf67bc46c813e3
+*/
+int64_t msh__int64_muldiv( int64_t value, int64_t numer, int64_t denom ) {
+  int64_t q = value / denom;
+  int64_t r = value % denom;
+  return q * numer + r * numer / denom;
+}
 
-#include <windows.h>
+#if MSH_PLATFORM_WINDOWS
 
 uint64_t 
 msh_time_now()
 {
-  static int first = 1;
-  static LARGE_INTEGER freq;
-  LARGE_INTEGER now;
+  msh_persistent int first = 1;
+  msh_persistent LARGE_INTEGER freq;
+  msh_persistent LARGE_INTEGER start;
+  if( first )
+  { 
+    first = 0; 
+    QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&start);
+  }
   
+  LARGE_INTEGER now;
   QueryPerformanceCounter(&now);
-  if(first) { first = 0; QueryPerformanceFrequency(&freq);}
-  return ((now.QuadPart * 1000000000) / freq.QuadPart);
+  return msh__int64_muldiv( now.QuadPart - start.QuadPart, 1000000000, freq.QuadPart ); 
 }
-#elif defined(__unix__)
 
-#include <time.h>
+#elif MSH_PLATFORM_LINUX
+
 uint64_t
 msh_time_now()
 {
+  msh_persistent int first = 1;
+  msh_persistent uint64_t start;
+
   struct timespec now;
+  if( first )
+  {
+    first = 0;
+    clock_gettime( CLOCK_MONOTONIC, &now );
+    start = (((uint64_t)now.tv_sec * 1000000000) + (uint64_t)now.tv_nsec);
+  }
   clock_gettime( CLOCK_MONOTONIC, &now );
-  double nano_time = ((now.tv_sec * 1000000000) + now.tv_nsec);
-  return nano_time;
+  uint64_t time_now = (((uint64_t)now.tv_sec * 1000000000) + (uint64_t)now.tv_nsec) - start;
+  
+  return time_now;
 }
 
-#elif defined(__APPLE__)
+#elif MSH_PLATFORM_MACOS
 
-#include <mach/mach_time.h>
 uint64_t
 msh_time_now()
 {
-  static int first = 1;
-  static uint64_t factor = 0;
+  msh_persistent int first = 1;
+  msh_persistent uint64_t start;
+  msh_persistent mach_timebase_info_data_t info;
 
-  if(first)
+  if( first )
   {
-    mach_timebase_info_data_t info;
-    mach_timebase_info(&info);
-    factor = (info.numer / info.denom);
     first = 0;
+    mach_timebase_info(&info);
+    start = mach_absolute_time();
   }
 
-  uint64_t nano_time = mach_absolute_time() * factor; 
-  return nano_time;
+  // uint64_t time_now = mach_absolute_time() * factor; 
+  const uint64_t now = mach_absolute_time() - s1tart;
+  return msh__int64_muldiv( now, info.numer, info.denom);
 }
 
 #endif
+
+
+/* TODOs(maciej): 
+[ ] Add naming of the blocks for better reporting
+[ ] Add wall clock time version?
+[ ] Add automatic counter / id gen ( use map ?? )
+[ ] Ensure that it works within for loops.
+*/
+typedef enum msh_debug_event_type
+{
+  MSH_DEBUG_EVENT_START,
+  MSH_DEBUG_EVENT_END,
+  MSH_DEBUG_EVENT_PROCESSED,
+  MSH_DEBUG_EVENT_COUNT
+} msh_debug_event_type_t;
+
+typedef struct msh_debug_event
+{
+  uint32_t uid;
+  uint32_t hit_count;
+  uint8_t type;
+  uint64_t clock;
+  char* filename;
+  char* function_name;
+  uint16_t line_number;
+} msh_debug_event_t;
+
+#if 0
+typedef struct msh_debug_event_table
+{
+  uint32_t event_index;
+  msh_array( msh_debug_event_t ) debug_events;
+} msh_debug_event_table_t;
+#endif
+
+msh_global msh_debug_event_t* DEBUG_EVENT_ARRAY;
+
+#define MSH_BEGIN_TIMED_BLOCK( uid ) msh_debug_begin_timed_block( uid, (char*)__FILE__, (char*)__FUNCTION__, __LINE__ )
+#define MSH_END_TIMED_BLOCK( uid ) msh_debug_end_timed_block( uid, (char*)__FILE__, (char*)__FUNCTION__, __LINE__ )
+
+void
+msh_debug_begin_timed_block( int32_t counter, char* filename, char* function_name, int32_t line_number )
+{
+  msh_debug_event_t debug_event;
+  debug_event.uid           = counter; 
+  debug_event.hit_count     = 1;
+  debug_event.type          = MSH_DEBUG_EVENT_START;
+  debug_event.filename      = filename;
+  debug_event.function_name = function_name;
+  debug_event.line_number   = line_number;
+  msh_array_push( DEBUG_EVENT_ARRAY, debug_event );
+  (msh_array_end( DEBUG_EVENT_ARRAY ) - 1)->clock = __rdtsc();
+}
+
+void
+msh_debug_end_timed_block( int32_t counter, char* filename, char* function_name, int32_t line_number )
+{
+  uint64_t clock_val        = __rdtsc();
+  msh_debug_event_t debug_event;
+  debug_event.uid           = counter;
+  debug_event.clock         = clock_val;
+  debug_event.hit_count     = 1;
+  debug_event.type          = MSH_DEBUG_EVENT_END;
+  debug_event.filename      = filename;
+  debug_event.function_name = function_name;
+  debug_event.line_number   = line_number;
+  msh_array_push( DEBUG_EVENT_ARRAY, debug_event );
+}
+
+void
+msh_debug_report_debug_events()
+{
+  for( size_t event_idx = 0; event_idx < msh_array_len( DEBUG_EVENT_ARRAY ); ++event_idx )
+  {
+    msh_debug_event_t* cur_event = DEBUG_EVENT_ARRAY + event_idx;
+    if( cur_event->type == MSH_DEBUG_EVENT_PROCESSED ) { continue; }
+
+    msh_debug_event_t* start_event = cur_event;
+    size_t end_event_idx = event_idx;
+    msh_debug_event_t* end_event = DEBUG_EVENT_ARRAY + end_event_idx;
+    for(;;)
+    {
+      end_event_idx++;
+      if( end_event_idx >= msh_array_len( DEBUG_EVENT_ARRAY ) ) { break; }
+
+      end_event = DEBUG_EVENT_ARRAY + end_event_idx;
+      if( (end_event->type == MSH_DEBUG_EVENT_END && 
+           end_event->uid == start_event->uid) ) { break; }
+    }
+
+    if( end_event->type != MSH_DEBUG_EVENT_END ||
+        end_event->uid != start_event->uid )
+    {
+      printf("ERROR! Block starting at line %d in %s(function %s) does not have pairing end block\n",
+             start_event->line_number, start_event->filename, start_event->function_name );
+    }
+    else
+    {
+      uint32_t start_line = start_event->line_number;
+      uint32_t end_line = end_event->line_number;
+      uint64_t n_cycles = end_event->clock - start_event->clock;
+      printf("Block %d - %d in %s, %s took %I64d cycles\n", start_line, end_line, start_event->function_name, start_event->filename, n_cycles );
+      start_event->type = MSH_DEBUG_EVENT_PROCESSED;
+      end_event->type = MSH_DEBUG_EVENT_PROCESSED;
+    }
+  }
+  printf("\n");
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1029,17 +1183,13 @@ msh_pdf2cdf( const double* pdf, double* cdf, size_t n_vals )
  */
 
 
-struct discrete_distribution_sampler
+typedef struct discrete_distribution_sampler
 {
   double* prob;
   int* alias;
   size_t n_weights;
   msh_rand_ctx_t rand_gen;
-};
-
-void msh_discrete_distribution_init( msh_discrete_distrib_t* ctx, double* weights, size_t n_weights, size_t seed );
-void msh_discrete_distribution_free( msh_discrete_distrib_t* ctx );
-int  msh_discrete_distribution_sample( msh_discrete_distrib_t* ctx );
+} msh_discrete_distrib_t;
 
 void
 msh_discrete_distribution_init( msh_discrete_distrib_t* ctx, double* weights, size_t n_weights, size_t seed )
