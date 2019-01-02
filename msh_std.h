@@ -1036,7 +1036,7 @@ msh_debug_begin_timed_block( int32_t counter, char* filename, char* function_nam
 void
 msh_debug_end_timed_block( int32_t counter, char* filename, char* function_name, int32_t line_number )
 {
-  uint64_t clock_val        = msh_rdtsc()
+  uint64_t clock_val        = msh_rdtsc();
   msh_debug_event_t debug_event;
   debug_event.uid           = counter;
   debug_event.clock         = clock_val;
