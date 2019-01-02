@@ -150,7 +150,10 @@ extern "C" {
 #if MSH_PLATFORM_WINDOWS
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN 1
+// If complier is MSVC we can define this: VC_EXTRALEAN
+#define VC_EXTRALEAN
 #include <windows.h>
+#include <direct.h>
 #endif
 
 #if MSH_PLATFORM_MACOS
