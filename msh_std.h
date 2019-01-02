@@ -141,7 +141,7 @@ extern "C" {
 #endif
 
 // system specific
-#if MSH_PLATFORM_WINDOWS
+#if MSH_PLATFORM_LINUX
 #include <sys/stat.h>
 #include <unistd.h>
 #include <time.h>
@@ -979,6 +979,13 @@ msh_time_now()
 [ ] Add automatic counter / id gen ( use map ?? )
 [ ] Ensure that it works within for loops.
 */
+
+/*
+NOTES(maciej): String interning for comapring the strings?
+Current issues:
+- If function is hit multipe times, how to store timing? -- Just like handmade hero, record events linearly, and store to which record they hark back, then print record information after pairing the events.
+- How to pair start and end...? -- with stack variable?
+*/
 typedef enum msh_debug_event_type
 {
   MSH_DEBUG_EVENT_START,
@@ -1008,8 +1015,9 @@ typedef struct msh_debug_event_table
 
 msh_global msh_debug_event_t* DEBUG_EVENT_ARRAY;
 
-#define MSH_BEGIN_TIMED_BLOCK( uid ) msh_debug_begin_timed_block( uid, (char*)__FILE__, (char*)__FUNCTION__, __LINE__ )
-#define MSH_END_TIMED_BLOCK( uid ) msh_debug_end_timed_block( uid, (char*)__FILE__, (char*)__FUNCTION__, __LINE__ )
+// ((uint64_t)__FUNCTION__ % 15487249) + ((uint64_t)__FILE__ % 1300613) + __LINE__; 
+#define MSH_BEGIN_TIMED_BLOCK() msh_debug_begin_timed_block( uid, (char*)__FILE__, (char*)__FUNCTION__, __LINE__ )
+#define MSH_END_TIMED_BLOCK() msh_debug_end_timed_block( uid, (char*)__FILE__, (char*)__FUNCTION__, __LINE__ )
 
 void
 msh_debug_begin_timed_block( int32_t counter, char* filename, char* function_name, int32_t line_number )
@@ -1022,13 +1030,13 @@ msh_debug_begin_timed_block( int32_t counter, char* filename, char* function_nam
   debug_event.function_name = function_name;
   debug_event.line_number   = line_number;
   msh_array_push( DEBUG_EVENT_ARRAY, debug_event );
-  (msh_array_end( DEBUG_EVENT_ARRAY ) - 1)->clock = __rdtsc();
+  (msh_array_end( DEBUG_EVENT_ARRAY ) - 1)->clock = msh_rdtsc()
 }
 
 void
 msh_debug_end_timed_block( int32_t counter, char* filename, char* function_name, int32_t line_number )
 {
-  uint64_t clock_val        = __rdtsc();
+  uint64_t clock_val        = msh_rdtsc()
   msh_debug_event_t debug_event;
   debug_event.uid           = counter;
   debug_event.clock         = clock_val;

@@ -24,10 +24,14 @@ msh_time_test()
   assert( fabs( msh_time_diff_ms( t2, t1 ) - 200 ) < MSH_TEST_TIME_ACCURACY_MS );
 }
 
+void test_funct_a()
+{
+}
 
 void 
 msh_block_timers_test()
 {
+
   MSH_BEGIN_TIMED_BLOCK( 0 );
 
   MSH_BEGIN_TIMED_BLOCK( 1 );
