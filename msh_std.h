@@ -1030,7 +1030,7 @@ msh_debug_begin_timed_block( int32_t counter, char* filename, char* function_nam
   debug_event.function_name = function_name;
   debug_event.line_number   = line_number;
   msh_array_push( DEBUG_EVENT_ARRAY, debug_event );
-  (msh_array_end( DEBUG_EVENT_ARRAY ) - 1)->clock = msh_rdtsc()
+  (msh_array_end( DEBUG_EVENT_ARRAY ) - 1)->clock = msh_rdtsc();
 }
 
 void
