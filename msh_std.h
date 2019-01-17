@@ -258,6 +258,7 @@ typedef struct msh_array_header
 #define msh_array(T) T*
 
 void* msh_array__grow(const void *array, size_t new_len, size_t elem_size);
+char* msh_array__printf(char *buf, const char *fmt, ...);
 
 #define msh_array__grow_formula(x)    ( (2.0*(x))+10 )
 #define msh_array__hdr(a)             ( (msh_array_hdr_t *)((char *)(a) - sizeof(msh_array_hdr_t)))
@@ -502,7 +503,7 @@ bool msh_heap_isvalid( real32_t* vals, size_t n_vals );
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-MSHDEF void* 
+MSHDEF void*
 msh_array__grow(const void *array, size_t new_len, size_t elem_size) {
   size_t old_cap = msh_array_cap( array );
   size_t new_cap = (size_t)msh_array__grow_formula( old_cap );
