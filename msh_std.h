@@ -67,7 +67,24 @@ extern "C" {
 //
 // Credits
 //  Ginger Bill: System and architecture detection from gb.h and bgfx
+//  bkaradzic: Platform detection macros
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// c standard library headers
+// Note(maciej): Need to double check how many of those are actually needed
+#ifdef MSH_STD_INCLUDE_LIBC_HEADERS
+#include <assert.h>
+#include <math.h>
+#include <string.h>
+#include <stdint.h>
+#include <stdarg.h>
+#include <stddef.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <float.h>
+#include <ctype.h>
+#endif
 
 #define msh_count_of(x) ((sizeof(x)/sizeof(*x)))
 
@@ -78,8 +95,14 @@ extern "C" {
 #endif
 
 #define msh_persistent  static // Local variables with persisting values
-#define msh_global     static // Global variables
-#define msh_internal   static // Internal linkage
+#define msh_global      static // Global variables
+#define msh_internal    static // Internal linkage
+
+typedef float real32_t;
+typedef double real64_t;
+
+#define MSH_STRINGIZE(_x) MSH_STRINGIZE_(_x)
+#define MSH_STRINGIZE_(_x) #_x
 
 #define MSH_PLATFORM_WINDOWS 0
 #define MSH_PLATFORM_LINUX 0
@@ -100,66 +123,166 @@ extern "C" {
 
 #define MSH_PLATFORM_POSIX (0 || MSH_PLATFORM_MACOS || MSH_PLATFORM_LINUX )
 
+// PLATFORM NAME
+#if MSH_PLATFORM_EMSCRIPTEN
+  #define MSH_PLATFORM_NAME "asm.js "           \
+        MSH_STRINGIZE(__EMSCRIPTEN_major__) "." \
+        MSH_STRINGIZE(__EMSCRIPTEN_minor__) "." \
+        MSH_STRINGIZE(__EMSCRIPTEN_tiny__)
+#elif MSH_PLATFORM_LINUX
+  #define MSH_PLATFORM_NAME "Linux"
+#elif MSH_PLATFORM_OSX
+  #define MSH_PLATFORM_NAME "OSX"
+#elif MSH_PLATFORM_WINDOWS
+  #define MSH_PLATFORM_NAME "Windows"
+#else
+  #error "Unknown MSH_PLATFORM!"
+#endif 
 
-#if defined(_WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__64BIT__) || defined(__powerpc64__) || defined(__ppc64__)
-  #ifndef MSH_ARCH_64_BIT
-    #define MSH_ARCH_64_BIT 1
+// Architecture
+#define MSH_ARCH_64BIT 0
+#define MSH_ARCH_32BIT 0
+
+#if defined(_WIN64) \
+ || defined(__x86_64__) \
+ || defined(_M_X64) \
+ || defined(__64BIT__) \
+ || defined(__powerpc64__) \
+ || defined(__ppc64__)
+  #undef MSH_ARCH_64BIT
+  #define MSH_ARCH_64BIT 1
+#else
+  #undef MSH_ARCH_32BIT
+  #define MSH_ARCH_32BIT 1
+#endif
+
+// CPU
+#define MSH_CPU_ARM   0
+#define MSH_CPU_PPC   0
+#define MSH_CPU_X86   0
+
+#if defined(__arm__)     \
+ || defined(__aarch64__) \
+ || defined(_M_ARM)
+    #undef  MSH_CPU_ARM
+    #define MSH_CPU_ARM 1
+    #define MSH_CACHE_LINE_SIZE 64
+#elif defined(_M_PPC)        \
+ ||   defined(__powerpc__)   \
+ ||   defined(__powerpc64__)
+    #undef  MSH_CPU_PPC
+    #define MSH_CPU_PPC 1
+    #define MSH_CACHE_LINE_SIZE 128
+#elif defined(_M_IX86)    \
+ ||   defined(_M_X64)     \
+ ||   defined(__i386__)   \
+ ||   defined(__x86_64__)
+    #undef  MSH_CPU_X86
+    #define MSH_CPU_X86 1
+    #define MSH_CACHE_LINE_SIZE 64
+#endif
+
+// Endianness
+#define MSH_CPU_ENDIAN_LITTLE 0
+#define MSH_CPU_ENDIAN_BIG    0
+#if MSH_CPU_PPC
+//_LITTLE_ENDIAN exists on ppc64le.
+  #if _LITTLE_ENDIAN
+    #undef  MSH_CPU_ENDIAN_LITTLE
+    #define MSH_CPU_ENDIAN_LITTLE 1
+  #else
+    #undef  MSH_CPU_ENDIAN_BIG
+    #define MSH_CPU_ENDIAN_BIG 1
   #endif
 #else
-  #ifndef MSH_ARCH_32_BIT
-    #define MSH_ARCH_32_BIT 1
-  #endif  
+  #undef  MSH_CPU_ENDIAN_LITTLE
+  #define MSH_CPU_ENDIAN_LITTLE 1
 #endif
 
-#if MSH_SYSTEM_WINDOWS
-  #ifndef LLU_SYMBOL
-    #define LLU_SYMBOL "%I64d"
-  #endif
+#define MSH_COMPILER_CLANG 0
+#define MSH_COMPILER_GCC   0
+#define MSH_COMPILER_MSVC  0
+#define MSH_COMPLIER_TCC   0
+
+// Compiler detection
+#if defined(__clang__)
+  #undef  MSH_COMPILER_CLANG
+  #define MSH_COMPILER_CLANG (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
+#elif defined(_MSC_VER)
+  #undef  MSH_COMPILER_MSVC
+  #define MSH_COMPILER_MSVC _MSC_VER
+#elif defined(__GNUC__)
+  #undef  MSH_COMPILER_GCC
+  #define MSH_COMPILER_GCC (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
+#elif defined(__TINYC__)
+  #undef  MSH_COMPILER_TCC
+  #define MSH_COMPILER_TCC 1
 #else
-  #ifndef LLU_SYMBOL
-    #define LLU_SYMBOL "%llu"
+  #error "MSH_COMPILER_* is not defined!"
+#endif
+
+// Compiler name
+#if MSH_COMPILER_GCC
+  #define MSH_COMPILER_NAME "GCC "      \
+      MSH_STRINGIZE(__GNUC__) "."       \
+      MSH_STRINGIZE(__GNUC_MINOR__) "." \
+      MSH_STRINGIZE(__GNUC_PATCHLEVEL__)
+#elif MSH_COMPILER_CLANG
+  #define MSH_COMPILER_NAME "Clang "     \
+      MSH_STRINGIZE(__clang_major__) "." \
+      MSH_STRINGIZE(__clang_minor__) "." \
+      MSH_STRINGIZE(__clang_patchlevel__)
+#elif MSH_COMPILER_MSVC
+  #if MSH_COMPILER_MSVC >= 1910 // Visual Studio 2017
+    #define MSH_COMPILER_NAME "MSVC 15.0"
+  #elif MSH_COMPILER_MSVC >= 1900 // Visual Studio 2015
+    #define MSH_COMPILER_NAME "MSVC 14.0"
+  #elif MSH_COMPILER_MSVC >= 1800 // Visual Studio 2013
+    #define MSH_COMPILER_NAME "MSVC 12.0"
+  #elif MSH_COMPILER_MSVC >= 1700 // Visual Studio 2012
+    #define MSH_COMPILER_NAME "MSVC 11.0"
+  #elif MSH_COMPILER_MSVC >= 1600 // Visual Studio 2010
+    #define MSH_COMPILER_NAME "MSVC 10.0"
+  #elif MSH_COMPILER_MSVC >= 1500 // Visual Studio 2008
+    #define MSH_COMPILER_NAME "MSVC 9.0"
+  #else
+    #define MSH_COMPILER_NAME "MSVC"
   #endif
+#elif MSH_COMPILER_TCC
+  #define MSH_COMPILER_NAME "TCC"
+#endif
+
+// C runtime
+#define MSH_CRT_MINGW 0
+#if defined(__MINGW32__) || defined(__MINGW64__)
+  #undef MSH_CRT_MINGW
+  #define MSH_CRT_MINGW 1
 #endif
 
 
-
-#ifdef MSH_STD_INCLUDE_LIBC_HEADERS
-
-// c stdlib
-// Need to double check how many of those are actually needed
-#include <assert.h>
-#include <math.h>
-#include <string.h>
-#include <stdint.h>
-#include <stdarg.h>
-#include <stddef.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <float.h>
-#include <ctype.h>
-#endif
-
-// system specific
+// System specific headers
 #if MSH_PLATFORM_LINUX
-#include <sys/stat.h>
-#include <unistd.h>
-#include <time.h>
+  #include <sys/stat.h>
+  #include <unistd.h>
+  #include <time.h>
 #endif
 
 #if MSH_PLATFORM_WINDOWS
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN 1
-// If complier is MSVC we can define this: VC_EXTRALEAN
-#define VC_EXTRALEAN
-#include <windows.h>
-#include <direct.h>
+  #if MSH_COMPILER_MSVC
+    #ifndef NOMINMAX
+      #define NOMINMAX
+    #endif
+    #define VC_EXTRALEAN
+  #endif
+  #ifndef WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN 1
+  #endif
+  #include <windows.h>
+  #include <direct.h>
 #endif
 
 #if MSH_PLATFORM_MACOS
-#include <mach/mach_time.h>
-#endif
-
+  #include <mach/mach_time.h>
 #endif
 
 
@@ -285,8 +408,6 @@ char* msh_array__printf(char *buf, const char *fmt, ...);
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hash Table
 //
-// Notes: This hashtable cannot use zero as key
-//
 // Credits
 //   Seat T. Barrett: Judy Array vs. Hash-table text
 //   Niklas Frykholm: The Machinery Container system blog-series
@@ -319,32 +440,33 @@ void      msh_map_get_iterable_vals( const msh_map_t* map, uint64_t** vals );
 void      msh_map_get_iterable_keys_and_vals( const msh_map_t* map, uint64_t** key, uint64_t** val );
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+// Heap
+// TODO:
+// [ ] Make this generic, currently using only single precision float
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void msh_heap_make( real32_t* vals, size_t n_vals );
+void msh_heap_push( real32_t* vals, size_t n_vals );
+void msh_heap_pop( real32_t* vals, size_t n_vals );
+bool msh_heap_isvalid( real32_t* vals, size_t n_vals );
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // String and path manipulation
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#if MSH_SYSTEM_WINDOWS
+#if MSH_PLATFORM_WINDOWS
   #define MSH_FILE_SEPARATOR '\\'
 #else
   #define MSH_FILE_SEPARATOR '/'
 #endif
 
 char* msh_strdup( const char *src );
+char* msh_strndup( const char *src, size_t len );
 
+char* msh_list_dir( const char* src );
+char* msh_make_dir( const char* src );
 char* msh_get_file_ext( const char* src );
-
-// inline void
-// msh__path_concat(char* buf, va_list ap)
-// {
-//   // TODO(do cross platform path concatenation using variable arguments)
-//   return ;
-// }
-
-// inline void
-// msh_get_ext()
-
-// inline void
-//
-
+char* msh_path_join( char* buf, size_t size, va_list ap );
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Colors
@@ -424,9 +546,6 @@ int         msh_rand_range( msh_rand_ctx_t* pcg, int min, int max );
   #define MSH_F64_MAX 1.7976931348623157e+308
 #endif
 
-typedef float real32_t;
-typedef double real64_t;
-
 #define MSH_PI          3.1415926535897932384626433832
 #define MSH_TWO_PI      6.2831853072
 #define MSH_INV_PI      0.3183098862
@@ -443,9 +562,19 @@ typedef double real64_t;
 #define msh_iswithin(x, lower, upper) ( ((x) >= (lower)) && ((x) <= (upper)) )
 #define msh_abs(x) ((x) < 0 ? -(x) : (x))
 
-static inline int    msh_sqi(int a)    { return a*a; }
-static inline float  msh_sqf(float a)  { return a*a; }
-static inline double msh_sqd(double a) { return a*a; }
+#if !MSH_COMPILER_TCC
+  #define msh_sq(x) _Generic((x),   \
+                int32_t: msh_sqi32, \
+                int64_t: msh_sqi64, \
+                float: msh_sqf,     \
+                double: msh_sqd,    \
+                default: msh_sqf    )(x)
+#endif
+
+int32_t    msh_sqi32(int32_t a)    { return a*a; }
+int64_t    msh_sqi64(int64_t a)    { return a*a; }
+float      msh_sqf(float a)  { return a*a; }
+double     msh_sqd(double a) { return a*a; }
 
 int32_t msh_accumulatei( const int32_t* vals, const size_t n_vals );
 float   msh_accumulatef( const float *vals, const size_t n_vals );
@@ -471,22 +600,11 @@ void    msh_discrete_distribution_free( msh_discrete_distrib_t* ctx );
 int     msh_discrete_distribution_sample( msh_discrete_distrib_t* ctx );
 
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Heap
-// TODO:
-// [ ] Make this generic, currently using only single precision float
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void msh_heap_make( real32_t* vals, size_t n_vals );
-void msh_heap_push( real32_t* vals, size_t n_vals );
-void msh_heap_pop(  real32_t* vals, size_t n_vals );
-bool msh_heap_isvalid( real32_t* vals, size_t n_vals );
-
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* MSH */
+#endif /* MSH_STD */
 
 
 
@@ -738,14 +856,95 @@ msh_map_get_iterable_keys_and_vals( const msh_map_t* map, uint64_t** keys, uint6
   }
 }
 
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// STRINGS
+// HEAP
+// Modelled after 'Matters Computational' by Joerg Arndt, but interface mirrors stl
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-MSHDEF char* 
+void
+msh__heapify( float *vals, size_t vals_len, size_t cur )
+{
+  size_t max = cur;
+  const size_t left  = (cur<<1) + 1;
+  const size_t right = (cur<<1) + 2;
+
+  if( (left < vals_len) && (vals[left] > vals[cur]) )   { max = left; }
+  if( (right < vals_len) && (vals[right] > vals[max]) ) { max = right; }
+
+  if( max != cur ) // need to swap
+  {
+    float tmp = vals[cur];
+    vals[cur] = vals[max];
+    vals[max] = tmp;
+    msh__heapify( vals, vals_len, max );
+  }
+}
+
+void
+msh_heap_make( real32_t* vals, size_t vals_len )
+{
+  int64_t i = vals_len >> 1;
+  while ( i >= 0 ) { msh__heapify( vals, vals_len, i-- ); }
+}
+
+void
+msh_heap_pop( real32_t* vals, size_t vals_len )
+{
+  float max = vals[0];
+  vals[0] = vals[vals_len-1];
+  vals[vals_len-1] = max;
+  vals_len--;
+
+  if( vals_len > 0 ){ msh__heapify( vals, vals_len, 0 ); }
+}
+
+void
+msh_heap_push( real32_t* vals, size_t vals_len )
+{
+  int64_t i = vals_len-1;
+  float v = vals[i];
+
+  while( i > 0 )
+  {
+    int64_t j = (i-1) >> 1;
+    
+    if( vals[j] >= v ) break;
+    vals[i] = vals[j];
+    i = j;
+  }
+  vals[i] = v;
+}
+
+bool
+msh_heap_isvalid( real32_t* vals, size_t vals_len )
+{
+  for( int i = vals_len - 1; i > 0; --i )
+  {
+    size_t parent = (i-1) >> 1;
+    if( vals[i] > vals[parent] ) { return false; }
+  }
+  return true;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// STRINGS + PATHS
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+MSHDEF char*
 msh_strdup( const char *src )
 {
   size_t len = strlen( src );
+  char* cpy = (char*)malloc( len+1 );
+  strncpy( cpy, src, len );
+  cpy[len] = 0;
+  return cpy;
+}
+
+MSHDEF char* 
+msh_strndup( const char *src, size_t len )
+{
   char* cpy = (char*)malloc( len+1 );
   strncpy( cpy, src, len );
   cpy[len] = 0;
@@ -1108,7 +1307,7 @@ msh_accumulatei( const int32_t* vals, const size_t n_vals )
   return accum;
 }
 
-float 
+float
 msh_accumulatef( const float *vals, const size_t n_vals )
 {
   float accum = 0;
@@ -1308,72 +1507,6 @@ msh_pdfsample_linear( const double* pdf, double prob, size_t n_vals)
     sample_idx++;
   }
   return sample_idx;
-}
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// HEAP
-// Modelled after 'Matters Computational' by Joerg Arndt, but interface mirrors stl
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void msh__heapify( float *vals, size_t vals_len, size_t cur )
-{
-  size_t max = cur;
-  const size_t left  = (cur<<1) + 1;
-  const size_t right = (cur<<1) + 2;
-
-  if( (left < vals_len) && (vals[left] > vals[cur]) )   { max = left; }
-  if( (right < vals_len) && (vals[right] > vals[max]) ) { max = right; }
-
-  if( max != cur ) // need to swap
-  {
-    float tmp = vals[cur];
-    vals[cur] = vals[max];
-    vals[max] = tmp;
-    msh__heapify( vals, vals_len, max );
-  }
-}
-
-void msh_heap_make( real32_t* vals, size_t vals_len )
-{
-  int64_t i = vals_len >> 1;
-  while ( i >= 0 ) { msh__heapify( vals, vals_len, i-- ); }
-}
-
-void msh_heap_pop( real32_t* vals, size_t vals_len )
-{
-  float max = vals[0];
-  vals[0] = vals[vals_len-1];
-  vals[vals_len-1] = max;
-  vals_len--;
-
-  if( vals_len > 0 ){ msh__heapify( vals, vals_len, 0 ); }
-}
-
-void msh_heap_push( real32_t* vals, size_t vals_len )
-{
-  int64_t i = vals_len-1;
-  float v = vals[i];
-
-  while( i > 0 )
-  {
-    int64_t j = (i-1) >> 1;
-    
-    if( vals[j] >= v ) break;
-    vals[i] = vals[j];
-    i = j;
-  }
-  vals[i] = v;
-}
-
-bool msh_heap_isvalid( real32_t* vals, size_t vals_len )
-{
-  for( int i = vals_len - 1; i > 0; --i )
-  {
-    size_t parent = (i-1) >> 1;
-    if( vals[i] > vals[parent] ) { return false; }
-  }
-  return true;
 }
 
 #endif /*MSH_STD_IMPLEMENTATION*/

@@ -100,7 +100,9 @@ typedef struct msh_geo_aabb
 
 typedef struct msh_geo_obb
 {
-  /* TODO */
+  msh_vec3_t center;
+  msh_mat3_t orientation;
+  msh_vec3_t extends;
 } msh_obb_t;
 
 typedef struct msh_geo_sphere
@@ -117,7 +119,7 @@ typedef struct msh_geo_triangle
 } msh_triangle_t;
 
 /* Based on https://github.com/rmitton/rjm/blob/master/rjm_raytrace.h 
- * It is a little slow to build */
+ * It is a little slow to build - Will need to look into fixing that */
 typedef struct msh_geo_aabb_tree
 {
   /* User filled */
@@ -136,6 +138,19 @@ typedef struct msh_geo_aabb_tree
 
 } msh_aabb_tree_t;
 
+MSHGEODEF void       mshgeo_aabb_init( msh_aabb_t* a );
+MSHGEODEF void       mshgeo_aabb_expand( msh_aabb_t* a, const msh_vec3_t* p );
+
+MSHGEODEF msh_vec2_t mshgeo_pts2d_center( msh_vec2_t* points, size_t n_points );
+MSHGEODEF msh_mat2_t mshgeo_pts2d_covariance( msh_vec2_t center, msh_vec2_t* points, size_t n_points );
+MSHGEODEF void       mshgeo_pts2d_pca( msh_vec2_t center, msh_vec2_t* points, size_t n_points, 
+                                       msh_mat3_t *eig_vec, msh_vec3_t* eig_val );
+
+MSHGEODEF msh_vec3_t mshgeo_pts3d_center( msh_vec3_t* points, size_t n_points );
+MSHGEODEF msh_mat3_t mshgeo_pts3d_covariance( msh_vec3_t center, msh_vec3_t* points, size_t n_points );
+MSHGEODEF void       mshgeo_pts3d_pca( msh_vec3_t center, msh_vec3_t* points, size_t n_points, 
+                                       msh_mat3_t *eig_vec, msh_vec3_t* eig_val );
+
 
 /* deprecated */
 typedef struct mshgeo_bbox
@@ -143,7 +158,6 @@ typedef struct mshgeo_bbox
   msh_vec3_t min_p;
   msh_vec3_t max_p;
 } msh_bbox_t;
-
 
 MSHGEODEF msh_bbox_t mshgeo_bbox_init();
 MSHGEODEF void       mshgeo_bbox_reset(msh_bbox_t* bbox);
@@ -191,6 +205,124 @@ mshgeo_aabb_expand( msh_aabb_t* a, const msh_vec3_t* p )
   a->max_pt.z = msh_max( a->max_pt.z, p->z );
 }
 
+// NOTE(maciej): Look at rygorous notes on accumulation and see if they might apply here
+// NOTE(maciej): This code seems like a good candidate for SIMD
+
+MSHGEODEF msh_vec2_t
+mshgeo_pts2d_centroid( msh_vec2_t* pts, size_t n_pts )
+{
+  msh_vec2_t c = msh_vec2_zeros();
+  for( size_t i = 0; i < n_pts; ++i )
+  {
+    c = msh_vec2_add( c, pts[i] );
+  }
+  c = msh_vec2_scalar_div( c, (real32_t)n_pts );
+  return c;
+}
+
+MSHGEODEF msh_mat2_t
+mshgeo_pts2d_covariance( msh_vec2_t c, msh_vec2_t* pts, size_t n_pts )
+{
+  msh_mat2_t cov = msh_mat2_zeros();
+  for( size_t i = 0; i < n_pts; ++i )
+  {
+    msh_vec2_t b = msh_vec2_sub( pts[i], c );
+    msh_mat2_t m = msh_vec2_outer_product( b, b );
+    cov = msh_mat2_add( cov, m );
+  }
+  cov = msh_mat2_scalar_div( cov, (float)n_pts );
+  return cov;
+}
+
+
+void eigen_decomposition2( double* A, double* V, double* d );
+
+MSHGEODEF void
+mshgeo_pts2d_pca( msh_vec2_t c, msh_vec2_t* pts, size_t n_pts, 
+                  msh_mat2_t* eig_vec, msh_vec2_t* eig_val )
+{
+  msh_mat2_t cov = mshgeo_pts2d_covariance( c, pts, n_pts );
+  
+  double A[4] = {0};
+  double V[4] = {0};
+  double d[2] = {0};
+  A[0] = cov.data[0];
+  A[1] = cov.data[1];
+  A[2] = cov.data[2];
+  A[3] = cov.data[3];
+
+  eigen_decomposition2( A, V, d );
+
+  eig_vec->data[0] = V[0];
+  eig_vec->data[1] = V[1];
+  eig_vec->data[2] = V[2];
+  eig_vec->data[3] = V[3];
+  eig_val->data[0] = d[0];
+  eig_val->data[1] = d[1];
+}
+
+
+MSHGEODEF msh_vec3_t
+mshgeo_pts3d_centroid( msh_vec3_t* pts, size_t n_pts )
+{
+  msh_vec3_t c = msh_vec3_zeros();
+  for( size_t i = 0; i < n_pts; ++i )
+  {
+    c = msh_vec3_add( c, pts[i] );
+  }
+  c = msh_vec3_scalar_div( c, (real32_t)n_pts );
+  return c;
+}
+
+MSHGEODEF msh_mat3_t
+mshgeo_pts3d_covariance( msh_vec3_t c, msh_vec3_t* pts, size_t n_pts )
+{
+  // huhu -> this is accumulation.. should be done with doubles.
+  msh_mat3_t cov = msh_mat3_zeros();
+  for( size_t i = 0; i < n_pts; ++i )
+  {
+    msh_vec3_t b = msh_vec3_sub( pts[i], c );
+    msh_mat3_t m = msh_vec3_outer_product( b, b );
+    cov = msh_mat3_add( cov, m );
+  }
+  cov = msh_mat3_scalar_div( cov, (float)n_pts );
+  return cov;
+}
+
+void eigen_decomposition3( double* A, double* V, double* d );
+
+MSHGEODEF void
+mshgeo_pts3d_pca( msh_vec3_t c, msh_vec3_t* pts, size_t n_pts, 
+                  msh_mat3_t* eig_vec, msh_vec3_t* eig_val )
+{
+  msh_mat3_t cov = mshgeo_pts3d_covariance( c, pts, n_pts );
+
+  double A[9] = {0};
+  double V[9] = {0};
+  double d[3] = {0};
+  for( int i = 0; i < 3; ++i )
+  {
+    for( int j = 0; j < 3; ++j )
+    {
+      A[3*j + i] = cov.data[3*i + j];
+    }
+  }
+
+  eigen_decomposition3( A, V, d );
+
+  for( int i = 0; i < 3; ++i )
+  {
+    for( int j = 0; j < 3; ++j )
+    {
+      eig_vec->data[3*i + j] = V[3*j+i];
+    }
+    eig_val->data[i] = d[i];
+  }
+
+}
+
+
+// TODO(maciej): Move to camera header
 #ifdef MSH_CAM
 
 MSHGEODEF void
@@ -310,10 +442,11 @@ mshgeo_ray_aabb_test( const msh_ray_t* ray, const msh_aabb_t* box )
 }
 
 /* From "Real-Time Collision Detection" by Ericsen 
- * Seems very fast - can be further sped up when doing intersections against a lot of boxes.
+ * Seems very fast - can be further speeded up when doing intersections against a lot of boxes.
  * */
 MSHGEODEF int
-mshgeo_ray_aabb_intersects( const msh_ray_t* ray, const msh_aabb_t* box,
+mshgeo_ray_aabb_intersects( const msh_ray_t* ray, 
+                            const msh_aabb_t* box,
                             float *tmin, msh_vec3_t* q )
 {
   (*tmin) = -MSH_F32_MAX;
@@ -595,8 +728,7 @@ mshgeo_aabb_tree_free( msh_aabb_tree_t* tree )
 }
 
 // NOTE(maciej): Both intersection traversals are extremly similar - I should look into how
-//               to ensure that the code is more compressed ( as in semantic compression by casey )
-
+//               to ensure that the code is more compressed ( as in semantic compression by casey muratori )
 typedef struct msh_ray_bvh_isect_info
 {
   uint32_t intersects;
@@ -811,6 +943,8 @@ mshgeo_sphere_aabb_tree_intersect( const msh_sphere_t* sphere, const msh_aabb_tr
 }
 
 
+
+
 /* deprecated */
 
 MSHGEODEF msh_bbox_t
@@ -885,5 +1019,268 @@ mshgeo_bbox_intersect( msh_bbox_t* ba, msh_bbox_t* bb )
           (ba->max_p.y >= bb->min_p.y && bb->max_p.y >= ba->min_p.y) &&
           (ba->max_p.z >= bb->min_p.z && bb->max_p.z >= ba->min_p.z) );
 }
+
+// Eigen decomposition
+
+static void tred2n(double* V, double* d, double* e, int32_t n) {
+
+//  This is derived from the Algol procedures tred2 by
+//  Bowdler, Martin, Reinsch, and Wilkinson, Handbook for
+//  Auto. Comp., Vol.ii-Linear Algebra, and the corresponding
+//  Fortran subroutine in EISPACK.
+
+  for (int j = 0; j < n; j++) {
+    d[j] = V[n*(n-1) + j];
+  }
+
+  // Householder reduction to tridiagonal form.
+
+  for (int i = n-1; i > 0; i--) {
+
+    // Scale to avoid under/overflow.
+
+    double scale = 0.0;
+    double h = 0.0;
+    for (int k = 0; k < i; k++) {
+      scale = scale + fabs(d[k]);
+    }
+    if (scale == 0.0) {
+      e[i] = d[i-1];
+      for (int j = 0; j < i; j++) {
+        d[j] = V[n*(i-1) + j];
+        V[n*i + j] = 0.0;
+        V[n*j + i] = 0.0;
+      }
+    } else {
+
+      // Generate Householder vector.
+
+      for (int k = 0; k < i; k++) {
+        d[k] /= scale;
+        h += d[k] * d[k];
+      }
+      double f = d[i-1];
+      double g = sqrt(h);
+      if (f > 0) {
+        g = -g;
+      }
+      e[i] = scale * g;
+      h = h - f * g;
+      d[i-1] = f - g;
+      for (int j = 0; j < i; j++) {
+        e[j] = 0.0;
+      }
+
+      // Apply similarity transformation to remaining columns.
+
+      for (int j = 0; j < i; j++) {
+        f = d[j];
+        V[n*j+i] = f;
+        g = e[j] + V[n*j+j] * f;
+        for (int k = j+1; k <= i-1; k++) {
+          g += V[n*k+j] * d[k];
+          e[k] += V[n*k+j] * f;
+        }
+        e[j] = g;
+      }
+      f = 0.0;
+      for (int j = 0; j < i; j++) {
+        e[j] /= h;
+        f += e[j] * d[j];
+      }
+      double hh = f / (h + h);
+      for (int j = 0; j < i; j++) {
+        e[j] -= hh * d[j];
+      }
+      for (int j = 0; j < i; j++) {
+        f = d[j];
+        g = e[j];
+        for (int k = j; k <= i-1; k++) {
+          V[n*k+j] -= (f * e[k] + g * d[k]);
+        }
+        d[j] = V[n*(i-1)+j];
+        V[n*i+j] = 0.0;
+      }
+    }
+    d[i] = h;
+  }
+
+  // Accumulate transformations.
+
+  for (int i = 0; i < n-1; i++) {
+    V[n*(n-1)+i] = V[n*i + i];
+    V[n*i + i] = 1.0;
+    double h = d[i+1];
+    if (h != 0.0) {
+      for (int k = 0; k <= i; k++) {
+        d[k] = V[n*k + (i+1)] / h;
+      }
+      for (int j = 0; j <= i; j++) {
+        double g = 0.0;
+        for (int k = 0; k <= i; k++) {
+          g += V[n*k + (i+1)] * V[n*k + j];
+        }
+        for (int k = 0; k <= i; k++) {
+          V[n*k + j] -= g * d[k];
+        }
+      }
+    }
+    for (int k = 0; k <= i; k++) {
+      V[n*k +(i+1)] = 0.0;
+    }
+  }
+  for (int j = 0; j < n; j++) {
+    d[j] = V[n*(n-1) + j];
+    V[n*(n-1) + j] = 0.0;
+  }
+  V[n*(n-1) + (n-1)] = 1.0;
+  e[0] = 0.0;
+} 
+
+// Symmetric tridiagonal QL algorithm.
+
+static void tql2n(double* V, double* d, double* e, int32_t n) {
+
+//  This is derived from the Algol procedures tql2, by
+//  Bowdler, Martin, Reinsch, and Wilkinson, Handbook for
+//  Auto. Comp., Vol.ii-Linear Algebra, and the corresponding
+//  Fortran subroutine in EISPACK.
+
+  for (int i = 1; i < n; i++) {
+    e[i-1] = e[i];
+  }
+  e[n-1] = 0.0;
+
+  double f = 0.0;
+  double tst1 = 0.0;
+  double eps = pow(2.0,-52.0);
+  for (int l = 0; l < n; l++) {
+
+    // Find small subdiagonal element
+
+    tst1 = msh_max(tst1,fabs(d[l]) + fabs(e[l]));
+    int m = l;
+    while (m < n) {
+      if (fabs(e[m]) <= eps*tst1) {
+        break;
+      }
+      m++;
+    }
+
+    // If m == l, d[l] is an eigenvalue,
+    // otherwise, iterate.
+
+    if (m > l) {
+      int iter = 0;
+      do {
+        iter = iter + 1;  // (Could check iteration count here.)
+
+        // Compute implicit shift
+
+        double g = d[l];
+        double p = (d[l+1] - g) / (2.0 * e[l]);
+        double r = hypot(p,1.0);
+        if (p < 0) {
+          r = -r;
+        }
+        d[l] = e[l] / (p + r);
+        d[l+1] = e[l] * (p + r);
+        double dl1 = d[l+1];
+        double h = g - d[l];
+        for (int i = l+2; i < n; i++) {
+          d[i] -= h;
+        }
+        f = f + h;
+
+        // Implicit QL transformation.
+
+        p = d[m];
+        double c = 1.0;
+        double c2 = c;
+        double c3 = c;
+        double el1 = e[l+1];
+        double s = 0.0;
+        double s2 = 0.0;
+        for (int i = m-1; i >= l; i--) {
+          c3 = c2;
+          c2 = c;
+          s2 = s;
+          g = c * e[i];
+          h = c * p;
+          r = hypot( p, e[i] );
+          e[i+1] = s * r;
+          s = e[i] / r;
+          c = p / r;
+          p = c * d[i] - s * g;
+          d[i+1] = h + s * (c * g + s * d[i]);
+
+          // Accumulate transformation.
+
+          for (int k = 0; k < n; k++) {
+            h = V[k*3 + i+1];
+            V[k*3 + i+1] = s * V[k*3 + i] + c * h;
+            V[k*3 + i] = c * V[k*3 + i] - s * h;
+          }
+        }
+        p = -s * s2 * c3 * el1 * e[l] / dl1;
+        e[l] = s * p;
+        d[l] = c * p;
+
+        // Check for convergence.
+
+      } while (fabs(e[l]) > eps*tst1);
+    }
+    d[l] = d[l] + f;
+    e[l] = 0.0;
+  }
+  
+  // Sort eigenvalues and corresponding vectors.
+
+  for (int i = 0; i < n-1; i++) {
+    int k = i;
+    double p = d[i];
+    for (int j = i+1; j < n; j++) {
+      if (d[j] < p) {
+        k = j;
+        p = d[j];
+      }
+    }
+    if (k != i) {
+      d[k] = d[i];
+      d[i] = p;
+      for (int j = 0; j < n; j++) {
+        p = V[n*j+i];
+        V[n*j+i] = V[n*j+k];
+        V[n*j+k] = p;
+      }
+    }
+  }
+}
+/* Symmetric matrix A => eigenvectors in columns of V, corresponding
+   eigenvalues in d. */
+void eigen_decomposition3( double* A, double* V, double* d )
+{
+  double e[3] = {0};
+  for( int i = 0; i < 3; i++ ) {
+    for( int j = 0; j < 3; j++ ) {
+      V[3*i + j] = A[3*i + j];
+    }
+  }
+  tred2n(V, d, e, 3);
+  tql2n(V, d, e, 3);
+}
+
+void eigen_decomposition2( double* A, double* V, double* d )
+{
+  double e[2] = {0};
+  for( int i = 0; i < 2; i++ ) {
+    for( int j = 0; j < 2; j++ ) {
+      V[2*i + j] = A[2*i + j];
+    }
+  }
+  tred2n(V, d, e, 2);
+  tql2n(V, d, e, 2);
+}
+
 
 #endif
