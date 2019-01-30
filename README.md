@@ -17,7 +17,7 @@ Currently libraries are grouped in two tiers:
 
 library                  |  version   | description  
 :------------------------|:----------:|:---------------------------------------------
-**msh_std.h**            |    0.6     | standard library functionality
+**msh_std.h**            |    0.6     | standard library functionality / extension
 **msh_argparse.h**       |    0.75    | command-line argument parsing
 **msh_vec_math.h**       |    0.75    | glsl inspired vector math (vectors, matrices and quaternions)
 **msh_ply.h**            |    1.0     | Very fast PLY File I/O [Benchmark](https://github.com/mhalber/ply_io_benchmark)
@@ -46,7 +46,7 @@ I'd also like to point you to many other single file libraries:
 
 - [cute_headers](https://github.com/RandyGaul/cute_headers)
 
-- [matthias gustavsson's libs](https://github.com/mattiasgustavsson/libs)
+- [mattias gustavsson's libs](https://github.com/mattiasgustavsson/libs)
 
 - [rjm](https://github.com/rmitton/rjm)
 

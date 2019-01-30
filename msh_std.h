@@ -1,6 +1,8 @@
 /*
-  ==============================================================================
-  
+  ==================================================================================================
+  Licensing information can be found at the end of the file.
+  ==================================================================================================
+
   MSH_STD.H v0.6
   
   A single header library for extending the C standard library.
@@ -14,24 +16,27 @@
 
   The define should only include once in your source.
 
-  ==============================================================================
+  ==================================================================================================
   DEPENDENCIES
     This file depends on a number c stdlib header (see below).
     By default, these are not included by this library. If you'd like these to be included,
     define:
     #define MSH_STD_INCLUDE_LIBC_HEADERS
 
-  ==============================================================================
+  ==================================================================================================
   AUTHORS:
     Maciej Halber
 
-  CREDITS:
-    Sean T. Barrett, Per Vognsen, Mattias Gustavsson, Randy Gaul, Ginger Bill
+  ADDITIONAL CREDITS:
+    Sean T. Barrett, Per Vognsen, Mattias Gustavsson, Randy Gaul, Ginger Bill, 
+    Бранимир Караџић
+    
     Please see particular sections for exact source of code / inspiration
 
-  ==============================================================================
+  ==================================================================================================
   TODOs:
   [x] Limits
+  [ ]
   [ ] Simple set implementation
   [ ] Path manipulation
       [ ] Implement the string concatenation code with some version of vsnprintf
@@ -46,13 +51,13 @@
   [x] Stats - cdf inversion
   [ ] Custom prints (stb_sprintf inlined, look at replacing sprintf with "write" function in linux (unistd.h))
 
-  ==============================================================================
+  ==================================================================================================
   REFERENCES:
   [1] stb.h           https://github.com/nothings/stb/blob/master/stb.h
   [2] gb.h            https://github.com/gingerBill/gb/blob/master/gb.h
   [3] stretchy_buffer https://github.com/nothings/stb/blob/master/stretchy_buffer.h
   [4] cute_headers    https://github.com/RandyGaul/cute_headers
-  [5] gb.h            https://github.com/gingerBill/gb
+  [5] libs            https://github.com/gingerBill/gb
 */
 
 #ifndef MSH_STD
@@ -67,7 +72,7 @@ extern "C" {
 //
 // Credits
 //  Ginger Bill: System and architecture detection from gb.h and bgfx
-//  bkaradzic: Platform detection macros
+//  Бранимир Караџић: Platform detection macros
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // c standard library headers
@@ -452,6 +457,9 @@ bool msh_heap_isvalid( real32_t* vals, size_t n_vals );
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // String and path manipulation
+//
+// Credits:
+//   Randy Gaul cute_files.h: https://github.com/RandyGaul/cute_headers/blob/master/cute_files.h
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if MSH_PLATFORM_WINDOWS
@@ -463,10 +471,20 @@ bool msh_heap_isvalid( real32_t* vals, size_t n_vals );
 char* msh_strdup( const char *src );
 char* msh_strndup( const char *src, size_t len );
 
-char* msh_list_dir( const char* src );
-char* msh_make_dir( const char* src );
-char* msh_get_file_ext( const char* src );
-char* msh_path_join( char* buf, size_t size, va_list ap );
+struct msh_dir;
+struct msh_file;
+typedef struct msh_dir msh_dir_t;
+typedef struct msh_file msh_file_t;
+
+#define MSH_PATH_MAX_LEN 1024
+
+int32_t msh_dir_open( msh_dir_t* dir, const char* path );
+void    msh_dir_close( msh_dir_t* dir );
+
+
+int32_t msh_make_dir( const char* src );
+int32_t msh_get_ext( const char* src );
+int32_t msh_path_join( char* buf, size_t size, va_list ap );
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Colors
@@ -932,16 +950,6 @@ msh_heap_isvalid( real32_t* vals, size_t vals_len )
 // STRINGS + PATHS
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-MSHDEF char*
-msh_strdup( const char *src )
-{
-  size_t len = strlen( src );
-  char* cpy = (char*)malloc( len+1 );
-  strncpy( cpy, src, len );
-  cpy[len] = 0;
-  return cpy;
-}
-
 MSHDEF char* 
 msh_strndup( const char *src, size_t len )
 {
@@ -950,6 +958,74 @@ msh_strndup( const char *src, size_t len )
   cpy[len] = 0;
   return cpy;
 }
+
+MSHDEF char*
+msh_strdup( const char *src )
+{
+  size_t len = strlen( src );
+  return msh_strndup( src, len );
+}
+
+#if MSH_PLATFORM_WINDOWS
+struct msh_dir
+{
+  char path[MSH_PATH_MAX_LEN];
+  int32_t has_next;
+  HANDLE handle;
+  WIN32_FIND_DATAA file_data;
+};
+
+MSHDEF int
+msh_dir_open( msh_dir_t* dir, const char* path )
+{
+  // NOTE(maciej): Randy Gaul has a nice strcpy thing
+  int n = strlen( path );
+  assert( n < MSH_PATH_MAX_LEN );
+  strncpy( dir->path, path, n );
+  if( dir->path[n-1] == '/' || dir->path[n-1] == '\\' ) // MSYS uses unix slashes
+  {
+    dir->path[n-1] = 0;
+    n--;
+  }
+  strncpy( &dir->path[n], "\\*", 3 ); n += 3;
+  printf("%s\n", dir->path );
+  dir->handle = FindFirstFileA( dir->path, &dir->file_data );
+  dir->path[n-3] = 0;
+  printf("%s %d\n", dir->path, (int32_t)strlen(dir->path) );
+  
+  // NOTE(maciej): I think I'd rather return an error value?
+  if( dir->handle == INVALID_HANDLE_VALUE )
+  {
+    LPVOID err_buf;
+    DWORD err = GetLastError();
+    FormatMessage( FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                   NULL,
+                   err,
+                   MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                   (LPTSTR) &err_buf,
+                   0, NULL );
+    printf("ERROR: Failed to open directory (%s): %s", path, (char*)err_buf );
+    msh_dir_close( dir );
+    LocalFree( err_buf );
+    return 1;
+  }
+
+  dir->has_next = 1;
+
+  return 0;
+}
+
+MSHDEF void 
+msh_dir_close( msh_dir_t* dir )
+{
+  dir->path[0] = 0;
+  dir->has_next = 0;
+  if (dir->handle != INVALID_HANDLE_VALUE) { FindClose(dir->handle); }
+}
+
+
+#endif
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // TIME
@@ -1510,3 +1586,43 @@ msh_pdfsample_linear( const double* pdf, double prob, size_t n_vals)
 }
 
 #endif /*MSH_STD_IMPLEMENTATION*/
+
+/*
+	------------------------------------------------------------------------------
+	This software is available under 2 licenses - you may choose the one you like.
+	------------------------------------------------------------------------------
+	ALTERNATIVE A - zlib license
+	Copyright (c) 2016-2019 Maciej Halber; Mattias Gustavsson; Randy Gaul http://www.randygaul.net
+	This software is provided 'as-is', without any express or implied warranty.
+	In no event will the authors be held liable for any damages arising from
+	the use of this software.
+	Permission is granted to anyone to use this software for any purpose,
+	including commercial applications, and to alter it and redistribute it
+	freely, subject to the following restrictions:
+	  1. The origin of this software must not be misrepresented; you must not
+	     claim that you wrote the original software. If you use this software
+	     in a product, an acknowledgment in the product documentation would be
+	     appreciated but is not required.
+	  2. Altered source versions must be plainly marked as such, and must not
+	     be misrepresented as being the original software.
+	  3. This notice may not be removed or altered from any source distribution.
+	------------------------------------------------------------------------------
+	ALTERNATIVE B - Public Domain (www.unlicense.org)
+	This is free and unencumbered software released into the public domain.
+	Anyone is free to copy, modify, publish, use, compile, sell, or distribute this 
+	software, either in source code form or as a compiled binary, for any purpose, 
+	commercial or non-commercial, and by any means.
+	In jurisdictions that recognize copyright laws, the author or authors of this 
+	software dedicate any and all copyright interest in the software to the public 
+	domain. We make this dedication for the benefit of the public at large and to 
+	the detriment of our heirs and successors. We intend this dedication to be an 
+	overt act of relinquishment in perpetuity of all present and future rights to 
+	this software under copyright law.
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+	AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN 
+	ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION 
+	WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+	------------------------------------------------------------------------------
+*/
