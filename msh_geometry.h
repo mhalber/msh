@@ -105,6 +105,12 @@ typedef struct msh_geo_obb
   msh_vec3_t extends;
 } msh_obb_t;
 
+typedef struct msh_geo_plane
+{
+  msh_vec3_t center;
+  msh_vec3_t normal;
+} msh_plane_t;
+
 typedef struct msh_geo_sphere
 {
   msh_vec3_t center;
