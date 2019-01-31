@@ -468,8 +468,14 @@ bool msh_heap_isvalid( real32_t* vals, size_t n_vals );
   #define MSH_FILE_SEPARATOR '/'
 #endif
 
-char* msh_strdup( const char *src );
-char* msh_strndup( const char *src, size_t len );
+char*  msh_strdup( const char *src );
+char*  msh_strndup( const char *src, size_t len );
+size_t msh_strncpy( char* dst, const char* src, size_t len );
+size_t msh_strcpy_range( char* dst, const char* src, size_t start, size_t len );
+
+int32_t msh_path_join( char* buf, size_t size, va_list ap );
+int32_t msh_get_ext( const char* src );
+
 
 struct msh_dir;
 struct msh_file;
@@ -477,14 +483,15 @@ typedef struct msh_dir msh_dir_t;
 typedef struct msh_file msh_file_t;
 
 #define MSH_PATH_MAX_LEN 1024
+#define MSH_FILENAME_MAX_LEN 128
+#define MSH_FILEEXT_MAX_LEN 16
 
 int32_t msh_dir_open( msh_dir_t* dir, const char* path );
 void    msh_dir_close( msh_dir_t* dir );
-
-
+void    msh_dir_next( msh_dir_t* dir );
+int32_t msh_file_exists(const char* path);
 int32_t msh_make_dir( const char* src );
-int32_t msh_get_ext( const char* src );
-int32_t msh_path_join( char* buf, size_t size, va_list ap );
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Colors
@@ -966,6 +973,28 @@ msh_strdup( const char *src )
   return msh_strndup( src, len );
 }
 
+MSHDEF size_t
+msh_strcpy_range( char* dst, const char* src, size_t start, size_t len )
+{
+  assert( dst != NULL && src != NULL );
+  size_t i = start;
+  size_t max = start + len;
+  while( i < max && *src != 0 )
+  {
+    dst[i] = *src++;
+    i++;
+  }
+  dst[i] = 0;
+  return i;
+}
+
+MSHDEF size_t
+msh_strncpy( char* dst, const char* src, size_t n )
+{
+  return msh_strcpy_range( dst, src, 0, n );
+}
+
+
 #if MSH_PLATFORM_WINDOWS
 struct msh_dir
 {
@@ -975,23 +1004,69 @@ struct msh_dir
   WIN32_FIND_DATAA file_data;
 };
 
-MSHDEF int
+struct msh_file
+{
+  char name[MSH_FILENAME_MAX_LEN];
+  char ext[MSH_FILEEXT_MAX_LEN];
+  msh_dir_t* parent_dir;
+  int32_t is_dir;
+  int32_t is_reg;
+};
+
+int32_t
+msh_read_file( msh_dir_t* dir, msh_file_t* file )
+{
+  // assert(dir->handle != INVALID_HANDLE_VALUE);
+
+  // int32_t n = 0;
+  // char* fpath = file->path;
+  // char* dpath = dir->path;
+
+  // n = cf_safe_strcpy(fpath, dpath, 0, CUTE_FILES_MAX_PATH);
+  // n = cf_safe_strcpy(fpath, "/", n - 1, CUTE_FILES_MAX_PATH);
+
+  // char* dname = dir->fdata.cFileName;
+  // char* fname = file->name;
+
+  // cf_safe_strcpy(fname, dname, 0, CUTE_FILES_MAX_FILENAME);
+  // cf_safe_strcpy(fpath, fname, n - 1, CUTE_FILES_MAX_PATH);
+
+  // size_t max_dword = MAXDWORD;
+  // file->size = ((size_t)dir->fdata.nFileSizeHigh * (max_dword + 1)) + (size_t)dir->fdata.nFileSizeLow;
+  // cf_get_ext(file);
+
+  // file->is_dir = !!(dir->fdata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
+  // file->is_reg = !!(dir->fdata.dwFileAttributes & FILE_ATTRIBUTE_NORMAL) ||
+  //   !(dir->fdata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
+
+  // return 1;
+}
+
+MSHDEF void
+msh_dir_next( msh_dir_t* dir)
+{
+  assert( dir->has_next );
+
+  if( !FindNextFileA( dir->handle, &dir->file_data ) )
+  {
+    dir->has_next = 0;
+    DWORD err = GetLastError();
+    assert( err == ERROR_SUCCESS || err == ERROR_NO_MORE_FILES );
+  }
+}
+
+MSHDEF int32_t
 msh_dir_open( msh_dir_t* dir, const char* path )
 {
-  // NOTE(maciej): Randy Gaul has a nice strcpy thing
-  int n = strlen( path );
-  assert( n < MSH_PATH_MAX_LEN );
-  strncpy( dir->path, path, n );
+  int32_t n = msh_strcpy_range( dir->path, path, 0, MSH_PATH_MAX_LEN );
   if( dir->path[n-1] == '/' || dir->path[n-1] == '\\' ) // MSYS uses unix slashes
   {
     dir->path[n-1] = 0;
     n--;
   }
-  strncpy( &dir->path[n], "\\*", 3 ); n += 3;
-  printf("%s\n", dir->path );
+  n = msh_strcpy_range( dir->path, "\\*", n, MSH_PATH_MAX_LEN );
   dir->handle = FindFirstFileA( dir->path, &dir->file_data );
-  dir->path[n-3] = 0;
-  printf("%s %d\n", dir->path, (int32_t)strlen(dir->path) );
+  dir->path[n-2] = 0;
   
   // NOTE(maciej): I think I'd rather return an error value?
   if( dir->handle == INVALID_HANDLE_VALUE )
@@ -1023,6 +1098,13 @@ msh_dir_close( msh_dir_t* dir )
   if (dir->handle != INVALID_HANDLE_VALUE) { FindClose(dir->handle); }
 }
 
+
+MSHDEF int32_t
+msh_file_exists( const char* path )
+{
+  WIN32_FILE_ATTRIBUTE_DATA unused;
+  return GetFileAttributesExA( path, GetFileExInfoStandard, &unused );
+}
 
 #endif
 
