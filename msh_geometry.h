@@ -381,6 +381,22 @@ mshgeo_ray_through_pixel( msh_ray_t* ray, msh_vec2_t p, msh_vec4_t* viewport, ms
  * Given how time critical this is, I might consider doing this with simd.
  * */
 
+//NOTE(maciej): Somethings real wrong here.
+MSHGEODEF int
+msh_ray_plane_intersect( const msh_ray_t* ray, msh_vec3_t a, msh_vec3_t n, float* t )
+{
+  msh_vec3_t o = ray->origin;
+  msh_vec3_t d = ray->direction;
+  float denom = msh_vec3_dot( d, n );
+  if( fabs(denom) > 1e-6 ) {
+    msh_vec3_t v = msh_vec3_sub( a, o );
+    (*t) = msh_vec3_dot(v, n) / denom;
+    return ((*t) >= 0);
+  }
+  (*t) = MSH_F32_MAX;
+  return 0;
+}
+
 MSHGEODEF int
 msh_ray_triangle_intersect( const msh_ray_t* ray, msh_vec3_t a, msh_vec3_t b, msh_vec3_t c,
                             float *u, float *v, float *w, float* t )
@@ -389,7 +405,7 @@ msh_ray_triangle_intersect( const msh_ray_t* ray, msh_vec3_t a, msh_vec3_t b, ms
   msh_vec3_t ac = msh_vec3_sub( c, a );
   msh_vec3_t p = ray->origin;
   // msh_vec3_t q = msh_vec3_add( ray->origin, msh_vec3_scalar_mul( ray->direction, 1000 ) );
-  msh_vec3_t q = msh_vec3_add( ray->origin, ray->direction );
+  msh_vec3_t q = msh_vec3_add( ray->origin, ray->direction );// thats stupid, no?
   msh_vec3_t qp = msh_vec3_sub( p, q );
 
   msh_vec3_t n = msh_vec3_cross( ab, ac );

@@ -337,6 +337,15 @@ double   msh_time_diff_ns( uint64_t new_time, uint64_t old_time );
   }                                                           \
   while (0)
 
+#define msh_ceprintf(cond, fmt, ...) do {                     \
+    if(cond)                                                  \
+    {                                                         \
+      fprintf( stderr, fmt, ##__VA_ARGS__ );                  \
+    }                                                         \
+  }                                                           \
+  while (0)
+
+
 #define msh_panic_eprintf(fmt, ...) do {                      \
     fprintf( stderr, fmt, ##__VA_ARGS__ );                    \
     exit( EXIT_FAILURE) ;                                     \
@@ -352,6 +361,22 @@ double   msh_time_diff_ns( uint64_t new_time, uint64_t old_time );
   }                                                           \
   while (0)
 
+void
+msh_print_progress_bar( char* prefix, char* suffix, uint64_t iter, uint64_t total, int32_t len )
+{
+  unsigned char fill_chr = 219;
+  unsigned char empty_chr = 176;
+  float percent_complete = (float)(iter) / (float)(total-1);
+  int32_t filled_len = percent_complete * len;
+  unsigned char bar[1024] = {0};
+  for( int32_t i = 0; i < filled_len; ++i )   { bar[i] = fill_chr; }
+  for( int32_t i = filled_len; i < len; ++i ) { bar[i] = empty_chr; }
+  printf("\r%s%c%s%c %5.2f%% %s", prefix?prefix:"", 179, bar, 195, 100.0f*percent_complete, suffix?suffix:"" );
+  if( iter == total )
+  {
+    printf("\n");
+  }
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Memory
@@ -462,10 +487,10 @@ bool msh_heap_isvalid( real32_t* vals, size_t n_vals );
 //   Randy Gaul cute_files.h: https://github.com/RandyGaul/cute_headers/blob/master/cute_files.h
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#if MSH_PLATFORM_WINDOWS
-  #define MSH_FILE_SEPARATOR '\\'
+#if MSH_PLATFORM_WINDOWS && !MSH_CRT_MINGW
+  #define MSH_FILE_SEPARATOR "\\"
 #else
-  #define MSH_FILE_SEPARATOR '/'
+  #define MSH_FILE_SEPARATOR "/"
 #endif
 
 char*  msh_strdup( const char *src );
@@ -473,14 +498,13 @@ char*  msh_strndup( const char *src, size_t len );
 size_t msh_strncpy( char* dst, const char* src, size_t len );
 size_t msh_strcpy_range( char* dst, const char* src, size_t start, size_t len );
 
-int32_t msh_path_join( char* buf, size_t size, va_list ap );
-int32_t msh_get_ext( const char* src );
-
+int32_t msh_path_join( char* buf, size_t size, int32_t n, ... );
+const char* msh_get_ext( char* src );
 
 struct msh_dir;
-struct msh_file;
+struct msh_finfo;
 typedef struct msh_dir msh_dir_t;
-typedef struct msh_file msh_file_t;
+typedef struct msh_finfo msh_finfo_t;
 
 #define MSH_PATH_MAX_LEN 1024
 #define MSH_FILENAME_MAX_LEN 128
@@ -488,8 +512,10 @@ typedef struct msh_file msh_file_t;
 
 int32_t msh_dir_open( msh_dir_t* dir, const char* path );
 void    msh_dir_close( msh_dir_t* dir );
+int32_t msh_file_peek( msh_dir_t*, msh_finfo_t* file );
 void    msh_dir_next( msh_dir_t* dir );
-int32_t msh_file_exists(const char* path);
+
+int32_t msh_file_exists( const char* path );
 int32_t msh_make_dir( const char* src );
 
 
@@ -584,7 +610,7 @@ int         msh_rand_range( msh_rand_ctx_t* pcg, int min, int max );
 #define msh_min3(a, b, c) msh_min(msh_min((a), (b)), (c))
 #define msh_clamp(x, lower, upper) msh_min( msh_max((x), (lower)), (upper))
 #define msh_clamp01(x) msh_clamp((x), 0, 1)
-#define msh_iswithin(x, lower, upper) ( ((x) >= (lower)) && ((x) <= (upper)) )
+#define msh_is_within(x, lower, upper) ( ((x) >= (lower)) && ((x) <= (upper)) )
 #define msh_abs(x) ((x) < 0 ? -(x) : (x))
 
 #if !MSH_COMPILER_TCC
@@ -994,7 +1020,48 @@ msh_strncpy( char* dst, const char* src, size_t n )
   return msh_strcpy_range( dst, src, 0, n );
 }
 
+MSHDEF const char*
+msh_get_ext( char* name )
+{
+  char* period = NULL;
+  while( *name++ )
+  {
+    if( *name == '.' ) { period = name; }
+  }
+  if( period && strlen(period) > 1 )
+  {
+    return period + 1;
+  }
+  return period;
+}
 
+int32_t
+msh_path_join( char* buf, size_t size, int32_t n, ... )
+{
+  va_list args;
+  va_start( args, n );
+  
+  size_t len = 0;
+  for( int32_t i = 0; i < n; i++ )
+  {
+    const char* str = va_arg( args, const char* );
+    len = msh_strcpy_range( buf, str, len, size );
+    if( i < n - 1)
+    {
+      len = msh_strcpy_range( buf, MSH_FILE_SEPARATOR, len, size );
+    }
+  }
+  va_end(args);
+  return len;
+}
+
+const char*
+msh_path_basename( const char* path )
+{
+  const char* sep_ptr = strrchr( path, MSH_FILE_SEPARATOR[0] );
+  if( sep_ptr && strlen(sep_ptr) > 1 ) { return sep_ptr + 1; }
+  return path;
+}
 #if MSH_PLATFORM_WINDOWS
 struct msh_dir
 {
@@ -1004,46 +1071,42 @@ struct msh_dir
   WIN32_FIND_DATAA file_data;
 };
 
-struct msh_file
+struct msh_finfo
 {
   char name[MSH_FILENAME_MAX_LEN];
   char ext[MSH_FILEEXT_MAX_LEN];
   msh_dir_t* parent_dir;
   int32_t is_dir;
   int32_t is_reg;
+  size_t size;
 };
 
 int32_t
-msh_read_file( msh_dir_t* dir, msh_file_t* file )
+msh_file_peek( msh_dir_t* dir, msh_finfo_t* file )
 {
-  // assert(dir->handle != INVALID_HANDLE_VALUE);
+  assert(dir->handle != INVALID_HANDLE_VALUE);
 
-  // int32_t n = 0;
-  // char* fpath = file->path;
-  // char* dpath = dir->path;
+  char* file_name = dir->file_data.cFileName;
+  const char* ext = msh_get_ext( file_name );
 
-  // n = cf_safe_strcpy(fpath, dpath, 0, CUTE_FILES_MAX_PATH);
-  // n = cf_safe_strcpy(fpath, "/", n - 1, CUTE_FILES_MAX_PATH);
+  if( ext )
+  {
+    msh_strcpy_range( file->ext, ext, 0, MSH_FILEEXT_MAX_LEN );
+  }
+  msh_strcpy_range( file->name, file_name, 0, MSH_FILENAME_MAX_LEN );
+  
+  size_t max_dword = MAXDWORD;
+  file->size = ((size_t)dir->file_data.nFileSizeHigh * (max_dword + 1)) + (size_t)dir->file_data.nFileSizeLow;
 
-  // char* dname = dir->fdata.cFileName;
-  // char* fname = file->name;
-
-  // cf_safe_strcpy(fname, dname, 0, CUTE_FILES_MAX_FILENAME);
-  // cf_safe_strcpy(fpath, fname, n - 1, CUTE_FILES_MAX_PATH);
-
-  // size_t max_dword = MAXDWORD;
-  // file->size = ((size_t)dir->fdata.nFileSizeHigh * (max_dword + 1)) + (size_t)dir->fdata.nFileSizeLow;
-  // cf_get_ext(file);
-
-  // file->is_dir = !!(dir->fdata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
-  // file->is_reg = !!(dir->fdata.dwFileAttributes & FILE_ATTRIBUTE_NORMAL) ||
-  //   !(dir->fdata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
-
-  // return 1;
+  file->is_dir = !!(dir->file_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
+  file->is_reg = !!(dir->file_data.dwFileAttributes & FILE_ATTRIBUTE_NORMAL) ||
+                  !(dir->file_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
+  file->parent_dir = dir;
+  return 1;
 }
 
 MSHDEF void
-msh_dir_next( msh_dir_t* dir)
+msh_dir_next( msh_dir_t* dir )
 {
   assert( dir->has_next );
 

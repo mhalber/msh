@@ -4,7 +4,6 @@
 #define MSH_STD_IMPLEMENTATION
 #include "msh/msh_std.h"
 
-
 #define MSH_TEST_TIME_ACCURACY_MS 2.5
 
 void 
@@ -68,6 +67,28 @@ msh_array_test()
 {
 
 }
+
+
+void
+msh_strcpy_test()
+{
+  int n;
+  char* test = "Hello, world!";
+  char dst[1024];
+  
+  n = msh_strncpy( dst, test, 7 );
+  printf("%s\n", dst );
+  n = msh_strncpy( dst + n, test, strlen(test) );
+  printf("%s\n %d\n", dst, n );
+  memset( dst, 0, 1024 );
+  n = msh_strcpy_range( dst, test, 0, 7 );
+  printf("%s\n", dst );
+  n = msh_strcpy_range( dst, test, n, strlen(test) );
+  printf("%s\n %d\n", dst, n );
+  n = msh_strcpy_range( dst, " Word is up!", n, 1024 );
+  printf("%s\n %d\n", dst, n );
+}
+
 
 void 
 msh_heap_test()
