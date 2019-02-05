@@ -362,21 +362,7 @@ double   msh_time_diff_ns( uint64_t new_time, uint64_t old_time );
   while (0)
 
 void
-msh_print_progress_bar( char* prefix, char* suffix, uint64_t iter, uint64_t total, int32_t len )
-{
-  unsigned char fill_chr = 219;
-  unsigned char empty_chr = 176;
-  float percent_complete = (float)(iter) / (float)(total-1);
-  int32_t filled_len = percent_complete * len;
-  unsigned char bar[1024] = {0};
-  for( int32_t i = 0; i < filled_len; ++i )   { bar[i] = fill_chr; }
-  for( int32_t i = filled_len; i < len; ++i ) { bar[i] = empty_chr; }
-  printf("\r%s%c%s%c %5.2f%% %s", prefix?prefix:"", 179, bar, 195, 100.0f*percent_complete, suffix?suffix:"" );
-  if( iter == total )
-  {
-    printf("\n");
-  }
-}
+msh_print_progress_bar( char* prefix, char* suffix, uint64_t iter, uint64_t total, int32_t len );
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Memory
@@ -622,10 +608,10 @@ int         msh_rand_range( msh_rand_ctx_t* pcg, int min, int max );
                 default: msh_sqf    )(x)
 #endif
 
-int32_t    msh_sqi32(int32_t a)    { return a*a; }
-int64_t    msh_sqi64(int64_t a)    { return a*a; }
-float      msh_sqf(float a)  { return a*a; }
-double     msh_sqd(double a) { return a*a; }
+int32_t    msh_sqi32(int32_t a);
+int64_t    msh_sqi64(int64_t a);
+float      msh_sqf(float a);
+double     msh_sqd(double a);
 
 int32_t msh_accumulatei( const int32_t* vals, const size_t n_vals );
 float   msh_accumulatef( const float *vals, const size_t n_vals );
@@ -644,7 +630,14 @@ void    msh_invert_cdf( const double* cdf, size_t n_vals, double* invcdf, size_t
 int     msh_pdfsample_linear( const double* pdf, double prob, size_t n_vals);
 int     msh_pdfsample_invcdf( const double* pdf, double prob, size_t n_vals);
 
-typedef struct discrete_distribution_sampler msh_discrete_distrib_t;
+typedef struct discrete_distribution_sampler
+{
+  double* prob;
+  int* alias;
+  size_t n_weights;
+  msh_rand_ctx_t rand_gen;
+} msh_discrete_distrib_t;
+
 void    msh_discrete_distribution_init( msh_discrete_distrib_t* ctx, 
                                         double* weights, size_t n_weights, size_t seed );
 void    msh_discrete_distribution_free( msh_discrete_distrib_t* ctx );
@@ -668,9 +661,29 @@ int     msh_discrete_distribution_sample( msh_discrete_distrib_t* ctx );
 #ifdef MSH_STD_IMPLEMENTATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// ARRAY
+// PRINTING
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void
+msh_print_progress_bar( char* prefix, char* suffix, uint64_t iter, uint64_t total, int32_t len )
+{
+  unsigned char fill_chr = 219;
+  unsigned char empty_chr = 176;
+  float percent_complete = (float)(iter) / (float)(total-1);
+  int32_t filled_len = percent_complete * len;
+  unsigned char bar[1024] = {0};
+  for( int32_t i = 0; i < filled_len; ++i )   { bar[i] = fill_chr; }
+  for( int32_t i = filled_len; i < len; ++i ) { bar[i] = empty_chr; }
+  printf("\r%s%c%s%c %5.2f%% %s", prefix?prefix:"", 179, bar, 195, 100.0f*percent_complete, suffix?suffix:"" );
+  if( iter == total )
+  {
+    printf("\n");
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// ARRAY
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 MSHDEF void*
 msh_array__grow(const void *array, size_t new_len, size_t elem_size) {
@@ -1504,7 +1517,7 @@ msh_debug_report_debug_events()
       uint32_t start_line = start_event->line_number;
       uint32_t end_line = end_event->line_number;
       uint64_t n_cycles = end_event->clock - start_event->clock;
-      printf("Block %d - %d in %s, %s took %I64d cycles\n", start_line, end_line, start_event->function_name, start_event->filename, n_cycles );
+      printf("Block %d - %d in %s, %s took %d cycles\n", start_line, end_line, start_event->function_name, start_event->filename, (int32_t)n_cycles );
       start_event->type = MSH_DEBUG_EVENT_PROCESSED;
       end_event->type = MSH_DEBUG_EVENT_PROCESSED;
     }
@@ -1516,6 +1529,11 @@ msh_debug_report_debug_events()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // MATHS
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int32_t    msh_sqi32(int32_t a)    { return a*a; }
+int64_t    msh_sqi64(int64_t a)    { return a*a; }
+float      msh_sqf(float a)  { return a*a; }
+double     msh_sqd(double a) { return a*a; }
 
 int32_t
 msh_accumulatei( const int32_t* vals, const size_t n_vals )
@@ -1613,15 +1631,6 @@ msh_pdf2cdf( const double* pdf, double* cdf, size_t n_vals )
  * Alias method, after description and Java implementation by Keith Schwarz:
  * http://www.keithschwarz.com/darts-dice-coins/
  */
-
-
-typedef struct discrete_distribution_sampler
-{
-  double* prob;
-  int* alias;
-  size_t n_weights;
-  msh_rand_ctx_t rand_gen;
-} msh_discrete_distrib_t;
 
 void
 msh_discrete_distribution_init( msh_discrete_distrib_t* ctx, double* weights, size_t n_weights, size_t seed )
