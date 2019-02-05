@@ -675,7 +675,7 @@ msh_print_progress_bar( char* prefix, char* suffix, uint64_t iter, uint64_t tota
   for( int32_t i = 0; i < filled_len; ++i )   { bar[i] = fill_chr; }
   for( int32_t i = filled_len; i < len; ++i ) { bar[i] = empty_chr; }
   printf("\r%s%c%s%c %5.2f%% %s", prefix?prefix:"", 179, bar, 195, 100.0f*percent_complete, suffix?suffix:"" );
-  if( iter == total )
+  if( iter >= total - 1 )
   {
     printf("\n");
   }
