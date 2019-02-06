@@ -431,15 +431,17 @@ msh_hash_grid__init( msh_hash_grid_t* hg,
     hg->max_pt.x = (hg->max_pt.x < pt.x) ? pt.x : hg->max_pt.x;
     hg->max_pt.y = (hg->max_pt.y < pt.y) ? pt.y : hg->max_pt.y;
     hg->max_pt.z = (hg->max_pt.z < pt.z) ? pt.z : hg->max_pt.z;
-
   }
+  printf("HASH_GRID : %12.7f %12.7f %12.7f\n", hg->min_pt.x, hg->min_pt.y, hg->min_pt.z );
+  printf("HASH_GRID : %12.7f %12.7f %12.7f\n", hg->max_pt.x, hg->max_pt.y, hg->max_pt.z );
 
   // Calculate dimensions
   float dim_x   = (hg->max_pt.x - hg->min_pt.x);
   float dim_y   = (hg->max_pt.y - hg->min_pt.y);
   float dim_z   = (hg->max_pt.z - hg->min_pt.z);
   float max_dim = MSH_HG_MAX3( dim_x, dim_y, dim_z );
-
+  printf("HASH_GRID : %f %f %f\n", dim_x, dim_y, dim_z );
+  
   // Calculate cell size
   if( radius > 0.0 ) { hg->cell_size = 2.0f * radius; }
   else               { hg->cell_size = max_dim / (32 * sqrtf(3.0f)); }
