@@ -988,12 +988,12 @@ mshgeo_bbox_reset(msh_bbox_t* bb)
 MSHGEODEF void
 mshgeo_bbox_union(msh_bbox_t* bb, msh_vec3_t p)
 {
-  bb->min_p.x = msh_min(bb->min_p.x, p.x);
-  bb->min_p.y = msh_min(bb->min_p.y, p.y);
-  bb->min_p.z = msh_min(bb->min_p.z, p.z);
-  bb->max_p.x = msh_max(bb->max_p.x, p.x);
-  bb->max_p.y = msh_max(bb->max_p.y, p.y);
-  bb->max_p.z = msh_max(bb->max_p.z, p.z);
+  bb->min_p.x = (bb->min_p.x - p.x) > 0.00001f ? p.x : bb->min_p.x;// msh_min(bb->min_p.x, p.x);
+  bb->min_p.y = (bb->min_p.y - p.y) > 0.00001f ? p.y : bb->min_p.y;// msh_min(bb->min_p.y, p.y);
+  bb->min_p.z = (bb->min_p.z - p.z) > 0.00001f ? p.z : bb->min_p.z;// msh_min(bb->min_p.z, p.z);
+  bb->max_p.x = (bb->max_p.x - p.x) > 0.00001f ? bb->min_p.x : p.x;//msh_max(bb->max_p.x, p.x);
+  bb->max_p.y = (bb->max_p.y - p.y) > 0.00001f ? bb->min_p.y : p.y;//msh_max(bb->max_p.y, p.y);
+  bb->max_p.z = (bb->max_p.z - p.z) > 0.00001f ? bb->min_p.z : p.z;//msh_max(bb->max_p.z, p.z);
 }
 
 MSHGEODEF msh_vec3_t
