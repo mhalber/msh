@@ -424,21 +424,23 @@ msh_hash_grid__init( msh_hash_grid_t* hg,
     if( dim == 2 ) { pt = (msh_hg_v3_t){ .x = pt_ptr[0], .y = pt_ptr[1], .z = 0 }; }
     else           { pt = (msh_hg_v3_t){ .x = pt_ptr[0], .y = pt_ptr[1], .z = pt_ptr[2] }; };
 
-    hg->min_pt.x = (hg->min_pt.x > pt.x) ? pt.x : hg->min_pt.x;
-    hg->min_pt.y = (hg->min_pt.y > pt.y) ? pt.y : hg->min_pt.y;
-    hg->min_pt.z = (hg->min_pt.z > pt.z) ? pt.z : hg->min_pt.z;
+    hg->min_pt.x = ((hg->min_pt.x - pt.x) >= 0.0000001f) ? pt.x : hg->min_pt.x;
+    hg->min_pt.y = ((hg->min_pt.y - pt.y) >= 0.0000001f) ? pt.y : hg->min_pt.y;
+    hg->min_pt.z = ((hg->min_pt.z - pt.z) >= 0.0000001f) ? pt.z : hg->min_pt.z;
 
-    hg->max_pt.x = (hg->max_pt.x < pt.x) ? pt.x : hg->max_pt.x;
-    hg->max_pt.y = (hg->max_pt.y < pt.y) ? pt.y : hg->max_pt.y;
-    hg->max_pt.z = (hg->max_pt.z < pt.z) ? pt.z : hg->max_pt.z;
+    hg->max_pt.x = ((hg->max_pt.x - pt.x) >= 0.0000001f) ? hg->max_pt.x : pt.x;
+    hg->max_pt.y = ((hg->max_pt.y - pt.y) >= 0.0000001f) ? hg->max_pt.y : pt.y;
+    hg->max_pt.z = ((hg->max_pt.z - pt.z) >= 0.0000001f) ? hg->max_pt.z : pt.z;
   }
   printf("HASH_GRID : %12.7f %12.7f %12.7f\n", hg->min_pt.x, hg->min_pt.y, hg->min_pt.z );
   printf("HASH_GRID : %12.7f %12.7f %12.7f\n", hg->max_pt.x, hg->max_pt.y, hg->max_pt.z );
 
   // Calculate dimensions
-  float dim_x   = ((hg->max_pt.x + 0.1) - (hg->min_pt.x - 0.1));
-  float dim_y   = ((hg->max_pt.y + 0.1) - (hg->min_pt.y - 0.1));
-  float dim_z   = ((hg->max_pt.z + 0.1) - (hg->min_pt.z - 0.1));
+  hg->max_pt.x += 0.1f; hg->max_pt.y += 0.1f; hg->max_pt.z += 0.1f;
+  hg->min_pt.x -= 0.1f; hg->min_pt.y -= 0.1f; hg->min_pt.z -= 0.1f;
+  float dim_x   = (hg->max_pt.x - hg->min_pt.x);
+  float dim_y   = (hg->max_pt.y - hg->min_pt.y);
+  float dim_z   = (hg->max_pt.z - hg->min_pt.z);
   float max_dim = MSH_HG_MAX3( dim_x, dim_y, dim_z );
   printf("HASH_GRID : %f %f %f\n", dim_x, dim_y, dim_z );
   
