@@ -809,7 +809,7 @@ MSH_HG_INLINE void
 msh_hash_grid_dist_storage_push( msh_hash_grid_dist_storage_t* q,
                                  const double dist, const int32_t idx )
 {
-  if( q->len >= q->cap && dist >= q->max_dist ) { return; }
+  if( q->len >= q->cap && (dist - q->max_dist) > 0.000001f ) { return; }
 
   if( q->len >= q->cap ) 
   {
@@ -832,7 +832,7 @@ msh_hash_grid_dist_storage_push( msh_hash_grid_dist_storage_t* q,
   }
 
   if( q->is_heap ) { q->max_dist = q->dists[0]; }
-  else if ( q->max_dist <= dist ) { q->max_dist = dist; }
+  else if ( q->max_dist - dist < 0.000001f ) { q->max_dist = dist; }
 }
 
 void
@@ -859,14 +859,14 @@ msh_hash_grid__find_neighbors_in_bin( const msh_hash_grid_t* hg, const uint64_t 
     double   dix = data[i].x;
     double   diy = data[i].y;
     double   diz = data[i].z;
-    int32_t dii = data[i].i;
+    int32_t dii  = data[i].i;
 
     double vx = dix - px;
     double vy = diy - py;
     double vz = diz - pz;
     double dist_sq = vx * vx + vy * vy + vz * vz;
 
-    if( dist_sq < radius_sq )
+    if( dist_sq - radius_sq < 0.000001f )
     {
       msh_hash_grid_dist_storage_push( s, dist_sq, dii );
     }
