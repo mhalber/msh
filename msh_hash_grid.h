@@ -250,7 +250,7 @@ typedef struct msh_hash_grid
   size_t width;
   size_t height;
   size_t depth;
-  float cell_size;
+  double cell_size;
 
   msh_hg_v3_t min_pt;
   msh_hg_v3_t max_pt;
@@ -260,7 +260,7 @@ typedef struct msh_hash_grid
   msh_hg__bin_info_t* offsets;
 
   int32_t   _slab_size;
-  float _inv_cell_size;
+  double _inv_cell_size;
   uint8_t _pts_dim;
   uint16_t _num_threads;
   int32_t _dont_use_omp;
@@ -424,34 +424,41 @@ msh_hash_grid__init( msh_hash_grid_t* hg,
     if( dim == 2 ) { pt = (msh_hg_v3_t){ .x = pt_ptr[0], .y = pt_ptr[1], .z = 0 }; }
     else           { pt = (msh_hg_v3_t){ .x = pt_ptr[0], .y = pt_ptr[1], .z = pt_ptr[2] }; };
 
-    hg->min_pt.x = ((hg->min_pt.x - pt.x) >= 0.0000001f) ? pt.x : hg->min_pt.x;
-    hg->min_pt.y = ((hg->min_pt.y - pt.y) >= 0.0000001f) ? pt.y : hg->min_pt.y;
-    hg->min_pt.z = ((hg->min_pt.z - pt.z) >= 0.0000001f) ? pt.z : hg->min_pt.z;
+    hg->min_pt.x = ((hg->min_pt.x - pt.x) >= 0.00001f) ? pt.x : hg->min_pt.x;
+    hg->min_pt.y = ((hg->min_pt.y - pt.y) >= 0.00001f) ? pt.y : hg->min_pt.y;
+    hg->min_pt.z = ((hg->min_pt.z - pt.z) >= 0.00001f) ? pt.z : hg->min_pt.z;
 
-    hg->max_pt.x = ((hg->max_pt.x - pt.x) >= 0.0000001f) ? hg->max_pt.x : pt.x;
-    hg->max_pt.y = ((hg->max_pt.y - pt.y) >= 0.0000001f) ? hg->max_pt.y : pt.y;
-    hg->max_pt.z = ((hg->max_pt.z - pt.z) >= 0.0000001f) ? hg->max_pt.z : pt.z;
+    hg->max_pt.x = ((hg->max_pt.x - pt.x) >= 0.00001f) ? hg->max_pt.x : pt.x;
+    hg->max_pt.y = ((hg->max_pt.y - pt.y) >= 0.00001f) ? hg->max_pt.y : pt.y;
+    hg->max_pt.z = ((hg->max_pt.z - pt.z) >= 0.00001f) ? hg->max_pt.z : pt.z;
   }
-  printf("HASH_GRID : %12.7f %12.7f %12.7f\n", hg->min_pt.x, hg->min_pt.y, hg->min_pt.z );
-  printf("HASH_GRID : %12.7f %12.7f %12.7f\n", hg->max_pt.x, hg->max_pt.y, hg->max_pt.z );
 
   // Calculate dimensions
   hg->max_pt.x += 0.1f; hg->max_pt.y += 0.1f; hg->max_pt.z += 0.1f;
   hg->min_pt.x -= 0.1f; hg->min_pt.y -= 0.1f; hg->min_pt.z -= 0.1f;
-  float dim_x   = (hg->max_pt.x - hg->min_pt.x);
-  float dim_y   = (hg->max_pt.y - hg->min_pt.y);
-  float dim_z   = (hg->max_pt.z - hg->min_pt.z);
-  float max_dim = MSH_HG_MAX3( dim_x, dim_y, dim_z );
-  printf("HASH_GRID : %f %f %f\n", dim_x, dim_y, dim_z );
-  
+  printf("HASH_GRID: %12.7f %12.7f %12.7f\n", hg->max_pt.x, hg->max_pt.y, hg->max_pt.z );
+  printf("HASH_GRID: %12.7f %12.7f %12.7f\n", hg->min_pt.x, hg->min_pt.y, hg->min_pt.z );
+  hg->max_pt.x = (float)((int)(hg->max_pt.x * 100 + .5)) / 100;
+  hg->max_pt.y = (float)((int)(hg->max_pt.y * 100 + .5)) / 100;
+  hg->max_pt.z = (float)((int)(hg->max_pt.z * 100 + .5)) / 100;
+  hg->min_pt.x = (float)((int)(hg->min_pt.x * 100 - 1.5)) / 100;
+  hg->min_pt.y = (float)((int)(hg->min_pt.y * 100 - 1.5)) / 100;
+  hg->min_pt.z = (float)((int)(hg->min_pt.z * 100 - 1.5)) / 100;
+  printf("HASH_GRID: %12.7f %12.7f %12.7f\n", hg->max_pt.x, hg->max_pt.y, hg->max_pt.z );
+  printf("HASH_GRID: %12.7f %12.7f %12.7f\n", hg->min_pt.x, hg->min_pt.y, hg->min_pt.z );
+  double dim_x   = (hg->max_pt.x - hg->min_pt.x);
+  double dim_y   = (hg->max_pt.y - hg->min_pt.y);
+  double dim_z   = (hg->max_pt.z - hg->min_pt.z);
+  double max_dim = MSH_HG_MAX3( dim_x, dim_y, dim_z );
+
   // Calculate cell size
-  if( radius > 0.0 ) { hg->cell_size = 2.0f * radius; }
+  if( radius > 0.0 ) { hg->cell_size = 2.0 * radius; }
   else               { hg->cell_size = max_dim / (32 * sqrtf(3.0f)); }
 
   hg->width     = (int)(dim_x / hg->cell_size + 1.0);
   hg->height    = (int)(dim_y / hg->cell_size + 1.0) ;
   hg->depth     = (int)(dim_z / hg->cell_size + 1.0) ;
-  hg->_inv_cell_size = 1.0f / hg->cell_size;
+  hg->_inv_cell_size = 1.0 / hg->cell_size;
   hg->_slab_size = hg->height * hg->width;
   hg->_n_pts = 0;
 
@@ -473,9 +480,9 @@ msh_hash_grid__init( msh_hash_grid_t* hg,
       pt_data = (msh_hg_v3i_t){ .x = pt_ptr[0], .y = pt_ptr[1], .z = pt_ptr[2], .i = i };
     }
 
-    uint64_t ix = (uint64_t)( ( pt_data.x - hg->min_pt.x ) * hg->_inv_cell_size );
-    uint64_t iy = (uint64_t)( ( pt_data.y - hg->min_pt.y ) * hg->_inv_cell_size );
-    uint64_t iz = (uint64_t)( ( pt_data.z - hg->min_pt.z ) * hg->_inv_cell_size );
+    uint64_t ix = (uint64_t)( ( (double)pt_data.x - hg->min_pt.x ) * hg->_inv_cell_size );
+    uint64_t iy = (uint64_t)( ( (double)pt_data.y - hg->min_pt.y ) * hg->_inv_cell_size );
+    uint64_t iz = (uint64_t)( ( (double)pt_data.z - hg->min_pt.z ) * hg->_inv_cell_size );
 
     uint64_t bin_idx = msh_hash_grid__bin_pt( hg, ix, iy, iz );
 
@@ -800,7 +807,7 @@ uint32_t valid_counter = 0;
 
 MSH_HG_INLINE void
 msh_hash_grid_dist_storage_push( msh_hash_grid_dist_storage_t* q,
-                                 const float dist, const int32_t idx )
+                                 const double dist, const int32_t idx )
 {
   if( q->len >= q->cap && dist >= q->max_dist ) { return; }
 
@@ -830,7 +837,7 @@ msh_hash_grid_dist_storage_push( msh_hash_grid_dist_storage_t* q,
 
 void
 msh_hash_grid__find_neighbors_in_bin( const msh_hash_grid_t* hg, const uint64_t bin_idx,
-                                      const float radius_sq, const float* pt,
+                                      const double radius_sq, const float* pt,
                                       msh_hash_grid_dist_storage_t* s )
 {
   
@@ -842,22 +849,22 @@ msh_hash_grid__find_neighbors_in_bin( const msh_hash_grid_t* hg, const uint64_t 
   uint32_t n_pts = bi.length;
   const msh_hg_v3i_t* data = &hg->data_buffer[bi.offset];
 
-  float px = pt[0];
-  float py = pt[1];
-  float pz = (hg->_pts_dim == 2 ) ? 0.0 : pt[2];
+  double px = pt[0];
+  double py = pt[1];
+  double pz = (hg->_pts_dim == 2 ) ? 0.0 : pt[2];
 
   for( uint32_t i = 0; i < n_pts; ++i )
   {
     // TODO(maciej): Maybe SSE?
-    float   dix = data[i].x;
-    float   diy = data[i].y;
-    float   diz = data[i].z;
+    double   dix = data[i].x;
+    double   diy = data[i].y;
+    double   diz = data[i].z;
     int32_t dii = data[i].i;
 
-    float vx = dix - px;
-    float vy = diy - py;
-    float vz = diz - pz;
-    float dist_sq = vx * vx + vy * vy + vz * vz;
+    double vx = dix - px;
+    double vy = diy - py;
+    double vz = diz - pz;
+    double dist_sq = vx * vx + vy * vy + vz * vz;
 
     if( dist_sq < radius_sq )
     {
@@ -1286,7 +1293,7 @@ msh_hash_grid__add_bin_contents( const msh_hash_grid_t* hg, const uint64_t bin_i
     {
       v = (msh_hg_v3_t){ data[i].x - pt[0], data[i].y - pt[1], data[i].z - pt[2] };
     }
-    float dist_sq = v.x * v.x + v.y * v.y + v.z * v.z;
+    double dist_sq = v.x * v.x + v.y * v.y + v.z * v.z;
 
     msh_hash_grid_dist_storage_push( s, dist_sq, data[i].i );
   }
