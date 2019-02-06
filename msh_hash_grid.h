@@ -1099,14 +1099,14 @@ size_t msh_hash_grid_radius_search( const msh_hash_grid_t* hg,
   enum { MAX_BIN_COUNT = 128, MAX_THREAD_COUNT = 128 };
   uint32_t n_query_pts = hg_sd->n_query_pts;
   size_t row_size      = hg_sd->max_n_neigh;
-  float radius         = hg_sd->radius;
+  double radius        = hg_sd->radius;
   uint64_t slab_size   = hg->_slab_size;
-  float cs             = hg->cell_size;
-  float ics            = hg->_inv_cell_size;
+  double cs            = hg->cell_size;
+  double ics           = hg->_inv_cell_size;
   int64_t w            = hg->width;
   int64_t h            = hg->height;
   int64_t d            = hg->depth;
-  float radius_sq      = radius * radius;
+  double radius_sq     = radius * radius;
 
   uint32_t n_pts_per_thread = n_query_pts;
   uint32_t total_num_neighbors = 0;

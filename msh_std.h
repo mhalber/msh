@@ -1240,7 +1240,7 @@ msh_rand_next( msh_rand_ctx_t* pcg )
 {
   MSH_RND_U64 oldstate = pcg->state[ 0 ];
   pcg->state[ 0 ] = oldstate * 0x5851f42d4c957f2dULL + pcg->state[ 1 ];
-  MSH_RND_U32 xorshifted = (MSH_RND_U32)( ( ( oldstate >> 18ULL)  ^ oldstate ) >> 27ULL );
+  MSH_RND_U32 xorshifted = (MSH_RND_U32)( ( ( oldstate >> 18ULL) ^ oldstate ) >> 27ULL );
   MSH_RND_U32 rot = (MSH_RND_U32)( oldstate >> 59ULL );
   return ( xorshifted >> rot ) | ( xorshifted << ( ( -(int) rot ) & 31 ) );
 }
