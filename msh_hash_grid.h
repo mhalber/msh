@@ -436,9 +436,9 @@ msh_hash_grid__init( msh_hash_grid_t* hg,
   printf("HASH_GRID : %12.7f %12.7f %12.7f\n", hg->max_pt.x, hg->max_pt.y, hg->max_pt.z );
 
   // Calculate dimensions
-  float dim_x   = (hg->max_pt.x - hg->min_pt.x);
-  float dim_y   = (hg->max_pt.y - hg->min_pt.y);
-  float dim_z   = (hg->max_pt.z - hg->min_pt.z);
+  float dim_x   = ((hg->max_pt.x + 0.1) - (hg->min_pt.x - 0.1));
+  float dim_y   = ((hg->max_pt.y + 0.1) - (hg->min_pt.y - 0.1));
+  float dim_z   = ((hg->max_pt.z + 0.1) - (hg->min_pt.z - 0.1));
   float max_dim = MSH_HG_MAX3( dim_x, dim_y, dim_z );
   printf("HASH_GRID : %f %f %f\n", dim_x, dim_y, dim_z );
   
