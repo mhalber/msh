@@ -250,7 +250,7 @@ typedef struct msh_hash_grid
   size_t width;
   size_t height;
   size_t depth;
-  float cell_size;
+  double cell_size;
 
   msh_hg_v3_t min_pt;
   msh_hg_v3_t max_pt;
@@ -260,7 +260,7 @@ typedef struct msh_hash_grid
   msh_hg__bin_info_t* offsets;
 
   int32_t   _slab_size;
-  float _inv_cell_size;
+  double _inv_cell_size;
   uint8_t _pts_dim;
   uint16_t _num_threads;
   int32_t _dont_use_omp;
@@ -433,6 +433,8 @@ msh_hash_grid__init( msh_hash_grid_t* hg,
     hg->max_pt.z = (hg->max_pt.z < pt.z) ? pt.z : hg->max_pt.z;
 
   }
+  hg->max_pt.x += 0.0001f; hg->max_pt.y += 0.0001f; hg->max_pt.z += 0.0001f;
+  hg->min_pt.x -= 0.0001f; hg->min_pt.y -= 0.0001f; hg->min_pt.z -= 0.0001f;
 
   // Calculate dimensions
   float dim_x   = (hg->max_pt.x - hg->min_pt.x);
@@ -441,13 +443,13 @@ msh_hash_grid__init( msh_hash_grid_t* hg,
   float max_dim = MSH_HG_MAX3( dim_x, dim_y, dim_z );
 
   // Calculate cell size
-  if( radius > 0.0 ) { hg->cell_size = 2.0f * radius; }
+  if( radius > 0.0 ) { hg->cell_size = 2.0 * radius; }
   else               { hg->cell_size = max_dim / (32 * sqrtf(3.0f)); }
 
   hg->width     = (int)(dim_x / hg->cell_size + 1.0);
   hg->height    = (int)(dim_y / hg->cell_size + 1.0) ;
   hg->depth     = (int)(dim_z / hg->cell_size + 1.0) ;
-  hg->_inv_cell_size = 1.0f / hg->cell_size;
+  hg->_inv_cell_size = 1.0f/ hg->cell_size;
   hg->_slab_size = hg->height * hg->width;
   hg->_n_pts = 0;
 
