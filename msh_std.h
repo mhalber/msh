@@ -36,10 +36,8 @@
   ==================================================================================================
   TODOs:
   [x] Limits
-  [ ]
   [ ] Simple set implementation
   [ ] Path manipulation
-      [ ] Implement the string concatenation code with some version of vsnprintf
   [ ] Memory allocation
     [ ] Tracking memory allocs
     [ ] Alternative allocators
@@ -47,6 +45,7 @@
   [ ] Sorting and Searching
     [ ] Common qsort comparator functions
     [ ] binary and linear searches over arrays
+    [ ] Radix sort?
   [x] Multithreading / Scheduling <-- separate lib, msh_jobs.h
   [x] Stats - cdf inversion
   [ ] Custom prints (stb_sprintf inlined, look at replacing sprintf with "write" function in linux (unistd.h))
@@ -307,16 +306,16 @@ enum msh__time_units
   MSHT_NS
 };
 
-void     msh_sleep( size_t ms );
-int32_t  msh_time_rdtsc();
-int32_t  msh_time_rdtscp();
+MSHDEF void     msh_sleep( size_t ms );
+MSHDEF int32_t  msh_time_rdtsc();
+MSHDEF int32_t  msh_time_rdtscp();
 
-uint64_t msh_time_now();
-double   msh_time_diff( int32_t unit, uint64_t new_time, uint64_t old_time );
-double   msh_time_diff_sec( uint64_t new_time, uint64_t old_time );
-double   msh_time_diff_ms( uint64_t new_time, uint64_t old_time );
-double   msh_time_diff_us( uint64_t new_time, uint64_t old_time );
-double   msh_time_diff_ns( uint64_t new_time, uint64_t old_time );
+MSHDEF uint64_t msh_time_now();
+MSHDEF double   msh_time_diff( int32_t unit, uint64_t new_time, uint64_t old_time );
+MSHDEF double   msh_time_diff_sec( uint64_t new_time, uint64_t old_time );
+MSHDEF double   msh_time_diff_ms( uint64_t new_time, uint64_t old_time );
+MSHDEF double   msh_time_diff_us( uint64_t new_time, uint64_t old_time );
+MSHDEF double   msh_time_diff_ns( uint64_t new_time, uint64_t old_time );
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Printing
@@ -361,8 +360,8 @@ double   msh_time_diff_ns( uint64_t new_time, uint64_t old_time );
   }                                                           \
   while (0)
 
-void
-msh_print_progress_bar( char* prefix, char* suffix, uint64_t iter, uint64_t total, int32_t len );
+MSHDEF void msh_print_progress_bar( char* prefix, char* suffix, 
+                                    uint64_t iter, uint64_t total, int32_t len );
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Memory
@@ -396,8 +395,8 @@ typedef struct msh_array_header
 
 #define msh_array(T) T*
 
-void* msh_array__grow(const void *array, size_t new_len, size_t elem_size);
-char* msh_array__printf(char *buf, const char *fmt, ...);
+msh_internal void* msh_array__grow(const void *array, size_t new_len, size_t elem_size);
+msh_internal char* msh_array__printf(char *buf, const char *fmt, ...);
 
 #define msh_array__grow_formula(x)    ( (2.0*(x))+10 )
 #define msh_array__hdr(a)             ( (msh_array_hdr_t *)((char *)(a) - sizeof(msh_array_hdr_t)))
@@ -438,22 +437,22 @@ typedef struct msh_map
   size_t _cap;
 } msh_map_t;
 
-uint64_t  msh_hash_uint64( uint64_t x );
-uint64_t  msh_hash_ptr( void *ptr );
-uint64_t  msh_hash_str( const char *str );
+MSHDEF uint64_t  msh_hash_uint64( uint64_t x );
+MSHDEF uint64_t  msh_hash_ptr( void *ptr );
+MSHDEF uint64_t  msh_hash_str( const char *str );
 
-void      msh_map_init( msh_map_t *map, uint32_t cap );
-void      msh_map_free( msh_map_t* map );
+MSHDEF void      msh_map_init( msh_map_t *map, uint32_t cap );
+MSHDEF void      msh_map_free( msh_map_t* map );
 
-size_t    msh_map_len( msh_map_t* map );
-size_t    msh_map_cap( msh_map_t* map ); 
+MSHDEF size_t    msh_map_len( msh_map_t* map );
+MSHDEF size_t    msh_map_cap( msh_map_t* map ); 
 
-void      msh_map_insert( msh_map_t* map, uint64_t key, uint64_t val );
-uint64_t* msh_map_get( const msh_map_t* map, uint64_t key );
+MSHDEF void      msh_map_insert( msh_map_t* map, uint64_t key, uint64_t val );
+MSHDEF uint64_t* msh_map_get( const msh_map_t* map, uint64_t key );
 
-void      msh_map_get_iterable_keys( const msh_map_t* map, uint64_t** keys );
-void      msh_map_get_iterable_vals( const msh_map_t* map, uint64_t** vals );
-void      msh_map_get_iterable_keys_and_vals( const msh_map_t* map, uint64_t** key, uint64_t** val );
+MSHDEF void      msh_map_get_iterable_keys( const msh_map_t* map, uint64_t** keys );
+MSHDEF void      msh_map_get_iterable_vals( const msh_map_t* map, uint64_t** vals );
+MSHDEF void      msh_map_get_iterable_keys_and_vals( const msh_map_t* map, uint64_t** key, uint64_t** val );
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Heap
@@ -461,10 +460,10 @@ void      msh_map_get_iterable_keys_and_vals( const msh_map_t* map, uint64_t** k
 // [ ] Make this generic, currently using only single precision float
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void msh_heap_make( real32_t* vals, size_t n_vals );
-void msh_heap_push( real32_t* vals, size_t n_vals );
-void msh_heap_pop( real32_t* vals, size_t n_vals );
-bool msh_heap_isvalid( real32_t* vals, size_t n_vals );
+MSHDEF void msh_heap_make( real32_t* vals, size_t n_vals );
+MSHDEF void msh_heap_push( real32_t* vals, size_t n_vals );
+MSHDEF void msh_heap_pop( real32_t* vals, size_t n_vals );
+MSHDEF bool msh_heap_isvalid( real32_t* vals, size_t n_vals );
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // String and path manipulation
@@ -479,13 +478,12 @@ bool msh_heap_isvalid( real32_t* vals, size_t n_vals );
   #define MSH_FILE_SEPARATOR "/"
 #endif
 
-char*  msh_strdup( const char *src );
-char*  msh_strndup( const char *src, size_t len );
-size_t msh_strncpy( char* dst, const char* src, size_t len );
-size_t msh_strcpy_range( char* dst, const char* src, size_t start, size_t len );
-
-int32_t msh_path_join( char* buf, size_t size, int32_t n, ... );
-const char* msh_get_ext( char* src );
+MSHDEF char*       msh_strdup( const char *src );
+MSHDEF char*       msh_strndup( const char *src, size_t len );
+MSHDEF size_t      msh_strncpy( char* dst, const char* src, size_t len );
+MSHDEF size_t      msh_strcpy_range( char* dst, const char* src, size_t start, size_t len );
+MSHDEF int32_t     msh_path_join( char* buf, size_t size, int32_t n, ... );
+MSHDEF const char* msh_get_ext( char* src );
 
 struct msh_dir;
 struct msh_finfo;
@@ -496,13 +494,13 @@ typedef struct msh_finfo msh_finfo_t;
 #define MSH_FILENAME_MAX_LEN 128
 #define MSH_FILEEXT_MAX_LEN 16
 
-int32_t msh_dir_open( msh_dir_t* dir, const char* path );
-void    msh_dir_close( msh_dir_t* dir );
-int32_t msh_file_peek( msh_dir_t*, msh_finfo_t* file );
-void    msh_dir_next( msh_dir_t* dir );
+MSHDEF int32_t msh_dir_open( msh_dir_t* dir, const char* path );
+MSHDEF void    msh_dir_close( msh_dir_t* dir );
+MSHDEF int32_t msh_file_peek( msh_dir_t*, msh_finfo_t* file );
+MSHDEF void    msh_dir_next( msh_dir_t* dir );
 
-int32_t msh_file_exists( const char* path );
-int32_t msh_make_dir( const char* src );
+MSHDEF int32_t msh_file_exists( const char* path );
+MSHDEF int32_t msh_make_dir( const char* src );
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -532,22 +530,14 @@ typedef union msh_rgba
 //   Jonatan Hedborg:    unsigned int to normalized float conversion
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef MSH_RND_U32
-    #define MSH_RND_U32 uint32_t
-#endif
-
-#ifndef MSH_RND_U64
-    #define MSH_RND_U64 uint64_t
-#endif
-
 typedef struct msh_rand_ctx { 
-  MSH_RND_U64 state[ 2 ];
+  uint64_t state[ 2 ];
 } msh_rand_ctx_t;
 
-void        msh_rand_init( msh_rand_ctx_t* pcg, MSH_RND_U32 seed );
-MSH_RND_U32 msh_rand_next( msh_rand_ctx_t* pcg );
-float       msh_rand_nextf( msh_rand_ctx_t* pcg );
-int         msh_rand_range( msh_rand_ctx_t* pcg, int min, int max );
+MSHDEF void     msh_rand_init( msh_rand_ctx_t* pcg, uint32_t seed );
+MSHDEF uint32_t msh_rand_next( msh_rand_ctx_t* pcg );
+MSHDEF float    msh_rand_nextf( msh_rand_ctx_t* pcg );
+MSHDEF int      msh_rand_range( msh_rand_ctx_t* pcg, int min, int max );
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Maths & stats helpers
@@ -599,6 +589,7 @@ int         msh_rand_range( msh_rand_ctx_t* pcg, int min, int max );
 #define msh_is_within(x, lower, upper) ( ((x) >= (lower)) && ((x) <= (upper)) )
 #define msh_abs(x) ((x) < 0 ? -(x) : (x))
 
+// TODO(maciej): Check if standard supports this?
 #if !MSH_COMPILER_TCC
   #define msh_sq(x) _Generic((x),   \
                 int32_t: msh_sqi32, \
@@ -608,27 +599,34 @@ int         msh_rand_range( msh_rand_ctx_t* pcg, int min, int max );
                 default: msh_sqf    )(x)
 #endif
 
-int32_t    msh_sqi32(int32_t a);
-int64_t    msh_sqi64(int64_t a);
-float      msh_sqf(float a);
-double     msh_sqd(double a);
+#if !MSH_COMPILER_TCC
+  #define msh_accumulate(x,n) _Generic((x),    \
+                    int32_t: msh_accumulatei,  \
+                    float: msh_accumulatef,    \
+                    double: msh_accumulated,   \
+                    default: msh_accumulatef   )(x,n)
+#endif
 
-int32_t msh_accumulatei( const int32_t* vals, const size_t n_vals );
-float   msh_accumulatef( const float *vals, const size_t n_vals );
-float   msh_accumulated( const double *vals, const size_t n_vals );
+MSHDEF int32_t msh_sqi32(int32_t a);
+MSHDEF int64_t msh_sqi64(int64_t a);
+MSHDEF float   msh_sqf(float a);
+MSHDEF double  msh_sqd(double a);
 
-float   msh_inner_product( const float *vals, const int n_vals );
-float   msh_compute_mean( const float *vals, const int n_vals );
-float   msh_compute_stddev( float mean, float *vals, int n_vals );
+MSHDEF int32_t msh_accumulatei( const int32_t* vals, const size_t n_vals );
+MSHDEF float   msh_accumulatef( const float *vals, const size_t n_vals );
+MSHDEF float   msh_accumulated( const double *vals, const size_t n_vals );
 
-float   msh_gauss_1d( float x, float mu, float sigma );
-float   msh_gausspdf_1d( float x, float mu, float sigma );
-
-void    msh_distrib2pdf( const double* dist, double* pdf, size_t n_vals );
-void    msh_pdf2cdf( const double* pdf, double* cdf, size_t n_vals );
-void    msh_invert_cdf( const double* cdf, size_t n_vals, double* invcdf, size_t n_invcdf_bins );
-int     msh_pdfsample_linear( const double* pdf, double prob, size_t n_vals);
-int     msh_pdfsample_invcdf( const double* pdf, double prob, size_t n_vals);
+MSHDEF float   msh_inner_product( const float *vals, const int n_vals );
+MSHDEF float   msh_compute_mean( const float *vals, const int n_vals );
+MSHDEF float   msh_compute_stddev( float mean, float *vals, int n_vals );
+MSHDEF float   msh_gauss_1d( float x, float mu, float sigma );
+MSHDEF float   msh_gausspdf_1d( float x, float mu, float sigma );
+MSHDEF void    msh_distrib2pdf( const double* dist, double* pdf, size_t n_vals );
+MSHDEF void    msh_pdf2cdf( const double* pdf, double* cdf, size_t n_vals );
+MSHDEF void    msh_invert_cdf( const double* cdf, size_t n_vals, 
+                               double* invcdf, size_t n_invcdf_bins );
+MSHDEF int     msh_pdfsample_linear( const double* pdf, double prob, size_t n_vals);
+MSHDEF int     msh_pdfsample_invcdf( const double* pdf, double prob, size_t n_vals);
 
 typedef struct discrete_distribution_sampler
 {
@@ -638,10 +636,10 @@ typedef struct discrete_distribution_sampler
   msh_rand_ctx_t rand_gen;
 } msh_discrete_distrib_t;
 
-void    msh_discrete_distribution_init( msh_discrete_distrib_t* ctx, 
-                                        double* weights, size_t n_weights, size_t seed );
-void    msh_discrete_distribution_free( msh_discrete_distrib_t* ctx );
-int     msh_discrete_distribution_sample( msh_discrete_distrib_t* ctx );
+MSHDEF void    msh_discrete_distribution_init( msh_discrete_distrib_t* ctx, 
+                                               double* weights, size_t n_weights, size_t seed );
+MSHDEF void    msh_discrete_distribution_free( msh_discrete_distrib_t* ctx );
+MSHDEF int     msh_discrete_distribution_sample( msh_discrete_distrib_t* ctx );
 
 
 #ifdef __cplusplus
@@ -685,7 +683,7 @@ msh_print_progress_bar( char* prefix, char* suffix, uint64_t iter, uint64_t tota
 // ARRAY
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-MSHDEF void*
+msh_internal void*
 msh_array__grow(const void *array, size_t new_len, size_t elem_size) {
   size_t old_cap = msh_array_cap( array );
   size_t new_cap = (size_t)msh_array__grow_formula( old_cap );
@@ -706,7 +704,7 @@ msh_array__grow(const void *array, size_t new_len, size_t elem_size) {
   return (void*)((char*)new_hdr + sizeof(msh_array_hdr_t));
 }
 
-MSHDEF char*
+msh_internal char*
 msh_array__printf(char *buf, const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
@@ -732,7 +730,7 @@ msh_array__printf(char *buf, const char *fmt, ...) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // HASHTABLE
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-uint64_t 
+MSHDEF uint64_t
 msh_hash_uint64( uint64_t x ) 
 {
   x *= 0xff51afd7ed558ccd;
@@ -740,13 +738,13 @@ msh_hash_uint64( uint64_t x )
   return x;
 }
 
-uint64_t 
+MSHDEF uint64_t
 msh_hash_ptr( void *ptr ) 
 {
   return msh_hash_uint64( (uintptr_t)ptr );
 }
 
-uint64_t 
+MSHDEF uint64_t
 msh_hash_str( const char *str ) 
 {
   uint64_t x = 0xcbf29ce484222325;
@@ -761,7 +759,7 @@ msh_hash_str( const char *str )
   return x;
 }
 
-size_t 
+msh_internal size_t
 msh_map__pow2ceil( uint32_t v )
 {
   --v;
@@ -775,7 +773,7 @@ msh_map__pow2ceil( uint32_t v )
   return v;
 }
 
-void 
+MSHDEF void
 msh_map_init( msh_map_t *map, uint32_t cap )
 {
   assert( !map->keys && !map->vals );
@@ -786,7 +784,7 @@ msh_map_init( msh_map_t *map, uint32_t cap )
   map->_cap = cap;
 }
 
-void 
+MSHDEF void
 msh_map__grow( msh_map_t *map, size_t new_cap ) {
   new_cap = msh_max( new_cap, 16 );
   msh_map_t new_map;
@@ -807,19 +805,19 @@ msh_map__grow( msh_map_t *map, size_t new_cap ) {
   *map = new_map;
 }
 
-size_t
+MSHDEF size_t
 msh_map_len( msh_map_t* map )
 {
   return map->_len;
 }
 
-size_t
+MSHDEF size_t
 msh_map_cap( msh_map_t* map )
 {
   return map->_cap;
 }
 
-void 
+MSHDEF void
 msh_map_insert( msh_map_t* map, uint64_t key, uint64_t val )
 {
   // Increment the key, so that key == 0 is valid, even though 0 is marking empty slot.
@@ -846,7 +844,7 @@ msh_map_insert( msh_map_t* map, uint64_t key, uint64_t val )
   }
 }
 
-uint64_t* 
+MSHDEF uint64_t*
 msh_map_get( const msh_map_t* map, uint64_t key )
 {
   if( map->_len == 0 ) { return NULL; }
@@ -867,8 +865,7 @@ msh_map_get( const msh_map_t* map, uint64_t key )
   }
 }
 
-
-void 
+MSHDEF void
 msh_map_free( msh_map_t* map )
 {
   free( map->keys );
@@ -877,7 +874,7 @@ msh_map_free( msh_map_t* map )
   map->_len = 0;
 }
 
-void
+MSHDEF void
 msh_map_get_iterable_keys( const msh_map_t* map, uint64_t** keys )
 {
   assert( (*keys) == NULL );
@@ -889,7 +886,7 @@ msh_map_get_iterable_keys( const msh_map_t* map, uint64_t** keys )
   }
 }
 
-void
+MSHDEF void
 msh_map_get_iterable_vals( const msh_map_t* map, uint64_t** vals )
 {
   assert( (*vals) == NULL );
@@ -901,7 +898,7 @@ msh_map_get_iterable_vals( const msh_map_t* map, uint64_t** vals )
   }
 }
 
-void
+MSHDEF void
 msh_map_get_iterable_keys_and_vals( const msh_map_t* map, uint64_t** keys, uint64_t** vals )
 {
   assert( (*keys) == NULL );
@@ -926,7 +923,7 @@ msh_map_get_iterable_keys_and_vals( const msh_map_t* map, uint64_t** keys, uint6
 // Modelled after 'Matters Computational' by Joerg Arndt, but interface mirrors stl
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void
+msh_internal void
 msh__heapify( float *vals, size_t vals_len, size_t cur )
 {
   size_t max = cur;
@@ -945,14 +942,14 @@ msh__heapify( float *vals, size_t vals_len, size_t cur )
   }
 }
 
-void
+MSHDEF void
 msh_heap_make( real32_t* vals, size_t vals_len )
 {
   int64_t i = vals_len >> 1;
   while ( i >= 0 ) { msh__heapify( vals, vals_len, i-- ); }
 }
 
-void
+MSHDEF void
 msh_heap_pop( real32_t* vals, size_t vals_len )
 {
   float max = vals[0];
@@ -963,7 +960,7 @@ msh_heap_pop( real32_t* vals, size_t vals_len )
   if( vals_len > 0 ){ msh__heapify( vals, vals_len, 0 ); }
 }
 
-void
+MSHDEF void
 msh_heap_push( real32_t* vals, size_t vals_len )
 {
   int64_t i = vals_len-1;
@@ -980,7 +977,7 @@ msh_heap_push( real32_t* vals, size_t vals_len )
   vals[i] = v;
 }
 
-bool
+MSHDEF bool
 msh_heap_isvalid( real32_t* vals, size_t vals_len )
 {
   for( int i = vals_len - 1; i > 0; --i )
@@ -996,7 +993,7 @@ msh_heap_isvalid( real32_t* vals, size_t vals_len )
 // STRINGS + PATHS
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-MSHDEF char* 
+MSHDEF char*
 msh_strndup( const char *src, size_t len )
 {
   char* cpy = (char*)malloc( len+1 );
@@ -1048,7 +1045,7 @@ msh_get_ext( char* name )
   return period;
 }
 
-int32_t
+MSHDEF int32_t
 msh_path_join( char* buf, size_t size, int32_t n, ... )
 {
   va_list args;
@@ -1068,13 +1065,14 @@ msh_path_join( char* buf, size_t size, int32_t n, ... )
   return len;
 }
 
-const char*
+MSHDEF const char*
 msh_path_basename( const char* path )
 {
   const char* sep_ptr = strrchr( path, MSH_FILE_SEPARATOR[0] );
   if( sep_ptr && strlen(sep_ptr) > 1 ) { return sep_ptr + 1; }
   return path;
 }
+
 #if MSH_PLATFORM_WINDOWS
 struct msh_dir
 {
@@ -1109,7 +1107,8 @@ msh_file_peek( msh_dir_t* dir, msh_finfo_t* file )
   msh_strcpy_range( file->name, file_name, 0, MSH_FILENAME_MAX_LEN );
   
   size_t max_dword = MAXDWORD;
-  file->size = ((size_t)dir->file_data.nFileSizeHigh * (max_dword + 1)) + (size_t)dir->file_data.nFileSizeLow;
+  file->size = ((size_t)dir->file_data.nFileSizeHigh * (max_dword + 1)) +
+                (size_t)dir->file_data.nFileSizeLow;
 
   file->is_dir = !!(dir->file_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
   file->is_reg = !!(dir->file_data.dwFileAttributes & FILE_ATTRIBUTE_NORMAL) ||
@@ -1166,7 +1165,7 @@ msh_dir_open( msh_dir_t* dir, const char* path )
   return 0;
 }
 
-MSHDEF void 
+MSHDEF void
 msh_dir_close( msh_dir_t* dir )
 {
   dir->path[0] = 0;
@@ -1189,19 +1188,19 @@ msh_file_exists( const char* path )
 // TIME
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-MSHDEF float 
-msh_rand__float_normalized_from_u32( MSH_RND_U32 value )
+msh_internal float 
+msh__rand_float_normalized_from_u32( uint32_t value )
 {
-  MSH_RND_U32 exponent = 127;
-  MSH_RND_U32 mantissa = value >> 9;
-  MSH_RND_U32 result   = ( exponent << 23 ) | mantissa;
+  uint32_t exponent = 127;
+  uint32_t mantissa = value >> 9;
+  uint32_t result   = ( exponent << 23 ) | mantissa;
   float fresult        = 0.0f;
   memcpy( &fresult, &result, sizeof(float) );
   return fresult - 1.0f;
 }
 
-MSHDEF MSH_RND_U32 
-msh_rand__murmur3_avalanche32( MSH_RND_U32 h )
+msh_internal uint32_t 
+msh__rand_murmur3_avalanche32( uint32_t h )
 {
   h ^= h >> 16;
   h *= 0x85ebca6b;
@@ -1211,8 +1210,8 @@ msh_rand__murmur3_avalanche32( MSH_RND_U32 h )
   return h;
 }
 
-MSHDEF MSH_RND_U64 
-msh_rand__murmur3_avalanche64( MSH_RND_U64 h )
+msh_internal uint64_t 
+msh__rand_murmur3_avalanche64( uint64_t h )
 {
   h ^= h >> 33;
   h *= 0xff51afd7ed558ccd;
@@ -1222,36 +1221,36 @@ msh_rand__murmur3_avalanche64( MSH_RND_U64 h )
   return h;
 }
 
-void 
-msh_rand_init( msh_rand_ctx_t* pcg, MSH_RND_U32 seed )
+MSHDEF void
+msh_rand_init( msh_rand_ctx_t* pcg, uint32_t seed )
 {
-  MSH_RND_U64 value = ( ( (MSH_RND_U64) seed ) << 1ULL ) | 1ULL;
-  value = msh_rand__murmur3_avalanche64( value );
+  uint64_t value = ( ( (uint64_t) seed ) << 1ULL ) | 1ULL;
+  value = msh__rand_murmur3_avalanche64( value );
   pcg->state[ 0 ] = 0U;
   pcg->state[ 1 ] = ( value << 1ULL ) | 1ULL;
   msh_rand_next( pcg );
-  pcg->state[ 0 ] += msh_rand__murmur3_avalanche64( value );
+  pcg->state[ 0 ] += msh__rand_murmur3_avalanche64( value );
   msh_rand_next( pcg );
 }
 
 
-MSH_RND_U32 
+MSHDEF uint32_t
 msh_rand_next( msh_rand_ctx_t* pcg )
 {
-  MSH_RND_U64 oldstate = pcg->state[ 0 ];
+  uint64_t oldstate = pcg->state[ 0 ];
   pcg->state[ 0 ] = oldstate * 0x5851f42d4c957f2dULL + pcg->state[ 1 ];
-  MSH_RND_U32 xorshifted = (MSH_RND_U32)( ( ( oldstate >> 18ULL) ^ oldstate ) >> 27ULL );
-  MSH_RND_U32 rot = (MSH_RND_U32)( oldstate >> 59ULL );
+  uint32_t xorshifted = (uint32_t)( ( ( oldstate >> 18ULL) ^ oldstate ) >> 27ULL );
+  uint32_t rot = (uint32_t)( oldstate >> 59ULL );
   return ( xorshifted >> rot ) | ( xorshifted << ( ( -(int) rot ) & 31 ) );
 }
 
-float
+MSHDEF float
 msh_rand_nextf( msh_rand_ctx_t* pcg )
 {
-  return msh_rand__float_normalized_from_u32( msh_rand_next( pcg ) );
+  return msh__rand_float_normalized_from_u32( msh_rand_next( pcg ) );
 }
 
-int32_t 
+MSHDEF int32_t
 msh_rand_range( msh_rand_ctx_t* pcg, int32_t min, int32_t max )
 {
   int32_t const range = ( max - min ) + 1;
@@ -1266,7 +1265,7 @@ msh_rand_range( msh_rand_ctx_t* pcg, int32_t min, int32_t max )
 // DEBUG + TIME
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void
+MSHDEF void
 msh_sleep( uint64_t ms ) {
 #if MSH_PLATFORM_WINDOWS
   Sleep( ms );
@@ -1276,7 +1275,7 @@ msh_sleep( uint64_t ms ) {
 }
 
 // NOTE(maciej): http://codearcana.com/posts/2013/05/15/a-cross-platform-monotonic-timer.html
-uint64_t
+MSHDEF uint64_t
 msh_rdtsc()
 {
 #if MSH_PLATFORM_WINDOWS
@@ -1292,7 +1291,7 @@ msh_rdtsc()
 }
 
 // GCC Does not deal with inline well...
-double
+MSHDEF double
 msh_time_nano_to( int32_t unit, uint64_t time )
 {
   switch(unit)
@@ -1305,32 +1304,32 @@ msh_time_nano_to( int32_t unit, uint64_t time )
   return (double)(time);
 }
 
-double 
+MSHDEF double 
 msh_time_diff( int32_t unit, uint64_t new_time, uint64_t old_time )
 {
   uint64_t diff = new_time - old_time;
   return msh_time_nano_to( unit, diff );
 }
 
-double
+MSHDEF double
 msh_time_diff_sec( uint64_t t2, uint64_t t1 )
 {
   return msh_time_diff( MSHT_SEC, t2, t1 );
 }
 
-double
+MSHDEF double
 msh_time_diff_ms( uint64_t t2, uint64_t t1 )
 {
   return msh_time_diff( MSHT_MS, t2, t1 );
 }
 
-double
+MSHDEF double
 mse_diff_us( uint64_t t2, uint64_t t1 )
 { 
    return msh_time_diff( MSHT_US, t2, t1 );
 }
 
-double
+MSHDEF double
 msh_time_diff_ns( uint64_t t2, uint64_t t1 )
 {
   return msh_time_diff( MSHT_NS, t2, t1 );
@@ -1339,7 +1338,8 @@ msh_time_diff_ns( uint64_t t2, uint64_t t1 )
 /* prevent 64-bit overflow when computing relative timestamp
     see https://gist.github.com/jspohr/3dc4f00033d79ec5bdaf67bc46c813e3
 */
-int64_t msh__int64_muldiv( int64_t value, int64_t numer, int64_t denom ) {
+msh_internal int64_t
+msh__int64_muldiv( int64_t value, int64_t numer, int64_t denom ) {
   int64_t q = value / denom;
   int64_t r = value % denom;
   return q * numer + r * numer / denom;
@@ -1347,7 +1347,7 @@ int64_t msh__int64_muldiv( int64_t value, int64_t numer, int64_t denom ) {
 
 #if MSH_PLATFORM_WINDOWS
 
-uint64_t 
+MSHDEF uint64_t
 msh_time_now()
 {
   msh_persistent int first = 1;
@@ -1367,7 +1367,7 @@ msh_time_now()
 
 #elif MSH_PLATFORM_LINUX
 
-uint64_t
+MSHDEF uint64_t
 msh_time_now()
 {
   msh_persistent int first = 1;
@@ -1388,7 +1388,7 @@ msh_time_now()
 
 #elif MSH_PLATFORM_MACOS
 
-uint64_t
+MSHDEF uint64_t
 msh_time_now()
 {
   msh_persistent int first = 1;
@@ -1456,7 +1456,7 @@ msh_global msh_debug_event_t* DEBUG_EVENT_ARRAY;
 #define MSH_BEGIN_TIMED_BLOCK() msh_debug_begin_timed_block( uid, (char*)__FILE__, (char*)__FUNCTION__, __LINE__ )
 #define MSH_END_TIMED_BLOCK() msh_debug_end_timed_block( uid, (char*)__FILE__, (char*)__FUNCTION__, __LINE__ )
 
-void
+MSHDEF void
 msh_debug_begin_timed_block( int32_t counter, char* filename, char* function_name, int32_t line_number )
 {
   msh_debug_event_t debug_event;
@@ -1470,7 +1470,7 @@ msh_debug_begin_timed_block( int32_t counter, char* filename, char* function_nam
   (msh_array_end( DEBUG_EVENT_ARRAY ) - 1)->clock = msh_rdtsc();
 }
 
-void
+MSHDEF void
 msh_debug_end_timed_block( int32_t counter, char* filename, char* function_name, int32_t line_number )
 {
   uint64_t clock_val        = msh_rdtsc();
@@ -1485,7 +1485,7 @@ msh_debug_end_timed_block( int32_t counter, char* filename, char* function_name,
   msh_array_push( DEBUG_EVENT_ARRAY, debug_event );
 }
 
-void
+MSHDEF void
 msh_debug_report_debug_events()
 {
   for( size_t event_idx = 0; event_idx < msh_array_len( DEBUG_EVENT_ARRAY ); ++event_idx )
@@ -1530,12 +1530,30 @@ msh_debug_report_debug_events()
 // MATHS
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-int32_t    msh_sqi32(int32_t a)    { return a*a; }
-int64_t    msh_sqi64(int64_t a)    { return a*a; }
-float      msh_sqf(float a)  { return a*a; }
-double     msh_sqd(double a) { return a*a; }
+MSHDEF int32_t
+msh_sqi32(int32_t a)
+{
+  return a*a;
+}
+MSHDEF int64_t
+msh_sqi64(int64_t a)
+{
+  return a*a;
+}
 
-int32_t
+MSHDEF float
+msh_sqf(float a)
+{
+  return a*a; 
+}
+
+MSHDEF double
+msh_sqd(double a)
+{
+  return a*a;
+}
+
+MSHDEF int32_t
 msh_accumulatei( const int32_t* vals, const size_t n_vals )
 {
   int32_t accum = 0;
@@ -1546,7 +1564,7 @@ msh_accumulatei( const int32_t* vals, const size_t n_vals )
   return accum;
 }
 
-float
+MSHDEF float
 msh_accumulatef( const float *vals, const size_t n_vals )
 {
   float accum = 0;
@@ -1557,7 +1575,7 @@ msh_accumulatef( const float *vals, const size_t n_vals )
   return accum;
 }
 
-float 
+MSHDEF float
 msh_accumulated( const double *vals, const size_t n_vals )
 {
   double accum = 0;
@@ -1568,7 +1586,7 @@ msh_accumulated( const double *vals, const size_t n_vals )
   return accum;
 }
 
-float 
+MSHDEF float
 msh_inner_product( const float *vals, const int n_vals )
 {
   float value = 0.0f;
@@ -1579,7 +1597,7 @@ msh_inner_product( const float *vals, const int n_vals )
   return value;
 }
 
-float 
+MSHDEF float
 msh_compute_mean( const float *vals, const int n_vals )
 {
   float sum = msh_accumulatef( vals, n_vals );
@@ -1588,7 +1606,7 @@ msh_compute_mean( const float *vals, const int n_vals )
 
 // NOTE(maciej): Temporarily switch sqrtf to sqrt etc., 
 //               since tcc does not seem to have correct libm on windows?
-float 
+MSHDEF float
 msh_compute_stddev( float mean, float *vals, int n_vals )
 {
   float sq_sum = msh_inner_product( vals, n_vals );
@@ -1596,14 +1614,14 @@ msh_compute_stddev( float mean, float *vals, int n_vals )
 }
 
 // TODO(maciej): More analytical distributions in the future, like Poisson etc.
-float 
+MSHDEF float
 msh_gauss1d( float x, float mu, float sigma )
 {
   float exponential = (float)exp( -0.5f * msh_sqf((x-mu)/sigma));
   return exponential;
 }
 
-float 
+MSHDEF float
 msh_gausspdf1d( float x, float mu, float sigma )
 {
   float scale = 1.0f * sigma * sqrt( 2.0f * (float)MSH_PI );
@@ -1611,7 +1629,7 @@ msh_gausspdf1d( float x, float mu, float sigma )
   return scale*exponential;
 }
 
-void 
+MSHDEF void
 msh_distrib2pdf( const double* dist, double* pdf, size_t n_vals )
 { 
   double sum = msh_accumulated(dist, n_vals);
@@ -1620,7 +1638,7 @@ msh_distrib2pdf( const double* dist, double* pdf, size_t n_vals )
   for( size_t i = 0 ; i < n_vals; ++i ) { pdf[i] = (dist[i] * inv_sum); }
 }
 
-void
+MSHDEF void
 msh_pdf2cdf( const double* pdf, double* cdf, size_t n_vals )
 {
   double accum = 0.0;
@@ -1632,7 +1650,7 @@ msh_pdf2cdf( const double* pdf, double* cdf, size_t n_vals )
  * http://www.keithschwarz.com/darts-dice-coins/
  */
 
-void
+MSHDEF void
 msh_discrete_distribution_init( msh_discrete_distrib_t* ctx, double* weights, size_t n_weights, size_t seed )
 {
   msh_rand_init( &ctx->rand_gen, seed );
@@ -1688,7 +1706,7 @@ msh_discrete_distribution_init( msh_discrete_distrib_t* ctx, double* weights, si
   free(pdf);
 }
 
-void 
+MSHDEF void
 msh_discrete_distribution_free( msh_discrete_distrib_t* ctx )
 {
   free( ctx->prob );
@@ -1696,7 +1714,7 @@ msh_discrete_distribution_free( msh_discrete_distrib_t* ctx )
   ctx->n_weights = 0;
 }
 
-int 
+MSHDEF int
 msh_discrete_distribution_sample( msh_discrete_distrib_t* ctx )
 {
   int column = msh_rand_range( &ctx->rand_gen, 0, ctx->n_weights - 1 );
@@ -1704,7 +1722,7 @@ msh_discrete_distribution_sample( msh_discrete_distrib_t* ctx )
   return coin_toss ? column : ctx->alias[column];
 }
 
-void
+MSHDEF void
 msh_invert_cdf( const double* cdf, size_t n_vals, double* invcdf, size_t n_invcdf_bins )
 {
   size_t prev_x = 0;
@@ -1719,7 +1737,7 @@ msh_invert_cdf( const double* cdf, size_t n_vals, double* invcdf, size_t n_invcd
   }
 }
 
-int
+MSHDEF int
 msh_pdfsample_invcdf( const double* invcdf, double prob, size_t n_vals )
 {
   int cdf_idx = prob * n_vals;
