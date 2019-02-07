@@ -395,8 +395,8 @@ typedef struct msh_array_header
 
 #define msh_array(T) T*
 
-msh_internal void* msh_array__grow(const void *array, size_t new_len, size_t elem_size);
-msh_internal char* msh_array__printf(char *buf, const char *fmt, ...);
+MSHDEF void* msh_array__grow(const void *array, size_t new_len, size_t elem_size);
+MSHDEF char* msh_array__printf(char *buf, const char *fmt, ...);
 
 #define msh_array__grow_formula(x)    ( (2.0*(x))+10 )
 #define msh_array__hdr(a)             ( (msh_array_hdr_t *)((char *)(a) - sizeof(msh_array_hdr_t)))
@@ -683,7 +683,7 @@ msh_print_progress_bar( char* prefix, char* suffix, uint64_t iter, uint64_t tota
 // ARRAY
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-msh_internal void*
+MSHDEF void*
 msh_array__grow(const void *array, size_t new_len, size_t elem_size) {
   size_t old_cap = msh_array_cap( array );
   size_t new_cap = (size_t)msh_array__grow_formula( old_cap );
@@ -704,7 +704,7 @@ msh_array__grow(const void *array, size_t new_len, size_t elem_size) {
   return (void*)((char*)new_hdr + sizeof(msh_array_hdr_t));
 }
 
-msh_internal char*
+MSHDEF char*
 msh_array__printf(char *buf, const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
@@ -1189,7 +1189,7 @@ msh_file_exists( const char* path )
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 msh_internal float 
-msh__rand_float_normalized_from_u32( uint32_t value )
+msh_rand__float_normalized_from_u32( uint32_t value )
 {
   uint32_t exponent = 127;
   uint32_t mantissa = value >> 9;
@@ -1199,19 +1199,8 @@ msh__rand_float_normalized_from_u32( uint32_t value )
   return fresult - 1.0f;
 }
 
-msh_internal uint32_t 
-msh__rand_murmur3_avalanche32( uint32_t h )
-{
-  h ^= h >> 16;
-  h *= 0x85ebca6b;
-  h ^= h >> 13;
-  h *= 0xc2b2ae35;
-  h ^= h >> 16;
-  return h;
-}
-
-msh_internal uint64_t 
-msh__rand_murmur3_avalanche64( uint64_t h )
+msh_internal uint64_t
+msh_rand__murmur3_avalanche64( uint64_t h )
 {
   h ^= h >> 33;
   h *= 0xff51afd7ed558ccd;
@@ -1225,11 +1214,11 @@ MSHDEF void
 msh_rand_init( msh_rand_ctx_t* pcg, uint32_t seed )
 {
   uint64_t value = ( ( (uint64_t) seed ) << 1ULL ) | 1ULL;
-  value = msh__rand_murmur3_avalanche64( value );
+  value = msh_rand__murmur3_avalanche64( value );
   pcg->state[ 0 ] = 0U;
   pcg->state[ 1 ] = ( value << 1ULL ) | 1ULL;
   msh_rand_next( pcg );
-  pcg->state[ 0 ] += msh__rand_murmur3_avalanche64( value );
+  pcg->state[ 0 ] += msh_rand__murmur3_avalanche64( value );
   msh_rand_next( pcg );
 }
 
@@ -1247,7 +1236,7 @@ msh_rand_next( msh_rand_ctx_t* pcg )
 MSHDEF float
 msh_rand_nextf( msh_rand_ctx_t* pcg )
 {
-  return msh__rand_float_normalized_from_u32( msh_rand_next( pcg ) );
+  return msh_rand__float_normalized_from_u32( msh_rand_next( pcg ) );
 }
 
 MSHDEF int32_t
