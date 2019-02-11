@@ -69,7 +69,6 @@
 #include <stdint.h>
 #include <string.h>
 
-
 #define MSH_JOBS_JOB_SIGNATURE(name) uint32_t name(int thread_idx, void* params)
 typedef uint32_t (*msh_jobs_job_signature_t)( int thread_idx, void* data);
 

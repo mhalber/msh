@@ -483,7 +483,8 @@ MSHDEF char*       msh_strndup( const char *src, size_t len );
 MSHDEF size_t      msh_strncpy( char* dst, const char* src, size_t len );
 MSHDEF size_t      msh_strcpy_range( char* dst, const char* src, size_t start, size_t len );
 MSHDEF int32_t     msh_path_join( char* buf, size_t size, int32_t n, ... );
-MSHDEF const char* msh_get_ext( char* src );
+MSHDEF const char* msh_path_basename( const char* path );
+MSHDEF const char* msh_path_get_ext( const char* src );
 
 struct msh_dir;
 struct msh_finfo;
@@ -927,8 +928,8 @@ msh_internal void
 msh__heapify( float *vals, size_t vals_len, size_t cur )
 {
   size_t max = cur;
-  const size_t left  = (cur<<1) + 1;
-  const size_t right = (cur<<1) + 2;
+  const size_t left  = (cur<<1) + 1; // multiply by two
+  const size_t right = (cur<<1) + 2; // multiply by two
 
   if( (left < vals_len) && (vals[left] > vals[cur]) )   { max = left; }
   if( (right < vals_len) && (vals[right] > vals[max]) ) { max = right; }
@@ -945,7 +946,7 @@ msh__heapify( float *vals, size_t vals_len, size_t cur )
 MSHDEF void
 msh_heap_make( real32_t* vals, size_t vals_len )
 {
-  int64_t i = vals_len >> 1;
+  int64_t i = vals_len >> 1; // division by two
   while ( i >= 0 ) { msh__heapify( vals, vals_len, i-- ); }
 }
 
@@ -1031,9 +1032,9 @@ msh_strncpy( char* dst, const char* src, size_t n )
 }
 
 MSHDEF const char*
-msh_get_ext( char* name )
+msh_path_get_ext( const char* name )
 {
-  char* period = NULL;
+  const char* period = NULL;
   while( *name++ )
   {
     if( *name == '.' ) { period = name; }
@@ -1098,7 +1099,7 @@ msh_file_peek( msh_dir_t* dir, msh_finfo_t* file )
   assert(dir->handle != INVALID_HANDLE_VALUE);
 
   char* file_name = dir->file_data.cFileName;
-  const char* ext = msh_get_ext( file_name );
+  const char* ext = msh_path_get_ext( file_name );
 
   if( ext )
   {
