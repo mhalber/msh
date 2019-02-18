@@ -49,7 +49,7 @@
     int32_t msh_ply_read( msh_ply_t* pf );
   
   Performs reading of ply file described by 'pf'. Should be called after adding descriptors. 
-  Returns 0 on success and error  code on failure.
+  Returns 0 on success and error code on failure.
     
   msh_ply_write
   -------------------
@@ -94,9 +94,9 @@
 
   Closes the ply file 'pf'. 
 
-  msh_ply_get_error_msg
+  msh_ply_error_msg
   -------------------
-    const char* msh_ply_get_error_msg( int32_t err );
+    const char* msh_ply_error_msg( int32_t err );
 
   Get pointer to a error message string from the error code. 
   
@@ -116,7 +116,7 @@
   System for reading is exactly the same, but you'd be describing requested data.
   Note that ply file does not own pointers to the data, so you will need to delete these
   separately. Additionally, every function returns an error code, which can be turned 
-  into string message using "msh_ply_get_error_msg( ply_err_t err )" function. Not used
+  into string message using "msh_ply_error_msg( ply_err_t err )" function. Not used
   below for clarity.
 
   ------------------------------
@@ -130,7 +130,7 @@
     int n_faces;
   } TriMesh_t;
 
-  TriMesh_t mesh;
+  TriMesh_t mesh = {0};
   your_function_to_initialize_mesh( &mesh );
 
   msh_ply_desc_t descriptors[2];
@@ -141,7 +141,7 @@
                      .data = &mesh->vertices,
                      .data_count = &mesh->n_vertices };
 
-  descriptors[1] = { .element_name = "vertex",
+  descriptors[1] = { .element_name = "face",
                      .property_names = (const char*[]){"vertex_indices"},
                      .num_properties = 1,
                      .data_type = MSH_PLY_INT32,
@@ -253,6 +253,7 @@
   [x] Encoder / decorder split
   [x] Error reporting
     [ ] Revise when errors are reported
+    [ ] Just have a switch statement instead of static array
   [x] Inline msh_ply_array if it is not available
   [x] Code cleanup
     [x] Replace duplicated code
@@ -354,7 +355,7 @@ int32_t             msh_ply_parse_header( msh_ply_t* pf );
 bool                msh_ply_has_properties( const msh_ply_t* pf, const msh_ply_desc_t* desc );
 msh_ply_element_t*  msh_ply_find_element( const msh_ply_t* pf, const char* element_name );
 msh_ply_property_t* msh_ply_find_property( const msh_ply_element_t* el, const char* property_name );
-const char*         msh_ply_get_error_msg( int32_t err );
+const char*         msh_ply_error_msg( int32_t err );
 void                msh_ply_print_header( msh_ply_t* pf );
 
 #ifndef MSH_PLY_ENCODER_ONLY
@@ -525,7 +526,7 @@ static const char* msh_ply_error_msgs[MSH_PLY_NUM_OF_ERRORS] = {
 };
 
 const char* 
-msh_ply_get_error_msg( int32_t err )
+msh_ply_error_msg( int32_t err )
 {
   return msh_ply_error_msgs[ err ]; 
 }

@@ -484,6 +484,7 @@ MSHDEF size_t      msh_strncpy( char* dst, const char* src, size_t len );
 MSHDEF size_t      msh_strcpy_range( char* dst, const char* src, size_t start, size_t len );
 MSHDEF int32_t     msh_path_join( char* buf, size_t size, int32_t n, ... );
 MSHDEF const char* msh_path_basename( const char* path );
+MSHDEF void        msh_path_normalize( char* path );
 MSHDEF const char* msh_path_get_ext( const char* src );
 
 struct msh_dir;
@@ -1072,6 +1073,16 @@ msh_path_basename( const char* path )
   const char* sep_ptr = strrchr( path, MSH_FILE_SEPARATOR[0] );
   if( sep_ptr && strlen(sep_ptr) > 1 ) { return sep_ptr + 1; }
   return path;
+}
+
+MSHDEF void
+msh_path_normalize( char* path )
+{
+  int32_t last_idx = strlen(path)-1;
+  if( path[last_idx] == '\\' || path[last_idx] == '/' )
+  {
+    path[last_idx] = 0;
+  }
 }
 
 #if MSH_PLATFORM_WINDOWS
