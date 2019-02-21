@@ -36,6 +36,7 @@
   ==================================================================================================
   TODOs:
   [x] Limits
+  [ ] Disjoint Set Implementation
   [ ] Simple set implementation
   [ ] Path manipulation
   [ ] Memory allocation
@@ -46,8 +47,6 @@
     [ ] Common qsort comparator functions
     [ ] binary and linear searches over arrays
     [ ] Radix sort?
-  [x] Multithreading / Scheduling <-- separate lib, msh_jobs.h
-  [x] Stats - cdf inversion
   [ ] Custom prints (stb_sprintf inlined, look at replacing sprintf with "write" function in linux (unistd.h))
 
   ==================================================================================================
@@ -69,8 +68,8 @@ extern "C" {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Miscellaneous
 //
-// Credits
-//  Ginger Bill: System and architecture detection from gb.h and bgfx
+// Credits:
+//  Ginger Bill:      System and architecture detection from gb.h and bgfx
 //  Бранимир Караџић: Platform detection macros
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -293,9 +292,10 @@ typedef double real64_t;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Debug / Time
 //
-// TODO(maciej): Fill this in with stuff that casey is talking about, like automatic performance 
-//  counters
-// Credits: Timings based on cute headers by Randy Gaul
+// TODOs:
+//  [ ] Interface for a form of performance counters
+// Credits: 
+//   Randy Gaul: cute_time.h
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 enum msh__time_units
@@ -318,11 +318,11 @@ MSHDEF double   msh_time_diff_us( uint64_t new_time, uint64_t old_time );
 MSHDEF double   msh_time_diff_ns( uint64_t new_time, uint64_t old_time );
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// Printing
+// Printing Helpers
+// TODOs:
+//   [ ] inline vsnprintf from stb
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-/* TODOs:
- *  [ ] inline vsnprintf from stb
- */
+
 #define msh_cprintf(cond, fmt, ...) do {                      \
     if(cond)                                                  \
     {                                                         \
@@ -373,19 +373,14 @@ MSHDEF void msh_print_progress_bar( char* prefix, char* suffix,
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// Array
-//
+// Dynamic Size Array
+// TODOs 
+//  [ ] Convert this to a function based implementation with things like array bounds (?)
+//  [ ] Change behaviour of msh_array_pop
 // Credits
 //   Seat T. Barrett - idea of stretchy buffers (?)
 //   Per Vognsen     - various improvements from his ion implementation
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-/* TODOs 
-  [ ] Prepare docs
-  [ ] Replace malloc with jemalloc or TC malloc?
-  [ ] What about alignment issues? http://pzemtsov.github.io/2016/11/06/bug-story-alignment-on-x86.html
-  [ ] Convert this to a function based implementation with things like array bounds (?)
-  [ ] Change behaviour of msh_array_pop
-*/
 
 typedef struct msh_array_header
 {
@@ -457,7 +452,9 @@ MSHDEF void      msh_map_get_iterable_keys_and_vals( const msh_map_t* map, uint6
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Heap
 // TODO:
-// [ ] Make this generic, currently using only single precision float
+//   [ ] Make this generic, currently using only single precision float
+// Credits:
+//   Joerg Arndt, 'Matters Computational'
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 MSHDEF void msh_heap_make( real32_t* vals, size_t n_vals );
@@ -466,11 +463,26 @@ MSHDEF void msh_heap_pop( real32_t* vals, size_t n_vals );
 MSHDEF bool msh_heap_isvalid( real32_t* vals, size_t n_vals );
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// String and path manipulation
-//
-// Credits:
-//   Randy Gaul cute_files.h: https://github.com/RandyGaul/cute_headers/blob/master/cute_files.h
+// Disjoint Set
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+typedef struct msh_dset msh_dset_t;
+MSHDEF void     msh_dset_init( msh_dset_t* dset, size_t n_vals );
+MSHDEF void     msh_dset_term( msh_dset_t* dset );
+MSHDEF uint64_t msh_dset_find( msh_dset_t* dset, uint64_t idx );
+MSHDEF void     msh_dset_union( msh_dset_t* dset, uint64_t idx_a, uint64_t idx_b );
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// String and path manipulation
+// TODO:
+// [ ] String tokenization
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+MSHDEF char*       msh_strdup( const char *src );
+MSHDEF char*       msh_strndup( const char *src, size_t len );
+MSHDEF size_t      msh_strncpy( char* dst, const char* src, size_t len );
+MSHDEF size_t      msh_strcpy_range( char* dst, const char* src, size_t start, size_t len );
+// MSHDEF char*       msh_strtok( char* string, char* delim );
 
 #if MSH_PLATFORM_WINDOWS && !MSH_CRT_MINGW
   #define MSH_FILE_SEPARATOR "\\"
@@ -478,14 +490,18 @@ MSHDEF bool msh_heap_isvalid( real32_t* vals, size_t n_vals );
   #define MSH_FILE_SEPARATOR "/"
 #endif
 
-MSHDEF char*       msh_strdup( const char *src );
-MSHDEF char*       msh_strndup( const char *src, size_t len );
-MSHDEF size_t      msh_strncpy( char* dst, const char* src, size_t len );
-MSHDEF size_t      msh_strcpy_range( char* dst, const char* src, size_t start, size_t len );
 MSHDEF int32_t     msh_path_join( char* buf, size_t size, int32_t n, ... );
 MSHDEF const char* msh_path_basename( const char* path );
 MSHDEF void        msh_path_normalize( char* path );
 MSHDEF const char* msh_path_get_ext( const char* src );
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Directory traversal
+//
+// Credits:
+//   Randy Gaul cute_files.h: https://github.com/RandyGaul/cute_headers/blob/master/cute_files.h
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct msh_dir;
 struct msh_finfo;
@@ -661,8 +677,9 @@ MSHDEF int     msh_discrete_distribution_sample( msh_discrete_distrib_t* ctx );
 #ifdef MSH_STD_IMPLEMENTATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// PRINTING
-////////////////////////////////////////////////////////////////////////////////////////////////////
+// Printing Helpers
+// TODOs: Helpers
+///  /////////////////////////////////////////////////////////////////////////////////////////////////
 
 void
 msh_print_progress_bar( char* prefix, char* suffix, uint64_t iter, uint64_t total, int32_t len )
@@ -682,7 +699,7 @@ msh_print_progress_bar( char* prefix, char* suffix, uint64_t iter, uint64_t tota
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// ARRAY
+// Dynamic Size Array
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 MSHDEF void*
@@ -730,7 +747,7 @@ msh_array__printf(char *buf, const char *fmt, ...) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// HASHTABLE
+// Hash Table
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 MSHDEF uint64_t
 msh_hash_uint64( uint64_t x ) 
@@ -921,8 +938,7 @@ msh_map_get_iterable_keys_and_vals( const msh_map_t* map, uint64_t** keys, uint6
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// HEAP
-// Modelled after 'Matters Computational' by Joerg Arndt, but interface mirrors stl
+// Heap
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 msh_internal void
@@ -990,9 +1006,92 @@ msh_heap_isvalid( real32_t* vals, size_t vals_len )
   return true;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Disjoint Set
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+typedef struct msh_dset_el
+{
+  uint64_t parent;
+  uint32_t rank;
+  uint32_t size;
+} msh_dset_el_t;
+
+typedef struct msh_dset
+{
+  msh_dset_el_t* elems;
+  uint32_t num_sets;
+} msh_dset_t;
+
+MSHDEF void
+msh_dset_init( msh_dset_t* dset, size_t n_vals )
+{
+  assert( dset );
+  assert( dset->elems == NULL );
+  dset->elems = (msh_dset_el_t*)malloc( sizeof(msh_dset_el_t) * n_vals );
+  for( size_t i = 0; i < n_vals; ++i )
+  {
+    dset->elems[i].parent = i;
+    dset->elems[i].rank   = 0;
+    dset->elems[i].size   = 1;
+  }
+  dset->num_sets = n_vals;
+}
+
+MSHDEF void
+msh_dset_term( msh_dset_t* dset )
+{
+  assert( dset );
+  assert( dset->elems );
+  free( dset->elems );
+  dset->elems    = NULL;
+  dset->num_sets = 0;
+}
+
+MSHDEF uint64_t
+msh_dset_find( msh_dset_t* dset, uint64_t idx )
+{
+  // Path compression
+  uint64_t parent = dset->elems[idx].parent;
+  if( parent == idx )
+  {
+    return parent;
+  }
+  parent = msh_dset_find( dset, parent );
+  return parent;
+}
+
+MSHDEF void
+msh_dset_union( msh_dset_t* dset, uint64_t idx_a, uint64_t idx_b )
+{
+  uint64_t root_a = msh_dset_find( dset, idx_a );
+  uint64_t root_b = msh_dset_find( dset, idx_b );
+ 
+  // check if in the same set
+  if( root_a == root_b)
+  {
+    return;
+  }
+ 
+  // if not need to do union(by rank)
+  if( root_a < root_b )
+  {
+    uint64_t tmp = root_a;
+    root_a = root_b;
+    root_b = tmp;
+  }
+  dset->elems[root_b].parent = root_a;
+  dset->elems[root_a].size += dset->elems[root_b].size;
+  if( dset->elems[root_a].rank == dset->elems[root_b].rank )
+  {
+    dset->elems[root_a].rank++;
+  }
+  dset->num_sets--;
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// STRINGS + PATHS
+// String and path manipulation
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 MSHDEF char*
@@ -1084,6 +1183,10 @@ msh_path_normalize( char* path )
     path[last_idx] = 0;
   }
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Directory Traversal
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if MSH_PLATFORM_WINDOWS
 struct msh_dir
