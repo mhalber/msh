@@ -119,8 +119,10 @@ msh_array_test()
   assert( msh_dset_find( &dset, 5 ) == msh_dset_find( &dset, 11 ) );
 
 #ifdef MSH_TEST_DEBUG_PRINT
+  printf("Map:");
   for( int32_t y = 0; y < map_size; ++y )
   {
+    printf("  | ")
     for( int32_t x = 0; x < map_size; ++x )
     {
       int idx = y * map_size + x;

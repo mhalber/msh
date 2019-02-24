@@ -596,6 +596,7 @@ MSHDEF int      msh_rand_range( msh_rand_ctx_t* pcg, int min, int max );
 #define MSH_INV_PI      0.3183098862
 #define MSH_PI_OVER_TWO 1.5707963268
 
+#define msh_isnan(x) ( (x) != (x) )
 #define msh_rad2deg(x) ((x) * 180.0 * MSH_INV_PI)
 #define msh_deg2rad(x) ((x) * 0.005555555556 * MSH_PI)
 #define msh_max(a, b) ((a) > (b) ? (a) : (b))
