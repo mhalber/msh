@@ -4,7 +4,7 @@
 #define MSH_STD_IMPLEMENTATION
 #include "msh/msh_std.h"
 
-#define MSH_TEST_DEBUG_PRINT 1
+#define MSH_TEST_DEBUG_PRINT 0
 #define MSH_TEST_TIME_ACCURACY_MS 2.5
 
 void 
@@ -26,47 +26,6 @@ msh_time_test()
 
 void
 msh_dset_test()
-{
-
-}
-
-void 
-msh_block_timers_test()
-{
-
-  // MSH_BEGIN_TIMED_BLOCK( 0 );
-
-  // MSH_BEGIN_TIMED_BLOCK( 1 );
-  // msh_sleep(1);
-  // MSH_END_TIMED_BLOCK( 1 );
-
-  // MSH_BEGIN_TIMED_BLOCK( 3 );
-  // MSH_BEGIN_TIMED_BLOCK( 4 );
-  // msh_sleep(1);
-  // MSH_END_TIMED_BLOCK( 4 );
-  // MSH_BEGIN_TIMED_BLOCK( 5 );
-  // msh_sleep(1);
-  // MSH_END_TIMED_BLOCK( 5 );
-  // MSH_END_TIMED_BLOCK( 3 );
-
-
-  // MSH_BEGIN_TIMED_BLOCK( 2 );
-  // msh_sleep(1);
-  // MSH_END_TIMED_BLOCK( 2 );
-
-  // MSH_END_TIMED_BLOCK( 0 );
-
-  // msh_debug_report_debug_events();
-}
-
-void 
-msh_memleak_test()
-{
-  
-}
-
-void
-msh_array_test()
 {
   int32_t map_size = 6;
   char map[] = "111000"
@@ -118,11 +77,11 @@ msh_array_test()
   assert( msh_dset_find( &dset, 1 ) == msh_dset_find( &dset,  6 ) );
   assert( msh_dset_find( &dset, 5 ) == msh_dset_find( &dset, 11 ) );
 
-#ifdef MSH_TEST_DEBUG_PRINT
-  printf("Map:");
+#if MSH_TEST_DEBUG_PRINT
+  printf("Map:\n");
   for( int32_t y = 0; y < map_size; ++y )
   {
-    printf("  | ")
+    printf("  | ");
     for( int32_t x = 0; x < map_size; ++x )
     {
       int idx = y * map_size + x;
@@ -139,6 +98,122 @@ msh_array_test()
   assert( dset.elems == NULL );
 }
 
+void 
+msh_block_timers_test()
+{
+
+  // MSH_BEGIN_TIMED_BLOCK( 0 );
+
+  // MSH_BEGIN_TIMED_BLOCK( 1 );
+  // msh_sleep(1);
+  // MSH_END_TIMED_BLOCK( 1 );
+
+  // MSH_BEGIN_TIMED_BLOCK( 3 );
+  // MSH_BEGIN_TIMED_BLOCK( 4 );
+  // msh_sleep(1);
+  // MSH_END_TIMED_BLOCK( 4 );
+  // MSH_BEGIN_TIMED_BLOCK( 5 );
+  // msh_sleep(1);
+  // MSH_END_TIMED_BLOCK( 5 );
+  // MSH_END_TIMED_BLOCK( 3 );
+
+
+  // MSH_BEGIN_TIMED_BLOCK( 2 );
+  // msh_sleep(1);
+  // MSH_END_TIMED_BLOCK( 2 );
+
+  // MSH_END_TIMED_BLOCK( 0 );
+
+  // msh_debug_report_debug_events();
+}
+
+typedef struct test_struct
+{
+  int32_t a;
+  float b;
+  double c;
+  char* p;
+} test_struct_t;
+
+void
+msh_array_test()
+{
+  msh_array(int32_t) arr1 = {0};
+  assert( msh_array_isempty( arr1 ) );
+  msh_array_fit( arr1, 32 );
+  assert( msh_array_cap( arr1 ) == 32 );
+  assert( msh_array_len( arr1 ) == 0 );
+  for( size_t i = 0; i < 32; ++i )
+  {
+    msh_array_push( arr1, (int32_t) i );
+  }
+  assert( msh_array_len( arr1 ) == 32 );
+  assert( *msh_array_front( arr1 ) == 0 );
+  assert( *msh_array_back( arr1 ) == 31 );
+  int32_t counter = 0;
+  for( int32_t* iter = msh_array_front( arr1 ); iter < msh_array_end( arr1 ); ++iter )
+  {
+    assert( *iter == counter );
+    counter++;
+  }
+  msh_array_clear( arr1 );
+  assert( msh_array_len( arr1 ) == 0 );
+  assert( msh_array_isempty( arr1 ) );
+  int32_t big_size = 2<<20;
+  for( int32_t i = 0; i < big_size; ++i )
+  {
+    msh_array_push( arr1, i );
+  }
+  assert( msh_array_len( arr1 ) == (uint32_t)big_size );
+  assert( *msh_array_back( arr1 ) == big_size - 1 );
+  msh_array_free( arr1 );
+  assert( msh_array_len( arr1 ) == 0 );
+  assert( msh_array_cap( arr1 ) == 0 );
+  assert( msh_array_isempty( arr1 ) );
+
+
+  msh_array(test_struct_t) arr2 = {0};
+  assert( msh_array_isempty( arr2 ) );
+  msh_array_fit( arr2, 32 );
+  assert( msh_array_cap( arr2 ) == 32 );
+  assert( msh_array_len( arr2 ) == 0 );
+  for( size_t i = 0; i < 32; ++i )
+  {
+    test_struct_t s;
+    s.a = (int32_t)i;
+    s.b = (float)i;
+    s.c = (double)i;
+    s.p = 0x0;
+    msh_array_push( arr2, s );
+  }
+  assert( msh_array_len( arr2 ) == 32 );
+  assert( msh_array_front( arr2 )->a == 0 );
+  assert( msh_array_back( arr2 )->a == 31 );
+   counter = 0;
+  for( test_struct_t* iter = msh_array_front( arr2 ); iter < msh_array_end( arr2 ); ++iter )
+  { 
+    assert( iter->a == counter );
+    counter++;
+  }
+  msh_array_clear( arr2 );
+  assert( msh_array_len( arr2 ) == 0 );
+  assert( msh_array_isempty( arr2 ) );
+  for( int32_t i = 0; i < big_size; ++i )
+  {
+    test_struct_t s;
+    s.a = (int32_t)i;
+    s.b = (float)i;
+    s.c = (double)i;
+    s.p = 0x0;
+    msh_array_push( arr2, s );
+  }
+  assert( msh_array_len( arr2 ) == (uint32_t)big_size );
+  assert( msh_array_back( arr2 )->a == big_size - 1 );
+  msh_array_free( arr2 );
+  assert( msh_array_len( arr2 ) == 0 );
+  assert( msh_array_cap( arr2 ) == 0 );
+  assert( msh_array_isempty( arr2 ) );
+}
 
 void
 msh_strcpy_test()

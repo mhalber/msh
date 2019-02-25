@@ -61,6 +61,17 @@
 #ifndef MSH_STD
 #define MSH_STD
 
+
+// NOTE(maciej): The cpp template is necessary for msh_array to work without violating strict
+// aliasing. Additionally, templates need external cpp linkage, so we need to pop this out in front
+// of everything. Not great.
+#ifdef __cplusplus
+template<class T> static T * msh_array__grow( T * arr, unsigned long long new_len, unsigned long long elem_size );
+#else
+#define msh_array__grow msh_array__raw_grow
+#endif
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -379,6 +390,7 @@ MSHDEF void msh_print_progress_bar( char* prefix, char* suffix,
 //  [ ] Change behaviour of msh_array_pop
 // Credits
 //   Seat T. Barrett - idea of stretchy buffers (?)
+//   Cameron Foale   - solution for strict-aliasing violation in cpp
 //   Per Vognsen     - various improvements from his ion implementation
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -390,7 +402,7 @@ typedef struct msh_array_header
 
 #define msh_array(T) T*
 
-MSHDEF void* msh_array__grow(const void *array, size_t new_len, size_t elem_size);
+MSHDEF void* msh_array__raw_grow( void *array, size_t new_len, size_t elem_size );
 MSHDEF char* msh_array__printf(char *buf, const char *fmt, ...);
 
 #define msh_array__grow_formula(x)    ( (2.0*(x))+10 )
@@ -408,8 +420,8 @@ MSHDEF char* msh_array__printf(char *buf, const char *fmt, ...);
 #define msh_array_free(a)             ( (a) ? (free(msh_array__hdr(a)), (a) = NULL) :0 )
 #define msh_array_pop(a)              ( (a) ? (msh_array__hdr((a))->len--) : 0)
 #define msh_array_clear(a)            ( (a) ? (msh_array__hdr((a))->len = 0) : 0)
-
-#define msh_array_fit(a, n)           ( (n) <= msh_array_cap(a) ? (0) : ( *(void**)&(a) = msh_array__grow((a), (n), sizeof(*(a))) )) 
+// #define msh_array_fit(a, n)           ( (n) <= msh_array_cap(a) ? (0) : ( *(void**)&(a) = msh_array__grow((a), (n), sizeof(*(a))) )) 
+#define msh_array_fit(a, n)           ( (n) <= msh_array_cap(a) ? (0) : ( (a) = msh_array__grow((a), (n), sizeof(*(a))) )) 
 #define msh_array_push(a, ...)        ( msh_array_fit((a), 1 + msh_array_len((a))), (a)[msh_array__hdr(a)->len++] = (__VA_ARGS__))
 
 #define msh_array_copy( dst, src, n )  ( msh_array_fit( (dst), (n) ), msh_array__hdr((dst))->len = (n), memcpy( (void*)(dst), (void*)(src), (n) * sizeof(*(dst) )))
@@ -421,7 +433,7 @@ MSHDEF char* msh_array__printf(char *buf, const char *fmt, ...);
 // Credits
 //   Seat T. Barrett: Judy Array vs. Hash-table text
 //   Niklas Frykholm: The Machinery Container system blog-series
-//   Per Vognsen    : ion open-addressing, linear probing hashtable
+//   Per Vognsen    : iosn open-addressing, linear probing hashtable
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 typedef struct msh_map
@@ -466,11 +478,11 @@ MSHDEF bool msh_heap_isvalid( real32_t* vals, size_t n_vals );
 // Disjoint Set
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-typedef struct msh_dset msh_dset_t;
-MSHDEF void     msh_dset_init( msh_dset_t* dset, size_t n_vals );
-MSHDEF void     msh_dset_term( msh_dset_t* dset );
-MSHDEF uint64_t msh_dset_find( msh_dset_t* dset, uint64_t idx );
-MSHDEF void     msh_dset_union( msh_dset_t* dset, uint64_t idx_a, uint64_t idx_b );
+struct msh_dset;
+MSHDEF void     msh_dset_init( struct msh_dset* dset, size_t n_vals );
+MSHDEF void     msh_dset_term( struct msh_dset* dset );
+MSHDEF uint64_t msh_dset_find( struct msh_dset* dset, uint64_t idx );
+MSHDEF void     msh_dset_union( struct msh_dset* dset, uint64_t idx_a, uint64_t idx_b );
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // String and path manipulation
@@ -703,8 +715,16 @@ msh_print_progress_bar( char* prefix, char* suffix, uint64_t iter, uint64_t tota
 // Dynamic Size Array
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#ifdef __cplusplus
+template<class T>
+static T * msh_array__grow( T * arr, size_t new_len, size_t elem_size ) {
+    return (T*)msh_array__raw_grow( (void *)arr, new_len, elem_size );
+}
+#endif
+
+
 MSHDEF void*
-msh_array__grow(const void *array, size_t new_len, size_t elem_size) {
+msh_array__raw_grow( void *array, size_t new_len, size_t elem_size ) {
   size_t old_cap = msh_array_cap( array );
   size_t new_cap = (size_t)msh_array__grow_formula( old_cap );
   new_cap = (size_t)msh_max( new_cap, msh_max(new_len, 16) );
