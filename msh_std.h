@@ -66,7 +66,7 @@
 // aliasing. Additionally, templates need external cpp linkage, so we need to pop this out in front
 // of everything. Not great.
 #ifdef __cplusplus
-template<class T> static T * msh_array__grow( T * arr, unsigned long long new_len, unsigned long long elem_size );
+template<typename T> T * msh_array__grow( T * arr, unsigned long long new_len, unsigned long long elem_size );
 #else
 #define msh_array__grow msh_array__raw_grow
 #endif
@@ -716,8 +716,8 @@ msh_print_progress_bar( char* prefix, char* suffix, uint64_t iter, uint64_t tota
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifdef __cplusplus
-template<class T>
-static T * msh_array__grow( T * arr, size_t new_len, size_t elem_size ) {
+template<typename T>
+T * msh_array__grow( T * arr, unsigned long long new_len, unsigned long long elem_size ) {
     return (T*)msh_array__raw_grow( (void *)arr, new_len, elem_size );
 }
 #endif
