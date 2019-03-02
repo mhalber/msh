@@ -492,6 +492,7 @@ MSHDEF void     msh_dset_union( struct msh_dset* dset, uint64_t idx_a, uint64_t 
 
 MSHDEF char*       msh_strdup( const char *src );
 MSHDEF char*       msh_strndup( const char *src, size_t len );
+MSHDEF void        msh_str_rstrip( const char* path );
 MSHDEF size_t      msh_strncpy( char* dst, const char* src, size_t len );
 MSHDEF size_t      msh_strcpy_range( char* dst, const char* src, size_t start, size_t len );
 // MSHDEF char*       msh_strtok( char* string, char* delim );
@@ -1129,6 +1130,15 @@ msh_strdup( const char *src )
 {
   size_t len = strlen( src );
   return msh_strndup( src, len );
+}
+
+MSHDEF void
+msh_path_rstrip( char* str )
+{
+  char* end_ptr_1 = strrchr( str, '\r' );
+  if( end_ptr_1 ) { *end_ptr_1 = 0; return; }
+  char* end_ptr_2 = strrchr( str, '\n' );
+  if( end_ptr_2 ) { *end_ptr_2 = 0; return; }
 }
 
 MSHDEF size_t
