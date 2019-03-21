@@ -81,6 +81,7 @@
   [1] nlguillemot/arcball_camera.h    https://github.com/nlguillemot/arcball_camera/blob/master/arcball_camera.h
   [2] nlguillemot/flythrough_camera.h https://github.com/nlguillemot/flythrough_camera/blob/master/flythrough_camera.h
   [3] vurtun/camera.c                 https://gist.github.com/vurtun/d41914c00b6608da3f6a73373b9533e5
+  [4] Euler/Quaternion                https://gamedev.stackexchange.com/questions/13436/glm-euler-angles-to-quaternion
  */
 
 /*

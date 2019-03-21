@@ -2196,17 +2196,17 @@ msh_quat_from_axis_angle( msh_vec3_t axis, real32_t angle )
 MSHVMDEF msh_quat_t
 msh_quat_from_euler_angles( real32_t pitch, real32_t yaw, real32_t roll )
 {
-  real32_t c1 = (real32_t)cos(pitch * 0.5 );
-  real32_t s1 = (real32_t)sin(pitch * 0.5 );
-  real32_t c2 = (real32_t)cos(yaw * 0.5 );
-  real32_t s2 = (real32_t)sin(yaw * 0.5 );
-  real32_t c3 = (real32_t)cos(roll * 0.5 );
-  real32_t s3 = (real32_t)sin(roll * 0.5 );
+  real32_t c1 = (real32_t)cos( ((double)pitch * 0.5) );
+  real32_t s1 = (real32_t)sin( ((double)pitch * 0.5) );
+  real32_t c2 = (real32_t)cos( ((double)yaw * 0.5) );
+  real32_t s2 = (real32_t)sin( ((double)yaw * 0.5) );
+  real32_t c3 = (real32_t)cos( ((double)roll * 0.5) );
+  real32_t s3 = (real32_t)sin( ((double)roll * 0.5) );
 
-  return msh_quat( c1*c2*c3 - s1*s2*s3,
-                   c1*c2*s3 + s1*s2*c3,
+  return msh_quat( c1*c2*s3 + s1*s2*c3,
                    s1*c2*c3 + c1*s2*s3,
-                   c1*s2*c3 - s1*c2*s3);
+                   c1*s2*c3 - s1*c2*s3,
+                   c1*c2*c3 - s1*s2*s3);
 }
 
 /* NOTE: Directly adapted from [9] */

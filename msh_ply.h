@@ -30,10 +30,9 @@
   
   Creates a new ply file handle and returns pointer to it. 'filename' is the path to the ply file
   and 'mode' describes in what mode file should be used:
-    'r'  - read ASCII
-    'rb' - read binary
-    'w'  - write ASCII
-    'wb' - write binary(will write endianness based on your system)
+    'r' or 'rb' - read
+    'w'         - write ASCII
+    'wb'        - write binary(will write endianness based on your system)
   Note that this does not perform any reading / writing.
 
   msh_ply_add_descriptor
@@ -2164,7 +2163,11 @@ msh_ply_open( const char* filename, const char* mode )
   // TODO(maciej): Add unrecognized modes.
   msh_ply_t *pf = NULL;
   if( mode[0] != 'r' && mode[0] != 'w' ) return NULL;
-  FILE* fp = fopen( filename, mode );
+
+  const char *mode_str;
+  if( mode[0] == 'r' ) { mode_str = "rb"; } // We always wanna read file as binary for ftell.
+  else                 { mode_str = mode; }
+  FILE* fp = fopen( filename, mode_str );
   
 
   if( fp )
