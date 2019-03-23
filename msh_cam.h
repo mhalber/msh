@@ -221,7 +221,7 @@ msh__screen_to_sphere( float x, float y, msh_vec4_t viewport )
   float h = viewport.data[3] - viewport.data[1];
   float r = (w > h)? h : w;
   msh_vec3_t p = msh_vec3( (x - w * 0.5f) / r, 
-                           ((h - y) - h*0.5f) / r, 
+                           (y - h * 0.5f) / r, 
                            0.0f );
   float l_sq = p.x * p.x + p.y * p.y;
   float l = (float)sqrt( l_sq );
@@ -315,18 +315,18 @@ msh_arcball_camera_update( msh_camera_t *camera,
                             camera->position.y, 
                             camera->position.z, 0.0);
     /* Compute the quaternion rotation from inputs */
-    msh_mat3_t cur_rot = msh_quat_to_mat3( camera->orientation );
-    msh_vec3_t p0 = msh_mat3_vec3_mul( cur_rot, 
-                          msh__screen_to_sphere(scrn_p0.x, scrn_p0.y, viewport) );
-    msh_vec3_t p1 = msh_mat3_vec3_mul( cur_rot, 
-                          msh__screen_to_sphere(scrn_p1.x, scrn_p1.y, viewport) );
+    msh_mat3_t cur_rot = msh_mat3_identity(); //msh_mat3_inverse(msh_quat_to_mat3( camera->orientation ));
+    msh_vec3_t p0 = msh_mat3_vec3_mul( cur_rot, msh__screen_to_sphere( scrn_p0.x, scrn_p1.y, viewport ));
+    msh_vec3_t p1 = msh_mat3_vec3_mul( cur_rot, msh__screen_to_sphere( scrn_p1.x, scrn_p0.y, viewport ));
     
     /* compute rotation */
-    msh_quat_t r = msh_quat_from_vectors( p1, p0 ); 
-    r = msh_quat_slerp( msh_quat_identity(), r, 3.5 );
+    msh_quat_t r = {0};
+    r.im = msh_vec3_cross( p1, p0 );
+    r.re = msh_vec3_dot( p1, p0 );
+    // r = msh_quat_slerp( msh_quat_identity(), r, 3.5 );
 
     /* Modify orientation and position */
-    q = msh_quat_normalize( msh_quat_mul( r, q ) );
+    q = msh_quat_normalize( msh_quat_mul( r, q) );
     p = msh_quat_mul( msh_quat_mul( r, p ), msh_quat_conjugate( r ) );
     
     camera->position = msh_vec3( p.x, p.y, p.z );
