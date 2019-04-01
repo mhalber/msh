@@ -92,12 +92,14 @@ extern "C" {
 #include <string.h>
 #include <stdint.h>
 #include <stdarg.h>
-#include <stddef.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <float.h>
 #include <ctype.h>
+
+#include <stddef.h>
+#include <unistd.h>
 #endif
 
 #define msh_count_of(x) ((sizeof(x)/sizeof(*x)))
@@ -131,6 +133,7 @@ typedef double real64_t;
 #elif defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__)
   #undef MSH_PLATFORM_MACOS
   #define MSH_PLATFORM_MACOS 1
+  #define GL_SILENCE_DEPRECATION
 #else
   #error "Platform not recognized!"
 #endif
@@ -145,7 +148,7 @@ typedef double real64_t;
         MSH_STRINGIZE(__EMSCRIPTEN_tiny__)
 #elif MSH_PLATFORM_LINUX
   #define MSH_PLATFORM_NAME "Linux"
-#elif MSH_PLATFORM_OSX
+#elif MSH_PLATFORM_MACOS
   #define MSH_PLATFORM_NAME "OSX"
 #elif MSH_PLATFORM_WINDOWS
   #define MSH_PLATFORM_NAME "Windows"
@@ -317,7 +320,7 @@ enum msh__time_units
   MSHT_NS
 };
 
-MSHDEF void     msh_sleep( size_t ms );
+MSHDEF void     msh_sleep( uint64_t ms );
 MSHDEF int32_t  msh_time_rdtsc();
 MSHDEF int32_t  msh_time_rdtscp();
 
@@ -1538,7 +1541,7 @@ msh_time_now()
   }
 
   // uint64_t time_now = mach_absolute_time() * factor; 
-  const uint64_t now = mach_absolute_time() - s1tart;
+  const uint64_t now = mach_absolute_time() - start;
   return msh__int64_muldiv( now, info.numer, info.denom);
 }
 
