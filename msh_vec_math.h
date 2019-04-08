@@ -1549,6 +1549,7 @@ msh_mat3_vec3_mul ( msh_mat3_t m, msh_vec3_t v )
   return o;
 }
 
+
 MSHVMDEF msh_vec3_t
 msh_mat4_vec3_mul ( msh_mat4_t m, msh_vec3_t v, int32_t is_point )
 {
