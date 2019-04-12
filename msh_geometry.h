@@ -150,7 +150,7 @@ MSHGEODEF void       mshgeo_aabb_expand( msh_aabb_t* a, const msh_vec3_t* p );
 MSHGEODEF msh_vec2_t mshgeo_pts2d_center( msh_vec2_t* points, size_t n_points );
 MSHGEODEF msh_mat2_t mshgeo_pts2d_covariance( msh_vec2_t center, msh_vec2_t* points, size_t n_points );
 MSHGEODEF void       mshgeo_pts2d_pca( msh_vec2_t center, msh_vec2_t* points, size_t n_points, 
-                                       msh_mat3_t *eig_vec, msh_vec3_t* eig_val );
+                                       msh_mat2_t *eig_vec, msh_vec2_t* eig_val );
 
 MSHGEODEF msh_vec3_t mshgeo_pts3d_center( msh_vec3_t* points, size_t n_points );
 MSHGEODEF msh_mat3_t mshgeo_pts3d_covariance( msh_vec3_t center, msh_vec3_t* points, size_t n_points );
