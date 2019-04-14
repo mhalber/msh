@@ -1,7 +1,7 @@
 /*
   ==============================================================================
   
-  MSH_GEOMETRY.H - WIP!
+  MSH_GEOMETRY.H - v0.01
   
   A single header library for simple geometrical objects and their interactions.
   Think bounding boxes and ray intersections. 
@@ -10,10 +10,6 @@
   
   #define MSH_GEOMETRY_IMPLEMENTATION
   #include "msh_geometry.h"
-
-  All functions can be made static by definining:
-
-  #ifdef MSH_GEO_STATIC
 
   ==============================================================================
   DEPENDENCIES
@@ -53,7 +49,6 @@
 
   ==============================================================================
   TODOs
-  [ ] Simplify the ray through pixel function
   [ ] Test u,v,w in triangle intersection
   [ ] Move the ray through pixel to msh_cam.h
   [ ] Read more about separating axis test ( Ericsen )
@@ -327,29 +322,6 @@ mshgeo_pts3d_pca( msh_vec3_t c, msh_vec3_t* pts, size_t n_pts,
 
 }
 
-
-// TODO(maciej): Move to camera header
-#ifdef MSH_CAM
-
-MSHGEODEF void
-mshgeo_ray_through_pixel( msh_ray_t* ray, msh_vec2_t p, msh_vec4_t* viewport, msh_camera_t* camera )
-{
-  ray->origin = camera->position;
-  msh_mat4_t inv_v = msh_mat4_inverse( camera->view );
-  msh_mat4_t inv_p = msh_mat4_inverse( camera->proj );
-  
-  float clip_x = (2.0f * p.x) / viewport->z - 1.0f;
-  float clip_y = 1.0f - (2.0f * p.y) / viewport->w;
-  msh_vec4_t clip_coords = msh_vec4( clip_x, clip_y, 0.0f, 1.0f );
-
-  msh_vec4_t eye_ray_dir = msh_mat4_vec4_mul( inv_p, clip_coords );
-  eye_ray_dir.z = -1.0f;
-  eye_ray_dir.w = 0.0f;
-  msh_vec3_t world_ray_dir = msh_vec4_to_vec3( msh_mat4_vec4_mul( inv_v, eye_ray_dir ) );
-  ray->direction = msh_vec3_normalize( world_ray_dir );
-}
-
-#endif
 
 /* From Realtime colision detection by Ericson
  * It is hard to find (at least for me) a good geometrical intuition for this algorithm, but
