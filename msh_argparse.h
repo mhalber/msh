@@ -113,6 +113,7 @@
     Maciej Halber (macikuh@gmail.com)
 
   Licensing information can be found at the end of the file.
+  
   ==============================================================================
   DEPENDENCES
 
@@ -140,17 +141,11 @@
 
  */
 
-/*
- * =============================================================================
- *       INCLUDES, TYPES AND DEFINES
- * =============================================================================
- */
-
 
 #ifndef MSH_ARGPARSE
 #define MSH_ARGPARSE
 
-/* Main options. Should be sane defaults. */
+/* Default array length options. Adjust based on your needs. */
 
 #ifndef MSH_AP_MAX_NAME_LEN   /* Maximum string lengths for names */
 #define MSH_AP_MAX_NAME_LEN   64
@@ -775,7 +770,7 @@ This software is available under 2 licenses - you may choose the one you like.
 
 ALTERNATIVE A - MIT License
 
-Copyright (c) 2018 Maciej Halber
+Copyright (c) 2018-2019 Maciej Halber
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of 
 this software and associated documentation files (the "Software"), to deal in 

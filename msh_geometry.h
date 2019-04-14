@@ -13,7 +13,7 @@
 
   All functions can be made static by definining:
 
-  #ifdef MSH_GIZMO_STATIC
+  #ifdef MSH_GEO_STATIC
 
   ==============================================================================
   DEPENDENCIES
