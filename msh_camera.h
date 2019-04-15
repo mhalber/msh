@@ -176,6 +176,7 @@ msh_camera_move( msh_camera_t* cam, msh_vec3_t translation )
   cam->origin = msh_vec3_add( cam->origin, translation );
 }
 
+
 void
 msh_camera_rotate( msh_camera_t* cam, msh_vec2_t prev_pos, msh_vec2_t curr_pos )
 {
@@ -189,41 +190,36 @@ msh_camera_rotate( msh_camera_t* cam, msh_vec2_t prev_pos, msh_vec2_t curr_pos )
   float x1 = curr_pos.x;
   float y1 = h - curr_pos.y;
 
-  float dx = (x1 - x0) * cam->rot_speed;
-  float dy = (y1 - y0) * cam->rot_speed;
-  x1 = x0 + dx;
-  y1 = y0 + dy;
+  float dx = (x1 - x0);
+  float dy = (y1 - y0);
 
   if( fabs( dx ) < 1 && fabs( dy ) < 1 ) { return; }
-  
   msh_vec3_t p0 = msh_vec3( (x0 - w * 0.5f) / r, (y0 - h * 0.5f) / r, 0.0f );
+  p0 = msh_vec3_scalar_mul( p0, cam->rot_speed );
   float l0_sq = p0.x * p0.x + p0.y * p0.y;
-  if( l0_sq > 0.5 )
+  if( l0_sq > (0.5*cam->rot_speed) )
   {
-    p0.z = 0.5 / sqrtf( l0_sq );
-    p0 = msh_vec3_normalize( p0 );
+    p0.z = (0.5*cam->rot_speed) / sqrtf( l0_sq );
   }
   else
   {
-    p0.z = sqrtf( 1.0 - l0_sq );
+    p0.z = sqrtf( (1.0*cam->rot_speed) - l0_sq );
   }
+  p0 = msh_vec3_normalize( p0 );
   msh_vec3_t p1 = msh_vec3( (x1 - w * 0.5f) / r, (y1 - h * 0.5f) / r, 0.0f );
+  p1 = msh_vec3_scalar_mul( p1, cam->rot_speed );
   float l1_sq = p1.x * p1.x + p1.y * p1.y;
-  if( l1_sq > 0.5 )
+  if( l1_sq > (0.5*cam->rot_speed) )
   {
-    p1.z = 0.5 / sqrtf( l1_sq );
-    p1 = msh_vec3_normalize( p1 );
+    p1.z = (0.5*cam->rot_speed) / sqrtf( l1_sq );
   }
   else
   {
-    p1.z = sqrtf( 1.0 - l1_sq );
+    p1.z = sqrtf( (1.0*cam->rot_speed) - l1_sq );
   }
+  p1 = msh_vec3_normalize( p1 );
 
-  // msh_vec3_t rot_axis  = msh_vec3_normalize( msh_vec3_cross( p0, p1 ) );
-  // float rot_angle = acosf( msh_clamp( msh_vec3_dot(p0, p1), -1.0f, 1.0f ) ) * cam->rot_speed;
-  // msh_quat_t rot = msh_quat_from_angle_axis( rot_axis, rot_angle );
-   
-  // Shoemake direct code
+  // From Shoemake
   msh_quat_t rot;
   rot.im = msh_vec3_cross( p0, p1 );
   rot.re = msh_vec3_dot( p0, p1 );
