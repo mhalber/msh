@@ -15,8 +15,8 @@
 
   ==============================================================================
   TODOs:
-  [ ] Implement camera speeds
-  [ ] Implement momentum
+  [x] Implement camera speeds
+  [ ] Euler angle alternative?
   [ ] API Implementation
   [ ] API docs
   [ ] Add camera type and generalize init function
@@ -87,7 +87,6 @@ typedef struct msh_camera_desc
   float znear;
   float zfar;
 
-  float momentum;
   float pan_speed;
   float zoom_speed;
   float rot_speed;
@@ -107,7 +106,6 @@ typedef struct msh_camera
   int8_t ortho;
 
   /* Options */
-  float momentum;
   float pan_speed;
   float zoom_speed;
   float rot_speed;
@@ -148,12 +146,15 @@ msh_camera_pan( msh_camera_t* cam, msh_vec2_t prev_pos, msh_vec2_t curr_pos )
   float y0 = h - prev_pos.y;
   float x1 = curr_pos.x;
   float y1 = h - curr_pos.y;
-  if( fabs( x0 - x1 ) < 1 && 
-      fabs( y0 - y1 ) < 1 ) { return; }
+
+  float dx = (x0 - x1) * cam->pan_speed;
+  float dy = (y0 - y1) * cam->pan_speed;
+
+  if( fabs( dx ) < 1 && fabs( dy ) < 1 ) { return; }
 
   msh_mat3_t orient = msh_quat_to_mat3( cam->orientation );
-  msh_vec3_t u = msh_vec3_scalar_mul( orient.col[0], (x0 - x1) * 0.01f );
-  msh_vec3_t v = msh_vec3_scalar_mul( orient.col[1], (y0 - y1) * 0.01f );
+  msh_vec3_t u = msh_vec3_scalar_mul( orient.col[0], dx * 0.005f );
+  msh_vec3_t v = msh_vec3_scalar_mul( orient.col[1], dy * 0.005f );
 
   cam->origin = msh_vec3_add( cam->origin, u );
   cam->origin = msh_vec3_add( cam->origin, v );
@@ -182,12 +183,18 @@ msh_camera_rotate( msh_camera_t* cam, msh_vec2_t prev_pos, msh_vec2_t curr_pos )
   float w = cam->viewport[2] - cam->viewport[0];
   float h = cam->viewport[3] - cam->viewport[1];
   float r = (w > h) ? h : w;
+
   float x0 = prev_pos.x;
   float y0 = h - prev_pos.y;
   float x1 = curr_pos.x;
   float y1 = h - curr_pos.y;
 
-  if( fabs( x0 - x1 ) < 1 && fabs(y0 - y1) < 1 ) { return; }
+  float dx = (x1 - x0) * cam->rot_speed;
+  float dy = (y1 - y0) * cam->rot_speed;
+  x1 = x0 + dx;
+  y1 = y0 + dy;
+
+  if( fabs( dx ) < 1 && fabs( dy ) < 1 ) { return; }
   
   msh_vec3_t p0 = msh_vec3( (x0 - w * 0.5f) / r, (y0 - h * 0.5f) / r, 0.0f );
   float l0_sq = p0.x * p0.x + p0.y * p0.y;
@@ -212,10 +219,16 @@ msh_camera_rotate( msh_camera_t* cam, msh_vec2_t prev_pos, msh_vec2_t curr_pos )
     p1.z = sqrtf( 1.0 - l1_sq );
   }
 
+  // msh_vec3_t rot_axis  = msh_vec3_normalize( msh_vec3_cross( p0, p1 ) );
+  // float rot_angle = acosf( msh_clamp( msh_vec3_dot(p0, p1), -1.0f, 1.0f ) ) * cam->rot_speed;
+  // msh_quat_t rot = msh_quat_from_angle_axis( rot_axis, rot_angle );
+   
+  // Shoemake direct code
   msh_quat_t rot;
   rot.im = msh_vec3_cross( p0, p1 );
   rot.re = msh_vec3_dot( p0, p1 );
-  cam->orientation = msh_quat_mul( cam->orientation, msh_quat_conjugate(rot) );
+ 
+  cam->orientation = msh_quat_mul( cam->orientation, msh_quat_conjugate( rot ) );
 
 #elif 0 /* Accumulate yaw and pitch */
   float x0 = prev_pos.x;
@@ -281,10 +294,9 @@ msh_camera_init_arcball( msh_camera_t * cam, msh_camera_desc_t* desc )
   cam->zfar        = desc->zfar;
   
   cam->origin      = desc->center;
-  cam->momentum    = desc->momentum;
   cam->rot_speed   = ( desc->rot_speed > 0 )  ? desc->rot_speed : 1.0f;
   cam->pan_speed   = ( desc->pan_speed > 0 )  ? desc->pan_speed : 1.0f;
-  cam->zoom_speed  = ( desc->zoom_speed > 0 ) ? desc->zoom_speed : 0.1f;
+  cam->zoom_speed  = ( desc->zoom_speed > 0 ) ? desc->zoom_speed : 1.0f;
   
   msh_vec3_t rot_offset = msh_vec3_sub( desc->eye, desc->center ); 
   msh_mat3_t R;
