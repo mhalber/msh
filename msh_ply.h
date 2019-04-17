@@ -261,7 +261,6 @@
   [ ] Write C++ support(?)
   [ ] Add static function definition macro
   [ ] Getting raw data for list property - different function.
-  [ ] Stride support
   [x] Add 'msh_ply_has_properties' function
   ==============================================================================
   REFERENCES:

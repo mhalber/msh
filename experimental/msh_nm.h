@@ -192,7 +192,7 @@ LU_factor_gauss_elimination( uint32_t m, uint32_t n, double* A, int* piv )
 }
 
 bool
-LU_factor_nr( uint32_t m, uint32_t N, double* A, int* ind )
+LU_factor_nr( uint32_t m, uint32_t N, double* A, int* ind ) // Is this numerical recipies?
 {
   double* pivot = malloc(sizeof(double) * N);
 
@@ -286,7 +286,7 @@ LU_factor_jama( uint32_t m, uint32_t n, double* A, int* piv )
     if (big == 0) { return; }
     pivot[i] = 1.0 / big;
   }
-  printf("%f %f %f\n", pivot[0], pivot[1], pivot[2]);
+  // printf("%f %f %f\n", pivot[0], pivot[1], pivot[2]);
 
   // Outer loop.
   for( int j = 0; j < n; j++) {
