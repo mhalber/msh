@@ -36,18 +36,22 @@
   ==================================================================================================
   TODOs:
   [x] Limits
-  [ ] Disjoint Set Implementation
-  [ ] Simple set implementation
-  [ ] Path manipulation
+  [x] Disjoint Set Implementation
+  [x] Path manipulation
+  [ ] Alias method - modify it for frequent weights updates.
   [ ] Memory allocation
     [ ] Tracking memory allocs
     [ ] Alternative allocators
-  [ ] Inline keyword fixes
   [ ] Sorting and Searching
+    [ ] Insetion sort
+    [ ] Radix sort
+    [ ] QuickSort
+    [ ] Binary Search
+    [ ] Quick Select
     [ ] Common qsort comparator functions
-    [ ] binary and linear searches over arrays
-    [ ] Radix sort?
   [ ] Custom prints (stb_sprintf inlined, look at replacing sprintf with "write" function in linux (unistd.h))
+  [ ] Set implementation
+    [ ] Union and intersection operations
 
   ==================================================================================================
   REFERENCES:
@@ -306,8 +310,6 @@ typedef double real64_t;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Debug / Time
 //
-// TODOs:
-//  [ ] Interface for a form of performance counters
 // Credits: 
 //   Randy Gaul: cute_time.h
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -333,8 +335,6 @@ MSHDEF double   msh_time_diff_ns( uint64_t new_time, uint64_t old_time );
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Printing Helpers
-// TODOs:
-//   [ ] inline vsnprintf from stb
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define msh_cprintf(cond, fmt, ...) do {                      \
@@ -465,6 +465,15 @@ MSHDEF void      msh_map_get_iterable_vals( const msh_map_t* map, uint64_t** val
 MSHDEF void      msh_map_get_iterable_keys_and_vals( const msh_map_t* map, uint64_t** key, uint64_t** val );
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+// Sort
+// [ ] Generic with a code gen?
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+MSHDEF void msh_insertion_sort( int32_t* arr, size_t n );
+MSHDEF void msh_insertion_sortf( float* arr, size_t n );
+MSHDEF void msh_insertion_sortd( double* arr, size_t n );
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // Heap
 // TODO:
 //   [ ] Make this generic, currently using only single precision float
@@ -498,7 +507,6 @@ MSHDEF char*       msh_strndup( const char *src, size_t len );
 MSHDEF void        msh_str_rstrip( const char* path );
 MSHDEF size_t      msh_strncpy( char* dst, const char* src, size_t len );
 MSHDEF size_t      msh_strcpy_range( char* dst, const char* src, size_t start, size_t len );
-// MSHDEF char*       msh_strtok( char* string, char* delim );
 
 #if MSH_PLATFORM_WINDOWS && !MSH_CRT_MINGW
   #define MSH_FILE_SEPARATOR "\\"
@@ -961,6 +969,32 @@ msh_map_get_iterable_keys_and_vals( const msh_map_t* map, uint64_t** keys, uint6
   }
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Sort
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void
+msh_insertion_sort( int32_t* arr, size_t n )
+{
+  assert( arr );
+  if( n <= 1 ) { return; }
+  size_t i, j;
+  int32_t x;
+
+  i = 1;
+  while( i < n )
+  {
+    x = arr[i];
+    j = i - 1;
+    while( j >= 0 && arr[j] > x )
+    {
+      arr[j+1] = arr[j];
+      j--;
+    }
+    arr[j+1] = x;
+    i++;
+  }
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Heap
@@ -1800,6 +1834,7 @@ msh_discrete_distribution_init( msh_discrete_distrib_t* ctx, double* weights, si
   msh_distrib2pdf(weights, pdf, ctx->n_weights );
 
   double avg_prob = 1.0 / (double)ctx->n_weights;
+  
   // Do we really need msh array here?
   msh_array(int) small = {0};
   msh_array(int) large = {0};
