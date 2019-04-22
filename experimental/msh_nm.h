@@ -1452,3 +1452,7 @@ msh_svd_solve( int32_t m, int32_t n,
 #undef MSH_NM_CLEAR2D
 #undef MSH_NM_COPY2D
 #undef MSH_NM_REF2D
+
+
+//---------------------------------------------------------------------
+// Eigen Decomposition 

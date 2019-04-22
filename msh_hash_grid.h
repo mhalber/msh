@@ -297,9 +297,6 @@ typedef struct msh_hg_bin_info
 #endif /* MSH_HASH_GRID_H */
 
 
-
-
-
 #ifdef MSH_HASH_GRID_IMPLEMENTATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -441,7 +438,7 @@ msh_hash_grid__init( msh_hash_grid_t* hg,
   float dim_y   = (hg->max_pt.y - hg->min_pt.y);
   float dim_z   = (hg->max_pt.z - hg->min_pt.z);
   float max_dim = MSH_HG_MAX3( dim_x, dim_y, dim_z );
-
+  
   // Calculate cell size
   if( radius > 0.0 ) { hg->cell_size = 2.0 * radius; }
   else               { hg->cell_size = max_dim / (32 * sqrtf(3.0f)); }
@@ -870,7 +867,7 @@ msh_hash_grid__radius_search( const msh_hash_grid_t* hg,
                               uint32_t start_idx, uint32_t end_idx  )
 {
   if( !hg || !hg_sd ) { return 0; }
-  enum { MAX_BIN_COUNT = 128 };
+  enum { MAX_BIN_COUNT = 256 };
   int32_t bin_indices[ MAX_BIN_COUNT ];
   float bin_dists_sq[ MAX_BIN_COUNT ];
 
@@ -927,6 +924,7 @@ msh_hash_grid__radius_search( const msh_hash_grid_t* hg,
     int64_t opz = pz - iz;
     int64_t onz = nz - iz;
 
+
     uint32_t n_visited_bins = 0;
     float dx, dy, dz;
     int64_t cx, cy, cz;
@@ -955,7 +953,8 @@ msh_hash_grid__radius_search( const msh_hash_grid_t* hg,
           cx = ix + ox;
           if( cx < 0 || cx >= (int64_t)hg->width ) { continue; }
 
-          assert( n_visited_bins < MAX_BIN_COUNT );
+          // assert( n_visited_bins < MAX_BIN_COUNT );
+          if( n_visited_bins >= MAX_BIN_COUNT ) { goto msh_hash_grid_lbl__find_neighbors2; }
 
           bin_indices[n_visited_bins] = idx_z + idx_y + cx;
 
@@ -968,7 +967,8 @@ msh_hash_grid__radius_search( const msh_hash_grid_t* hg,
         }
       }
     }
-    
+
+msh_hash_grid_lbl__find_neighbors2:
     msh_hash_grid__sort( bin_dists_sq, bin_indices, n_visited_bins );
 
     for( uint32_t i = 0; i < n_visited_bins; ++i )
@@ -1098,7 +1098,7 @@ size_t msh_hash_grid_radius_search( const msh_hash_grid_t* hg,
   assert( hg_sd->max_n_neigh > 0 );
 
   // Unpack the some useful data from structs
-  enum { MAX_BIN_COUNT = 128, MAX_THREAD_COUNT = 128 };
+  enum { MAX_BIN_COUNT = 512, MAX_THREAD_COUNT = 512 };
   uint32_t n_query_pts = hg_sd->n_query_pts;
   size_t row_size      = hg_sd->max_n_neigh;
   double radius        = hg_sd->radius;
@@ -1181,7 +1181,6 @@ size_t msh_hash_grid_radius_search( const msh_hash_grid_t* hg,
         int64_t nz  = (int64_t)( (q.z - radius) * ics );
         int64_t opz = pz - iz;
         int64_t onz = nz - iz;
-
         uint32_t n_visited_bins = 0;
         float dx, dy, dz;
         int64_t cx, cy, cz;
@@ -1210,7 +1209,8 @@ size_t msh_hash_grid_radius_search( const msh_hash_grid_t* hg,
               cx = ix + ox;
               if( cx < 0 || cx >= w ) { continue; }
 
-              assert( n_visited_bins < MAX_BIN_COUNT );
+              // assert( n_visited_bins < MAX_BIN_COUNT );
+              if( n_visited_bins >= MAX_BIN_COUNT ) { goto msh_hash_grid_lbl__find_neighbors; }
 
               bin_indices[n_visited_bins] = idx_z + idx_y + cx;
 
@@ -1223,7 +1223,7 @@ size_t msh_hash_grid_radius_search( const msh_hash_grid_t* hg,
             }
           }
         }
-        
+msh_hash_grid_lbl__find_neighbors:
         msh_hash_grid__sort( bin_dists_sq, bin_indices, n_visited_bins );
 
         for( uint32_t i = 0; i < n_visited_bins; ++i )
