@@ -557,7 +557,7 @@ typedef union msh_rgb
 
 typedef union msh_rgba
 {
-  uint8_t data[3];
+  uint8_t data[4];
   struct { uint8_t r; uint8_t g; uint8_t b; uint8_t a; };
 } msh_rgba_t;
 
@@ -681,6 +681,8 @@ typedef struct discrete_distribution_sampler
 
 MSHDEF void    msh_discrete_distribution_init( msh_discrete_distrib_t* ctx, 
                                                double* weights, size_t n_weights, size_t seed );
+MSHDEF void    msh_discrete_distribution_update( msh_discrete_distrib_t* ctx, 
+                                                 double* weights, size_t n_weights );
 MSHDEF void    msh_discrete_distribution_free( msh_discrete_distrib_t* ctx );
 MSHDEF int     msh_discrete_distribution_sample( msh_discrete_distrib_t* ctx );
 
@@ -1823,15 +1825,12 @@ msh_pdf2cdf( const double* pdf, double* cdf, size_t n_vals )
  */
 
 MSHDEF void
-msh_discrete_distribution_init( msh_discrete_distrib_t* ctx, double* weights, size_t n_weights, size_t seed )
+msh_discrete_distribution_update( msh_discrete_distrib_t* ctx, double* weights, size_t n_weights )
 {
-  msh_rand_init( &ctx->rand_gen, seed );
-  ctx->n_weights = n_weights;
-  ctx->prob  = (double*)malloc( ctx->n_weights * sizeof(double) );
-  ctx->alias = (int*)malloc( ctx->n_weights * sizeof(int) );
+  assert( ctx->n_weights == n_weights );
   
   double *pdf = (double*)malloc( ctx->n_weights * sizeof(double) );
-  msh_distrib2pdf(weights, pdf, ctx->n_weights );
+  msh_distrib2pdf( weights, pdf, ctx->n_weights );
 
   double avg_prob = 1.0 / (double)ctx->n_weights;
   
@@ -1877,6 +1876,16 @@ msh_discrete_distribution_init( msh_discrete_distrib_t* ctx, double* weights, si
   msh_array_free(small);
   msh_array_free(large);
   free(pdf);
+}
+
+MSHDEF void
+msh_discrete_distribution_init( msh_discrete_distrib_t* ctx, double* weights, size_t n_weights, size_t seed )
+{
+  msh_rand_init( &ctx->rand_gen, seed );
+  ctx->n_weights = n_weights;
+  ctx->prob  = (double*)malloc( ctx->n_weights * sizeof(double) );
+  ctx->alias = (int*)malloc( ctx->n_weights * sizeof(int) );
+  msh_discrete_distribution_update( ctx, weights, n_weights );
 }
 
 MSHDEF void

@@ -52,8 +52,17 @@ void msh_nm_multiply( msh_nm_mat_t* A, msh_nm_mat_t* B, msh_nm_mat_t* C )
 {
 }
 
-void msh_nm_transpose( msh_nm_mat_t *A )
+void msh_nm_sq_transpose( double *A, int m )
 {
+  for(int i = 0 ; i < m; ++i )
+  {
+    for( int j = i; j < m; ++j )
+    {
+      double tmp = A[i * m + j];
+      A[i * m + j] = A[j * m + i];
+      A[j * m + i] = tmp;
+    }
+  }
 }
 
 void nm_print_matrixd( double* M, int rows, int cols );
@@ -383,6 +392,24 @@ LU_solve( uint32_t m, uint32_t n, double *A, int* piv, double* b )
     }
     b[i] = alpha / A[i*n + i];
   }
+}
+
+void LU_inverse( uint32_t m, uint32_t n, double* A, int* piv, double* Ainv )
+{
+  assert(A && piv && Ainv );
+
+  double* b = malloc( m * sizeof(double) );
+  int unity_idx = 0;
+
+  for( int i = 0; i < m; ++i )
+  {
+    memset(b, 0, sizeof(double) * m );
+    b[unity_idx++] = 1.0;
+    LU_solve( m, n, A, piv, b );
+    memcpy( Ainv + i * n, b, m * sizeof(double) );
+  }
+  msh_nm_sq_transpose( Ainv, 6 );
+  free(b);
 }
 
 // Check : https://github.com/ldfaiztt/cs267-dgemm/tree/master/src 
