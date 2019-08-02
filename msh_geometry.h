@@ -1,7 +1,7 @@
 /*
   ==============================================================================
   
-  MSH_GEOMETRY.H - WIP!
+  MSH_GEOMETRY.H - v0.01
   
   A single header library for simple geometrical objects and their interactions.
   Think bounding boxes and ray intersections. 
@@ -10,10 +10,6 @@
   
   #define MSH_GEOMETRY_IMPLEMENTATION
   #include "msh_geometry.h"
-
-  All functions can be made static by definining:
-
-  #ifdef MSH_GIZMO_STATIC
 
   ==============================================================================
   DEPENDENCIES
@@ -53,7 +49,6 @@
 
   ==============================================================================
   TODOs
-  [ ] Simplify the ray through pixel function
   [ ] Test u,v,w in triangle intersection
   [ ] Move the ray through pixel to msh_cam.h
   [ ] Read more about separating axis test ( Ericsen )
@@ -150,7 +145,7 @@ MSHGEODEF void       mshgeo_aabb_expand( msh_aabb_t* a, const msh_vec3_t* p );
 MSHGEODEF msh_vec2_t mshgeo_pts2d_center( msh_vec2_t* points, size_t n_points );
 MSHGEODEF msh_mat2_t mshgeo_pts2d_covariance( msh_vec2_t center, msh_vec2_t* points, size_t n_points );
 MSHGEODEF void       mshgeo_pts2d_pca( msh_vec2_t center, msh_vec2_t* points, size_t n_points, 
-                                       msh_mat3_t *eig_vec, msh_vec3_t* eig_val );
+                                       msh_mat2_t *eig_vec, msh_vec2_t* eig_val );
 
 MSHGEODEF msh_vec3_t mshgeo_pts3d_center( msh_vec3_t* points, size_t n_points );
 MSHGEODEF msh_mat3_t mshgeo_pts3d_covariance( msh_vec3_t center, msh_vec3_t* points, size_t n_points );
@@ -327,29 +322,6 @@ mshgeo_pts3d_pca( msh_vec3_t c, msh_vec3_t* pts, size_t n_pts,
 
 }
 
-
-// TODO(maciej): Move to camera header
-#ifdef MSH_CAM
-
-MSHGEODEF void
-mshgeo_ray_through_pixel( msh_ray_t* ray, msh_vec2_t p, msh_vec4_t* viewport, msh_camera_t* camera )
-{
-  ray->origin = camera->position;
-  msh_mat4_t inv_v = msh_mat4_inverse( camera->view );
-  msh_mat4_t inv_p = msh_mat4_inverse( camera->proj );
-  
-  float clip_x = (2.0f * p.x) / viewport->z - 1.0f;
-  float clip_y = 1.0f - (2.0f * p.y) / viewport->w;
-  msh_vec4_t clip_coords = msh_vec4( clip_x, clip_y, 0.0f, 1.0f );
-
-  msh_vec4_t eye_ray_dir = msh_mat4_vec4_mul( inv_p, clip_coords );
-  eye_ray_dir.z = -1.0f;
-  eye_ray_dir.w = 0.0f;
-  msh_vec3_t world_ray_dir = msh_vec4_to_vec3( msh_mat4_vec4_mul( inv_v, eye_ray_dir ) );
-  ray->direction = msh_vec3_normalize( world_ray_dir );
-}
-
-#endif
 
 /* From Realtime colision detection by Ericson
  * It is hard to find (at least for me) a good geometrical intuition for this algorithm, but

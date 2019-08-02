@@ -2,20 +2,11 @@
 
 [Examples repository](https://github.com/mhalber/msh_examples)
 
-This repository contains a number of libraries that I use for my daily development, written in C. 
-While not all of them follow strictly 'single-header' lib paradigm, but together they provide a 
-nice set of building blocks for various applications.
+This repository contains a number of libraries and utilities that I use for my daily development, written in C. 
 
-Currently libraries are grouped in two tiers:
+## Libraries
 
-- Tier 1: Single header file library - no dependencies other than c standard library
-
-- Tier 2: Library requires a different msh_lib to work.
-
-
-## TIER 1
-
-library                  |  version   | description  
+Name             |  version   | description  
 :------------------------|:----------:|:---------------------------------------------
 **msh_std.h**            |    0.6     | standard library functionality / extension
 **msh_argparse.h**       |    0.75    | command-line argument parsing
@@ -24,11 +15,11 @@ library                  |  version   | description
 **msh_hash_grid.h**      |    0.5     | Hash grid data structure for radius/knn queries in 2D/3D
 **msh_gfx.h**            |    0.1     | openGL wrapper
 
-## TIER 2
+## Utilites
 
-library                  |  version   | description                         | dependencies
+Name                  |  version   | description                         | dependencies
 :------------------------|:----------:|:-----------------------------------:|:-------
-**msh_cam.h**            |    0.4     | various types of camera controls    | msh_vec_math.h
+**msh_cam.h**            |    0.5     | various types of camera controls    | msh_vec_math.h
 **msh_geometry.h**       |    0.01    | geometrical primitives manipulation | msh_vec_math.h
 
 ## Experimental folder
@@ -43,13 +34,9 @@ These libraries have been inspired by excellent [libraries](https://github.com/n
 I'd also like to point you to many other single file libraries:
 
 - [gb](https://github.com/gingerBill/gb)
-
 - [cute_headers](https://github.com/RandyGaul/cute_headers)
-
 - [mattias gustavsson's libs](https://github.com/mattiasgustavsson/libs)
-
 - [rjm](https://github.com/rmitton/rjm)
-
 - [sokol](https://github.com/floooh/sokol)
 
 They are excellent and you should do yourself a favor and try them out!

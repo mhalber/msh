@@ -974,8 +974,8 @@ MSHVMDEF msh_vec3_t
 msh_vec3_cross( msh_vec3_t a, msh_vec3_t b )
 {
   return MSHVM_INIT_CAST(msh_vec3_t){{ ( a.y * b.z - a.z * b.y ),
-                        ( a.z * b.x - a.x * b.z ),
-                        ( a.x * b.y - a.y * b.x ) }};
+                                       ( a.z * b.x - a.x * b.z ),
+                                       ( a.x * b.y - a.y * b.x ) }};
 }
 
 MSHVMDEF real32_t
@@ -2389,13 +2389,6 @@ msh_quat_slerp( msh_quat_t q,
   return o;
 }
 
-MSHVMDEF msh_quat_t
-msh_quat_from_angle_axis( msh_vec3_t axis, real32_t angle )
-{
-    real32_t a = angle * 0.5f;
-    real32_t s = sinf(a);
-    return MSHVM_INIT_CAST(msh_quat_t){{ axis.x * s, axis.y * s, axis.z * s, cosf(a) }};
-}
 
 MSHVMDEF msh_mat3_t
 msh_quat_to_mat3( msh_quat_t q )

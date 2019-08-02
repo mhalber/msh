@@ -52,8 +52,17 @@ void msh_nm_multiply( msh_nm_mat_t* A, msh_nm_mat_t* B, msh_nm_mat_t* C )
 {
 }
 
-void msh_nm_transpose( msh_nm_mat_t *A )
+void msh_nm_sq_transpose( double *A, int m )
 {
+  for(int i = 0 ; i < m; ++i )
+  {
+    for( int j = i; j < m; ++j )
+    {
+      double tmp = A[i * m + j];
+      A[i * m + j] = A[j * m + i];
+      A[j * m + i] = tmp;
+    }
+  }
 }
 
 void nm_print_matrixd( double* M, int rows, int cols );
@@ -135,10 +144,10 @@ LU_factor_gauss_elimination( uint32_t m, uint32_t n, double* A, int* piv )
 
   double* pivot = malloc(sizeof(double) * m);
 
-  for (int i = 0; i < m; i++) 
+  for( int i = 0; i < m; i++) 
   {
     double big = 0;
-    for (int j = 0; j < n; j++) 
+    for( int j = 0; j < n; j++) 
     {
       double tmp = fabs(A[i * n + j]);
       if (tmp > big) { big = tmp; }
@@ -192,14 +201,14 @@ LU_factor_gauss_elimination( uint32_t m, uint32_t n, double* A, int* piv )
 }
 
 bool
-LU_factor_nr( uint32_t m, uint32_t N, double* A, int* ind )
+LU_factor_nr( uint32_t m, uint32_t N, double* A, int* ind ) // Is this numerical recipies?
 {
   double* pivot = malloc(sizeof(double) * N);
 
-  for (int i = 0; i < N; i++) 
+  for( int i = 0; i < N; i++) 
   {
     double big = 0;
-    for (int j = 0; j < N; j++) 
+    for( int j = 0; j < N; j++) 
     {
       double tmp = fabs(A[i * N + j]);
       if (tmp > big) { big = tmp; }
@@ -208,21 +217,21 @@ LU_factor_nr( uint32_t m, uint32_t N, double* A, int* ind )
     pivot[i] = 1.0 / big;
   }
 
-  for (int j = 0; j < N; j++)
+  for( int j = 0; j < N; j++)
   {
-    for (int i = 0; i < j; i++) 
+    for( int i = 0; i < j; i++) 
     {
       double sum = A[i * N + j];
-      for (int k = 0; k < i; k++)
+      for( int k = 0; k < i; k++)
         sum -= A[i * N + k] * A[k * N + j];
       A[i * N + j] = sum;
     }
 
     double big = 0;
     int imax = j;
-    for (int i = j; i < N; i++) {
+    for( int i = j; i < N; i++) {
       double sum = A[i * N + j];
-      for (int k = 0; k < j; k++)
+      for( int k = 0; k < j; k++)
         sum -= A[i * N + k] * A[k * N + j];
       A[i * N + j] = sum;
       double tmp = pivot[i] * fabs(sum);
@@ -233,7 +242,7 @@ LU_factor_nr( uint32_t m, uint32_t N, double* A, int* ind )
     }
 
     if (imax != j) {
-      for (int k = 0; k < N; k++)
+      for( int k = 0; k < N; k++)
       {
         double tmp = A[imax * N + k];
         A[imax * N + k] = A[j * N + k];
@@ -249,7 +258,7 @@ LU_factor_nr( uint32_t m, uint32_t N, double* A, int* ind )
     if (j != N - 1) 
     {
       double tmp = 1 / A[j * N + j];
-      for (int i = j + 1; i < N; i++)
+      for( int i = j + 1; i < N; i++)
         A[i * N + j] *= tmp;
     }
   }
@@ -268,17 +277,17 @@ LU_factor_nr( uint32_t m, uint32_t N, double* A, int* ind )
 void
 LU_factor_jama( uint32_t m, uint32_t n, double* A, int* piv )
 {
-  for (int i = 0; i < m; i++) {
+  for( int i = 0; i < m; i++) {
     piv[i] = i;
   }
 
   double* LUrowi;
   double* LUcolj = malloc( m * sizeof(double) );
   double* pivot = malloc(sizeof(double) * m);
-  for (int i = 0; i < m; i++) 
+  for( int i = 0; i < m; i++) 
   {
     double big = 0;
-    for (int j = 0; j < n; j++) 
+    for( int j = 0; j < n; j++) 
     {
       double tmp = fabs(A[i * n + j]);
       if (tmp > big) { big = tmp; }
@@ -286,19 +295,19 @@ LU_factor_jama( uint32_t m, uint32_t n, double* A, int* piv )
     if (big == 0) { return; }
     pivot[i] = 1.0 / big;
   }
-  printf("%f %f %f\n", pivot[0], pivot[1], pivot[2]);
+  // printf("%f %f %f\n", pivot[0], pivot[1], pivot[2]);
 
   // Outer loop.
-  for (int j = 0; j < n; j++) {
+  for( int j = 0; j < n; j++) {
 
     // Make a copy of the j-th column to localize references.
-    for (int i = 0; i < m; i++) {
+    for( int i = 0; i < m; i++) {
       LUcolj[i] = A[ i*n +j ];
     }
 
     // Apply previous transformations.
 
-    for (int i = 0; i < m; i++) {
+    for( int i = 0; i < m; i++) {
       LUrowi = &A[i*n];
       // printf("TEST: %d %d\n", i, j);
       // printf("A : %f %f %f\n", LUcolj[0], LUcolj[1], LUcolj[2]);
@@ -308,7 +317,7 @@ LU_factor_jama( uint32_t m, uint32_t n, double* A, int* piv )
 
       int kmax = min(i,j);
       double s = 0.0;
-      for (int k = 0; k < kmax; k++) {
+      for( int k = 0; k < kmax; k++) {
         s += LUrowi[k]*LUcolj[k];
       }
       
@@ -325,7 +334,7 @@ LU_factor_jama( uint32_t m, uint32_t n, double* A, int* piv )
     // printf("===========\n");
     int p = j;
     double pmax = 0;
-    for (int i = j; i < m; i++) {
+    for( int i = j; i < m; i++) {
       double tmp = pivot[i] * fabs(LUcolj[i]);
       // printf("  %f %f %f\n", tmp, pivot[i], fabs(LUcolj[i]));
       if( tmp > pmax ) {
@@ -335,7 +344,7 @@ LU_factor_jama( uint32_t m, uint32_t n, double* A, int* piv )
     }
     
     if (p != j) {
-      for (int k = 0; k < n; k++) {
+      for( int k = 0; k < n; k++) {
         double t = A[p*n+k]; A[p*n+k] = A[j*n+k]; A[j*n+k] = t;
       }
       piv[j] = p;
@@ -347,7 +356,7 @@ LU_factor_jama( uint32_t m, uint32_t n, double* A, int* piv )
     // Compute multipliers.
     if (j < m && A[j*n+j] != 0.0) {
       double denom = 1.0 / A[j*n+j];
-      for (int i = j+1; i < m; i++) {
+      for( int i = j+1; i < m; i++) {
         A[i*n+j] *= denom;
       }
     }
@@ -385,6 +394,24 @@ LU_solve( uint32_t m, uint32_t n, double *A, int* piv, double* b )
   }
 }
 
+void LU_inverse( uint32_t m, uint32_t n, double* A, int* piv, double* Ainv )
+{
+  assert(A && piv && Ainv );
+
+  double* b = malloc( m * sizeof(double) );
+  int unity_idx = 0;
+
+  for( int i = 0; i < m; ++i )
+  {
+    memset(b, 0, sizeof(double) * m );
+    b[unity_idx++] = 1.0;
+    LU_solve( m, n, A, piv, b );
+    memcpy( Ainv + i * n, b, m * sizeof(double) );
+  }
+  msh_nm_sq_transpose( Ainv, 6 );
+  free(b);
+}
+
 // Check : https://github.com/ldfaiztt/cs267-dgemm/tree/master/src 
 // Check : https://github.com/ytsutano/dgemm-goto-in-c // not super fast
 // Check : https://github.com/cappachu/dgemm // bit faster, but requires sse4
@@ -416,20 +443,20 @@ void mmm3( const int N, const int M, const int P, double* restrict A, double* re
   double *restrict rres;
   double *restrict rmul1;
   double *restrict rmul2;
-  for (i = 0; i < N; i += SM)
+  for( i = 0; i < N; i += SM)
   {
     uint32_t i2lim = min( SM, N-i );
-    for (j = 0; j < M; j += SM)
+    for( j = 0; j < M; j += SM)
     {
       uint32_t j2lim = min( SM, M-j );
-      for (k = 0; k < P; k += SM)
+      for( k = 0; k < P; k += SM)
       {
         uint32_t k2lim = min( SM, P-k );
-        for (i2 = 0, rres = &C[i*M+j], rmul1 = &A[i*P+k]; i2 < i2lim; ++i2, rres += M, rmul1 += P)
+        for( i2 = 0, rres = &C[i*M+j], rmul1 = &A[i*P+k]; i2 < i2lim; ++i2, rres += M, rmul1 += P)
         {
-          for (k2 = 0, rmul2 = &B[k*M+j]; k2 < k2lim; ++k2, rmul2 += M)
+          for( k2 = 0, rmul2 = &B[k*M+j]; k2 < k2lim; ++k2, rmul2 += M)
           {
-            for (j2 = 0; j2 < j2lim; ++j2)
+            for( j2 = 0; j2 < j2lim; ++j2)
             {
               rres[j2] += rmul1[k2] * rmul2[j2];
             }
@@ -661,7 +688,7 @@ diagonal element, zero the superdiagonal element above it.
 #define MSH_NM_COPY2D(d,m,n,s)	(void) memcpy((char*)(d),(char*)(s),(int)((m)*(n)*sizeof(msh_nm_scalar_t)))
 #define MSH_NM_REF2D(a,m,n,i,j)	(a[(n)*(i)+(j)])
 
-msh_nm_scalar_t fhypot (msh_nm_scalar_t a, msh_nm_scalar_t b)
+msh_nm_scalar_t msh_svd__fhypot (msh_nm_scalar_t a, msh_nm_scalar_t b)
 {
     return ((msh_nm_scalar_t) sqrt (a*a + b*b));
 }
@@ -684,112 +711,117 @@ msh_nm_scalar_t fhypot (msh_nm_scalar_t a, msh_nm_scalar_t b)
 */
 
 
-void householder_zero_col(msh_nm_scalar_t *a,msh_nm_scalar_t *u,int i,int j,int m,int n,msh_nm_scalar_t *hv)
-	/* hv is a work vector, length m */
+void msh_svd__householder_zero_col(msh_nm_scalar_t *a,msh_nm_scalar_t *u,int i,int j,int m,int n,msh_nm_scalar_t *hv)
+  /* hv is a work vector, length m */
 {
-    msh_nm_scalar_t	scale,	/* a scale factor for X1 */
-		sigma,		/* the norm^2 of X1 */
-		snorm,		/* +/- the norm of X1 */
-		f, h, s, dot;
-    int k,l;
+  msh_nm_scalar_t scale,  /* a scale factor for X1 */
+  sigma,  /* the norm^2 of X1 */
+  snorm,  /* +/- the norm of X1 */
+  f, h, s, dot;
+  int k,l;
 
-    /* we will scale X1 by its l1-norm.  squawk! */
-    for (scale=0, k=i; k<m; k++) scale += ((msh_nm_scalar_t) fabs(MSH_NM_REF2D(a,m,n,k,j)));
+  /* we will scale X1 by its l1-norm.  squawk! */
+  for( scale = 0, k = i; k < m; k++ ) { scale += ((msh_nm_scalar_t) fabs(MSH_NM_REF2D(a,m,n,k,j))); }
 
-    /* if X1 is 0, no point doing anything else */
-    if (!scale) return;
+  /* if X1 is 0, no point doing anything else */
+  if( !scale ) { return; }
 
-    /* divide out the l1-norm, and calculate sigma = |X|^2 */
-    for (k=i; k<m; k++) hv[k] = MSH_NM_REF2D(a,m,n,k,j) / scale;
-    for (sigma=0, k=i; k<m; k++) sigma += hv[k]*hv[k];
+  /* divide out the l1-norm, and calculate sigma = |X|^2 */
+  for( k = i; k < m; k++ )          { hv[k] = MSH_NM_REF2D(a,m,n,k,j) / scale; }
+  for( sigma = 0, k = i; k<m; k++ ) { sigma += hv[k]*hv[k]; }
 
-    /* The householder vector is X1 +/- (|X1|,0,0,...).  We will
-    ** contruct this vector in hv and use it to perform the householder
-    ** transformation on the matrix.  The plus or minus on the norm
-    ** is to reduce roundoff error.  */
-    f = hv[i];
-    snorm = ((msh_nm_scalar_t) ((f > 0) ? -sqrt(sigma) : sqrt(sigma)));
-    h = f*snorm - sigma;	/* eqn 11.2.4 in Press et.al. */
-    hv[i] = f - snorm;
+  /* The householder vector is X1 +/- (|X1|,0,0,...).  We will
+  ** contruct this vector in hv and use it to perform the householder
+  ** transformation on the matrix.  The plus or minus on the norm
+  ** is to reduce roundoff error.  */
+  f = hv[i];
+  snorm = ((msh_nm_scalar_t) ((f > 0) ? -sqrt(sigma) : sqrt(sigma)));
+  h = f*snorm - sigma;	/* eqn 11.2.4 in Press et.al. */
+  hv[i] = f - snorm;
 
-    /* set the first column of a to be the (|X1|,0,...) -- this is
-    ** what we would get by performing the transformation, but this
-    ** way's faster */
-    MSH_NM_REF2D(a,m,n,i,j) = scale * snorm;
-    for (k=i+1; k<m; k++) MSH_NM_REF2D(a,m,n,k,j) = 0;
+  /* set the first column of a to be the (|X1|,0,...) -- this is
+  ** what we would get by performing the transformation, but this
+  ** way's faster */
+  MSH_NM_REF2D(a,m,n,i,j) = scale * snorm;
+  for( k=i+1; k<m; k++) { MSH_NM_REF2D(a,m,n,k,j) = 0; }
 
-    /* Now perform the householder transformation on the rest of
-    ** the columns.  If the householder vector is X, and -half its norm^2
-    ** is h, the householder transform is P_ij : delta_ij + x_i x_j / h.
-    ** We don't actually create the P matrix, we just do the calcuation.
-    */
-    for (k=j+1; k<n; k++) {
-	for (dot=0, l=i; l<m; l++) dot += MSH_NM_REF2D(a,m,n,l,k)*hv[l];
-	s = dot/h;
-	for (l=i; l<m; l++) MSH_NM_REF2D(a,m,n,l,k) += s*hv[l];
-    }
+  /* Now perform the householder transformation on the rest of
+  ** the columns.  If the householder vector is X, and -half its norm^2
+  ** is h, the householder transform is P_ij : delta_ij + x_i x_j / h.
+  ** We don't actually create the P matrix, we just do the calcuation.
+  */
+  for( k = j+1; k < n; k++ )
+  {
+    for( dot = 0, l=i; l < m; l++ ) { dot += MSH_NM_REF2D(a,m,n,l,k)*hv[l]; }
+    s = dot/h;
+    for( l = i; l < m; l++ ) { MSH_NM_REF2D(a,m,n,l,k) += s*hv[l]; }
+  }
 
-    /* Similarly, perform the householder transformation on (all)
-    ** the rows of u.  Note that it's the rows of u rather than
-    ** the columns, because we want U to invert what we've done to a.
-    */
-    for (k=0; k<m; k++) {
-	for (dot=0, l=i; l<m; l++) dot += MSH_NM_REF2D(u,m,m,k,l)*hv[l];
-	s = dot/h;
-	for (l=i; l<m; l++) MSH_NM_REF2D(u,m,m,k,l) += s*hv[l];
-    }
+  /* Similarly, perform the householder transformation on (all)
+  ** the rows of u.  Note that it's the rows of u rather than
+  ** the columns, because we want U to invert what we've done to a.
+  */
+  for( k=0; k<m; k++ )
+  {
+    for( dot = 0, l = i; l < m; l++ ) { dot += MSH_NM_REF2D(u,m,m,k,l)*hv[l]; }
+    s = dot/h;
+    for( l = i; l < m; l++ ) { MSH_NM_REF2D(u,m,m,k,l) += s*hv[l]; }
+  }
 }
 
-/* this is the same as householder_zero_col, but with rows
+/* this is the same as msh_svd__householder_zero_col, but with rows
 ** and cols swapped.  
 */
 
-void householder_zero_row(msh_nm_scalar_t *a,msh_nm_scalar_t *v,int i,int j,int m,int n,msh_nm_scalar_t *hv)
+void msh_svd__householder_zero_row(msh_nm_scalar_t *a,msh_nm_scalar_t *v,int i,int j,int m,int n,msh_nm_scalar_t *hv)
 {
-    msh_nm_scalar_t scale, sigma,snorm, f, h, s, dot;
-    int k,l;
+  msh_nm_scalar_t scale, sigma,snorm, f, h, s, dot;
+  int k,l;
 
-    for (scale=0, k=j; k<n; k++) scale += ((msh_nm_scalar_t) fabs(MSH_NM_REF2D(a,m,n,i,k)));
-    if (!scale) return;
+  for( scale = 0, k = j; k < n; k++ ) { scale += ((msh_nm_scalar_t) fabs(MSH_NM_REF2D(a,m,n,i,k))); }
+  if( !scale ) { return; }
 
-    for (k=j; k<n; k++) hv[k] = MSH_NM_REF2D(a,m,n,i,k) / scale;
-    for (sigma=0, k=j; k<n; k++) sigma += hv[k]*hv[k];
+  for( k = j; k < n; k++ )            { hv[k] = MSH_NM_REF2D(a,m,n,i,k) / scale; }
+  for( sigma = 0, k = j; k < n; k++ ) { sigma += hv[k]*hv[k]; }
 
-    f = hv[j];
-    snorm = ((msh_nm_scalar_t) ((f > 0) ? -sqrt(sigma) : sqrt(sigma)));
-    h = f*snorm - sigma;
-    hv[j] = f - snorm;
+  f = hv[j];
+  snorm = ((msh_nm_scalar_t) ((f > 0) ? -sqrt(sigma) : sqrt(sigma)));
+  h = f*snorm - sigma;
+  hv[j] = f - snorm;
 
-    MSH_NM_REF2D(a,m,n,i,j) = scale * snorm;
-    for (k=j+1; k<n; k++) MSH_NM_REF2D(a,m,n,i,k) = 0;
+  MSH_NM_REF2D(a,m,n,i,j) = scale * snorm;
+  for( k = j + 1; k < n; k++ ) { MSH_NM_REF2D(a,m,n,i,k) = 0; }
 
-    for (k=i+1; k<m; k++) {
-	for (dot=0, l=j; l<n; l++) dot += MSH_NM_REF2D(a,m,n,k,l)*hv[l];
-	s = dot/h;
-	for (l=j; l<n; l++) MSH_NM_REF2D(a,m,n,k,l) += s*hv[l];
-    }
+  for( k = i + 1; k < m; k++ )
+  {
+   for( dot=0, l=j; l<n; l++ ) { dot += MSH_NM_REF2D(a,m,n,k,l)*hv[l]; }
+   s = dot/h;
+   for( l=j; l<n; l++ ) { MSH_NM_REF2D(a,m,n,k,l) += s*hv[l]; }
+  }
 
-    for (k=0; k<n; k++) {
-	for (dot=0, l=j; l<n; l++) dot += MSH_NM_REF2D(v,n,n,l,k)*hv[l];
-	s = dot/h;
-	for (l=j; l<n; l++) MSH_NM_REF2D(v,n,n,l,k) += s*hv[l];
-    }
+  for( k = 0; k < n; k++ )
+  {
+    for( dot = 0, l = j; l < n; l++ ) { dot += MSH_NM_REF2D(v,n,n,l,k)*hv[l]; }
+    s = dot/h;
+    for( l = j; l < n; l++ ) { MSH_NM_REF2D(v,n,n,l,k) += s*hv[l]; }
+  }
 }
 
 /*
 ** performs a Givens rotation on the ith and jth columns of a, looking
 ** at the n elements starting at start.  a is mm x nn.
 */
-void rotate_cols(int i,int j,msh_nm_scalar_t cos,msh_nm_scalar_t sin,msh_nm_scalar_t* a,int start,int n,int mm,int nn)
+void msh_svd__rotate_cols(int i,int j,msh_nm_scalar_t cos,msh_nm_scalar_t sin,msh_nm_scalar_t* a,int start,int n,int mm,int nn)
 {
-    int end = start+n, k;
-    msh_nm_scalar_t x,y;
-    for (k=start; k<end; k++) {
-	x = MSH_NM_REF2D(a,mm,nn,k,i);
-	y = MSH_NM_REF2D(a,mm,nn,k,j);
-	MSH_NM_REF2D(a,mm,nn,k,i) =  cos*x + sin*y;
-	MSH_NM_REF2D(a,mm,nn,k,j) = -sin*x + cos*y;
-    }
+  int end = start+n, k;
+  msh_nm_scalar_t x,y;
+  for( k = start; k < end; k++ )
+  {
+    x = MSH_NM_REF2D(a,mm,nn,k,i);
+    y = MSH_NM_REF2D(a,mm,nn,k,j);
+    MSH_NM_REF2D(a,mm,nn,k,i) =  cos*x + sin*y;
+    MSH_NM_REF2D(a,mm,nn,k,j) = -sin*x + cos*y;
+  }
 }
 
 
@@ -797,16 +829,17 @@ void rotate_cols(int i,int j,msh_nm_scalar_t cos,msh_nm_scalar_t sin,msh_nm_scal
 ** performs a Givens rotation on the ith and jth rows of a, looking
 ** at the n elements starting at start.  a is mm x nn.
 */
-void rotate_rows(int i,int j, msh_nm_scalar_t cos,msh_nm_scalar_t sin,msh_nm_scalar_t* a,int start,int n,int mm,int nn)
+void msh_svd__rotate_rows(int i,int j, msh_nm_scalar_t cos, msh_nm_scalar_t sin, msh_nm_scalar_t* a, int start, int n, int mm, int nn)
 {
-    int end = start+n, k;
-    msh_nm_scalar_t x,y;
-    for (k=start; k<end; k++) {
-	x = MSH_NM_REF2D(a,mm,nn,i,k);
-	y = MSH_NM_REF2D(a,mm,nn,j,k);
-	MSH_NM_REF2D(a,mm,nn,i,k) =  cos*x + sin*y;
-	MSH_NM_REF2D(a,mm,nn,j,k) = -sin*x + cos*y;
-    }
+  int end = start+n, k;
+  msh_nm_scalar_t x,y;
+  for( k = start; k < end; k++ )
+  {
+    x = MSH_NM_REF2D( a, mm, nn, i, k);
+    y = MSH_NM_REF2D( a, mm, nn, j, k);
+    MSH_NM_REF2D( a, mm, nn, i, k) =  cos*x + sin*y;
+    MSH_NM_REF2D( a, mm, nn, j, k) = -sin*x + cos*y;
+  }
 }
 
 /*
@@ -830,27 +863,28 @@ void rotate_rows(int i,int j, msh_nm_scalar_t cos,msh_nm_scalar_t sin,msh_nm_sca
 ** R over again, etc.  till R falls off the end.
 */
 
-void clr_top_supdiag_elt(msh_nm_scalar_t * b,int p,int z,msh_nm_scalar_t * u,int m,int n,int min)
+void msh_svd__clr_top_supdiag_elt(msh_nm_scalar_t * b,int p,int z,msh_nm_scalar_t * u,int m,int n,int min)
 {
-    int i;
-    msh_nm_scalar_t r, x, hypot, cos, sin;
+  int i;
+  msh_nm_scalar_t r, x, hypot, cos, sin;
 
-    for (i=p+1; i<=z; i++) {
-	r = MSH_NM_REF2D(b,m,n,p,i);
-	x = MSH_NM_REF2D(b,m,n,i,i);
-	if (r==0) break;
-	hypot = ((msh_nm_scalar_t) sqrt (r*r + x*x)); //hypot = pythag(r,x);
-	cos = x/hypot;
-	sin = r/hypot;
-	/* update the diagonal and superdiagonal elements */
-	MSH_NM_REF2D(b,m,n,p,i) = 0;
-	MSH_NM_REF2D(b,m,n,i,i) = hypot;
-	/* Rotate the remainder of rows p and i (only need to
-	** rotate one more element, since the rest are zero) */
-	if (i != z) rotate_rows(p,i,cos,sin,b,i+1,1,m,n);
-	/* accumulate the rotation into u */
-	rotate_cols(i,p,cos,sin,u,0,m,m,min);
-    }
+  for( i = p+1; i <= z; i++ )
+  {
+    r = MSH_NM_REF2D(b,m,n,p,i);
+    x = MSH_NM_REF2D(b,m,n,i,i);
+    if( r == 0 ) { break; }
+    hypot = ((msh_nm_scalar_t) sqrt (r*r + x*x)); //hypot = pythag(r,x);
+    cos = x/hypot;
+    sin = r/hypot;
+    /* update the diagonal and superdiagonal elements */
+    MSH_NM_REF2D(b,m,n,p,i) = 0;
+    MSH_NM_REF2D(b,m,n,i,i) = hypot;
+    /* Rotate the remainder of rows p and i (only need to
+    ** rotate one more element, since the rest are zero) */
+    if( i != z ) { msh_svd__rotate_rows(p,i,cos,sin,b,i+1,1,m,n); }
+    /* accumulate the rotation into u */
+    msh_svd__rotate_cols(i,p,cos,sin,u,0,m,m,min);
+  }
 }
 
 /*
@@ -874,27 +908,28 @@ void clr_top_supdiag_elt(msh_nm_scalar_t * b,int p,int z,msh_nm_scalar_t * u,int
 ** R over again, etc.  till R falls off the end.
 */
 
-void clr_bot_supdiag_elt(msh_nm_scalar_t * b,int p,int z,msh_nm_scalar_t * v,int m,int n,int min)
+void msh_svd__clr_bot_supdiag_elt(msh_nm_scalar_t * b,int p,int z,msh_nm_scalar_t * v,int m,int n,int min)
 {
-    int i;
-    msh_nm_scalar_t r, x, hypot, cos, sin;
+  int i;
+  msh_nm_scalar_t r, x, hypot, cos, sin;
 
-    for (i=z-1; i>=p; i--) {
-	r = MSH_NM_REF2D(b,m,n,i,z);
-	x = MSH_NM_REF2D(b,m,n,i,i);
-	if (r==0) break;
-	hypot = ((msh_nm_scalar_t) sqrt (r*r + x*x)); //hypot = pythag(r,x);
-	cos = x/hypot;
-	sin = r/hypot;
-	/* update the diagonal and superdiagonal elements */
-	MSH_NM_REF2D(b,m,n,i,z) = 0;
-	MSH_NM_REF2D(b,m,n,i,i) = hypot;
-	/* Rotate the remainder of cols z and i (only need to
-	** rotate one more element, since the rest are zero) */
-	if (i != p) rotate_cols(i,z,cos,sin,b,i-1,1,m,n);
-	/* accumulate the rotation into v */
-	rotate_rows(i,z,cos,sin,v,0,n,min,n);
-    }
+  for( i = z-1; i >= p; i-- )
+  {
+    r = MSH_NM_REF2D(b,m,n,i,z);
+    x = MSH_NM_REF2D(b,m,n,i,i);
+    if( r == 0 ) { break; }
+    hypot = ((msh_nm_scalar_t) sqrt (r*r + x*x)); //hypot = pythag(r,x);
+    cos = x/hypot;
+    sin = r/hypot;
+    /* update the diagonal and superdiagonal elements */
+    MSH_NM_REF2D(b,m,n,i,z) = 0;
+    MSH_NM_REF2D(b,m,n,i,i) = hypot;
+    /* Rotate the remainder of cols z and i (only need to
+    ** rotate one more element, since the rest are zero) */
+    if( i != p ) { msh_svd__rotate_cols(i,z,cos,sin,b,i-1,1,m,n); }
+    /* accumulate the rotation into v */
+    msh_svd__rotate_rows(i,z,cos,sin,v,0,n,min,n);
+  }
 }
 
 /*
@@ -927,43 +962,45 @@ void clr_bot_supdiag_elt(msh_nm_scalar_t * b,int p,int z,msh_nm_scalar_t * v,int
 ** and the row rotation will eliminate R.
 */
 
-void clr_top_subdiag_elt(msh_nm_scalar_t * b,int p,int z,msh_nm_scalar_t * u,msh_nm_scalar_t * v,int m,int n,int min)
+void msh_svd__clr_top_subdiag_elt( msh_nm_scalar_t * b, int p, int z, 
+                                   msh_nm_scalar_t * u, msh_nm_scalar_t * v, int m, int n, int min)
 {
-    int i;
-    msh_nm_scalar_t x, r, hypot, cos, sin;
+  int i;
+  msh_nm_scalar_t x, r, hypot, cos, sin;
 
-    for (i=p; ; i++) {
-	/* figure out row rotation to zero out the subdiagonal element */
-	x = MSH_NM_REF2D(b,m,n,i,i);
-	r = MSH_NM_REF2D(b,m,n,i+1,i);
-	hypot = fhypot(x,r);
-	cos = x/hypot;
-	sin = r/hypot;
-	/* rotate the leading elements of the row */
-	MSH_NM_REF2D(b,m,n,i,i) = hypot;
-	MSH_NM_REF2D(b,m,n,i+1,i) = 0;
-	/* rotate out the rest of the row */
-	rotate_rows(i,i+1,cos,sin,b,i+1,(i+1==z)?1:2,m,n);
-	/* accumulate transformation into columns of u */
-	rotate_cols(i,i+1,cos,sin,u,0,m,m,min);
+  for( i = p ;; i++ ) 
+  {
+    /* figure out row rotation to zero out the subdiagonal element */
+    x = MSH_NM_REF2D(b,m,n,i,i);
+    r = MSH_NM_REF2D(b,m,n,i+1,i);
+    hypot = msh_svd__fhypot(x,r);
+    cos = x/hypot;
+    sin = r/hypot;
+    /* rotate the leading elements of the row */
+    MSH_NM_REF2D(b,m,n,i,i) = hypot;
+    MSH_NM_REF2D(b,m,n,i+1,i) = 0;
+    /* rotate out the rest of the row */
+    msh_svd__rotate_rows(i,i+1,cos,sin,b,i+1,(i+1==z)?1:2,m,n);
+    /* accumulate transformation into columns of u */
+    msh_svd__rotate_cols(i,i+1,cos,sin,u,0,m,m,min);
 
-	/* end with a row rotation */
-	if (i+1==z) break;
+    /* end with a row rotation */
+    if (i+1==z) break;
 
-	/* figure out column rotation */
-	x = MSH_NM_REF2D(b,m,n,i,i+1);
-	r = MSH_NM_REF2D(b,m,n,i,i+2);
-	hypot = fhypot(x,r);
-	cos = x/hypot;
-	sin = r/hypot;
-	/* rotate the leading elements of the column */
-	MSH_NM_REF2D(b,m,n,i,i+1) = hypot;
-	MSH_NM_REF2D(b,m,n,i,i+2) = 0;
-	/* rotate the rest of the column */
-	rotate_cols(i+1,i+2,cos,sin,b,i+1,2,m,n);
-	/* accumulate transformation into columns of v */
-	rotate_rows(i+1,i+2,cos,sin,v,0,n,min,n);
-    }
+    /* figure out column rotation */
+    x = MSH_NM_REF2D(b,m,n,i,i+1);
+    r = MSH_NM_REF2D(b,m,n,i,i+2);
+    hypot = msh_svd__fhypot(x,r);
+    cos = x/hypot;
+    sin = r/hypot;
+    /* rotate the leading elements of the column */
+    MSH_NM_REF2D(b,m,n,i,i+1) = hypot;
+    MSH_NM_REF2D(b,m,n,i,i+2) = 0;
+    /* rotate the rest of the column */
+    msh_svd__rotate_cols(i+1,i+2,cos,sin,b,i+1,2,m,n);
+    /* accumulate transformation into columns of v */
+    msh_svd__rotate_rows(i+1,i+2,cos,sin,v,0,n,min,n);
+  }
 }
 
 /*
@@ -1011,75 +1048,75 @@ void clr_top_subdiag_elt(msh_nm_scalar_t * b,int p,int z,msh_nm_scalar_t * u,msh
 ** b is m x n,   v is min x n
 */
 
-void golub_kahn_svd_rot(msh_nm_scalar_t * b,int p,int q,msh_nm_scalar_t * v,int m,int n,int min)
+void msh_svd__golub_kahn_svd_rot(msh_nm_scalar_t * b,int p,int q,msh_nm_scalar_t * v,int m,int n,int min)
 {
-    msh_nm_scalar_t t11, t12, t22;
-    msh_nm_scalar_t uu;
-    msh_nm_scalar_t b11, b12;
-    msh_nm_scalar_t dm,fm,dn,fn;
-    msh_nm_scalar_t hypot,cos,sin;
-    msh_nm_scalar_t d, s, y, z;
+  msh_nm_scalar_t t11, t12, t22;
+  msh_nm_scalar_t uu;
+  msh_nm_scalar_t b11, b12;
+  msh_nm_scalar_t dm,fm,dn,fn;
+  msh_nm_scalar_t hypot,cos,sin;
+  msh_nm_scalar_t d, s, y, z;
 
-    /* grab the last diagonal and superdiagonal elements of b22 */
-    fm = (q-2) < 0 ? 0 : MSH_NM_REF2D(b,m,n,q-2,q-1);
-    dm = MSH_NM_REF2D(b,m,n,q-1,q-1);	fn = MSH_NM_REF2D(b,m,n,q-1,q);
-				dn = MSH_NM_REF2D(b,m,n,q,q);
+  /* grab the last diagonal and superdiagonal elements of b22 */
+  fm = (q-2) < 0 ? 0 : MSH_NM_REF2D(b,m,n,q-2,q-1);
+  dm = MSH_NM_REF2D(b,m,n,q-1,q-1);	fn = MSH_NM_REF2D(b,m,n,q-1,q);
+      dn = MSH_NM_REF2D(b,m,n,q,q);
 
-    /* create the trailing 2x2 submatrix of T = b22^t b22 */
-    t11 = dm*dm + fm * fm;
-    t12 = dm * fn;		t22 = dn * dn + fn * fn;
+  /* create the trailing 2x2 submatrix of T = b22^t b22 */
+  t11 = dm*dm + fm * fm;
+  t12 = dm * fn;		t22 = dn * dn + fn * fn;
 
-    /* find the eigenvalues of the T matrix.
-    **
-    ** The quadratic equation for the eigenvalues has coefficients:
-    ** a = 1
-    ** b = -(t11+t22)
-    ** c = t11 t22 - t12 t12
-    **
-    ** b^2 - 4ac = (t11^2 + t22^2 + 2 t11 t12) - 4 t11 t22 + 4 t12 t12
-    **           = (t11 - t22)^2 + 4 t12 t12
-    **
-    ** sqrt(b^2-4ac) = sqrt((t11 - t22)^2 + 4 t12 t12) -- use "pythag()"
-    **
-    ** using quadratic formula, we have the eigenvalues:
-    ** (u1,u2) = .5 (t11 + t22 +/- pythag(...))
-    **         = t22 + .5 (t11 - t22 +/- pythag(...))
-    **
-    ** We propogate the .5 into the pythag term, yielding golub's equation 8.2-2
-    ** for the "wilkinson shift".
-    ** [Note:  Golub says to use (t22 + d - signum(d) s) to find the eigenvalue
-    ** closer to t22.  He's right.  ]
-    **/
-    d = ((msh_nm_scalar_t) 0.5)*(t11 - t22);
-    s = fhypot (d,t12);
-    uu = t22 + d + ((d > 0) ? -s : s);
+  /* find the eigenvalues of the T matrix.
+  **
+  ** The quadratic equation for the eigenvalues has coefficients:
+  ** a = 1
+  ** b = -(t11+t22)
+  ** c = t11 t22 - t12 t12
+  **
+  ** b^2 - 4ac = (t11^2 + t22^2 + 2 t11 t12) - 4 t11 t22 + 4 t12 t12
+  **           = (t11 - t22)^2 + 4 t12 t12
+  **
+  ** sqrt(b^2-4ac) = sqrt((t11 - t22)^2 + 4 t12 t12) -- use "pythag()"
+  **
+  ** using quadratic formula, we have the eigenvalues:
+  ** (u1,u2) = .5 (t11 + t22 +/- pythag(...))
+  **         = t22 + .5 (t11 - t22 +/- pythag(...))
+  **
+  ** We propogate the .5 into the pythag term, yielding golub's equation 8.2-2
+  ** for the "wilkinson shift".
+  ** [Note:  Golub says to use (t22 + d - signum(d) s) to find the eigenvalue
+  ** closer to t22.  He's right.  ]
+  **/
+  d = ((msh_nm_scalar_t) 0.5)*(t11 - t22);
+  s = msh_svd__fhypot (d,t12);
+  uu = t22 + d + ((d > 0) ? -s : s);
 
-    /* grab the leading 2x1 of b */
-    b11 = MSH_NM_REF2D(b,m,n,p,p);	b12 = MSH_NM_REF2D(b,m,n,p,p+1);
+  /* grab the leading 2x1 of b */
+  b11 = MSH_NM_REF2D(b,m,n,p,p);	b12 = MSH_NM_REF2D(b,m,n,p,p+1);
 
-    /* make the leading 2x1 submatrix of T */
-    t11 = b11 * b11;
-    t12 = b11 * b12;
+  /* make the leading 2x1 submatrix of T */
+  t11 = b11 * b11;
+  t12 = b11 * b12;
 
-    /* calculate the rotation that would zero the off-diagonal term of the
-    ** shifted matrix T - uu I
-    */
-    y = t11 - uu;
-    z = t12;
-    hypot = fhypot (y,z);
-    cos = y / hypot;
-    sin = z / hypot;
+  /* calculate the rotation that would zero the off-diagonal term of the
+  ** shifted matrix T - uu I
+  */
+  y = t11 - uu;
+  z = t12;
+  hypot = msh_svd__fhypot (y,z);
+  cos = y / hypot;
+  sin = z / hypot;
 
-    /* perform the rotation on B.  This sprays some glop into the upper-left
-    ** subdiagonal element.
-    */
-    rotate_cols(p,p+1,cos,sin,b,p,2,m,n);
-    /* accumulate the rotation into the rows of v */
-    rotate_rows(p,p+1,cos,sin,v,0,n,min,n);
+  /* perform the rotation on B.  This sprays some glop into the upper-left
+  ** subdiagonal element.
+  */
+  msh_svd__rotate_cols(p,p+1,cos,sin,b,p,2,m,n);
+  /* accumulate the rotation into the rows of v */
+  msh_svd__rotate_rows(p,p+1,cos,sin,v,0,n,min,n);
 }
 
 
-/* bidiagonalize
+/* msh_svd__bidiagonalize
 **
 ** Given a (m x n)
 ** computes u (m x min)	orthogonal cols
@@ -1095,48 +1132,62 @@ void golub_kahn_svd_rot(msh_nm_scalar_t * b,int p,int q,msh_nm_scalar_t * v,int 
 ** overwrites the original data.
 */
 
-void bidiagonalize(const msh_nm_scalar_t *a,int m,int n,msh_nm_scalar_t *u,msh_nm_scalar_t *b,msh_nm_scalar_t *v)
+void msh_svd__bidiagonalize(const msh_nm_scalar_t *a,int m,int n,msh_nm_scalar_t *u,msh_nm_scalar_t *b,msh_nm_scalar_t *v)
 {
-    int i,j, min=MSH_NM_MIN(m,n);
-    msh_nm_scalar_t *usave = u, *vsave = v, *h = MSH_NM_ALLOC1D(MSH_NM_MAX(m,n));
+  int i,j, min=MSH_NM_MIN(m,n);
+  msh_nm_scalar_t *usave = u, *vsave = v, *h = MSH_NM_ALLOC1D(MSH_NM_MAX(m,n));
 
-    /* we need square matrices to accumulate the transformations */
-    if (min != m) u = MSH_NM_ALLOC2D(m,m);
-    if (min != n) v = MSH_NM_ALLOC2D(n,n);
+  /* we need square matrices to accumulate the transformations */
+  if( min != m ) { u = MSH_NM_ALLOC2D(m,m); }
+  if( min != n ) { v = MSH_NM_ALLOC2D(n,n); }
 
-    /* start off with u and v equal to the identity, and b equal to a */
-    MSH_NM_CLEAR2D(u,m,m);
-    MSH_NM_CLEAR2D(v,n,n);
-    for (i=0; i<m; i++) MSH_NM_REF2D(u,m,m,i,i) = 1;
-    for (i=0; i<n; i++) MSH_NM_REF2D(v,n,n,i,i) = 1;
-    if (b != a) MSH_NM_COPY2D(b,m,n,a);
+  /* start off with u and v equal to the identity, and b equal to a */
+  MSH_NM_CLEAR2D(u,m,m);
+  MSH_NM_CLEAR2D(v,n,n);
+  for( i=0; i<m; i++) { MSH_NM_REF2D(u,m,m,i,i) = 1; }
+  for( i=0; i<n; i++) { MSH_NM_REF2D(v,n,n,i,i) = 1; }
+  if (b != a)         { MSH_NM_COPY2D(b,m,n,a); }
 
-    /* walk down the diagonal */
-    for (i = 0; i<min; i++) {
-	/* zero the entries below b[i,i] */
-	householder_zero_col(b,u,i,i,m,n,h);
-	/* zero the entries to the right of b[i,i+1] */
-	householder_zero_row(b,v,i,i+1,m,n,h);
+  /* walk down the diagonal */
+  for( i = 0; i<min; i++) 
+  {
+    /* zero the entries below b[i,i] */
+    msh_svd__householder_zero_col(b,u,i,i,m,n,h);
+    /* zero the entries to the right of b[i,i+1] */
+    msh_svd__householder_zero_row(b,v,i,i+1,m,n,h);
+  }
+  /* when m < n (matrix wider than tall), the above
+    leaves a non-0 element in the [m-1,m]th spot.
+    This is the bottom superdiagonal element of an (m+1)x(m+1);
+    use the clear routine to get rid of it. */
+  if( min != n )
+  {
+    msh_svd__clr_bot_supdiag_elt(b,0,min,v,m,n,n);
+  }
+  /* For non-square arrays, lop off the parts we don't need */
+  if( min != m )
+  {
+    for( i = 0; i < m; i++) 
+    {
+      for( j = 0; j < min; j++ )
+      {
+        MSH_NM_REF2D(usave,m,min,i,j)=MSH_NM_REF2D(u,m,m,i,j);
+      }
     }
-    /* when m < n (matrix wider than tall), the above
-       leaves a non-0 element in the [m-1,m]th spot.
-       This is the bottom superdiagonal element of an (m+1)x(m+1);
-       use the clear routine to get rid of it. */
-    if (min != n)
-	clr_bot_supdiag_elt(b,0,min,v,m,n,n);
-
-    /* For non-square arrays, lop off the parts we don't need */
-    if (min!=m) {
-	for (i=0; i<m; i++) for (j=0; j<min; j++)
-	    MSH_NM_REF2D(usave,m,min,i,j)=MSH_NM_REF2D(u,m,m,i,j);
-	MSH_NM_FREE(u);
+    MSH_NM_FREE(u);
+  }
+  if (min!=n)
+  {
+    for( i = 0; i < n; i++ )
+    {
+      for( j = 0; j < min; j++ )
+      {
+        MSH_NM_REF2D(vsave,min,n,j,i)=MSH_NM_REF2D(v,n,n,j,i);
+      }
     }
-    if (min!=n) {
-	for (i=0; i<n; i++) for (j=0; j<min; j++)
-	    MSH_NM_REF2D(vsave,min,n,j,i)=MSH_NM_REF2D(v,n,n,j,i);
-	MSH_NM_FREE(v);
-    }
-    MSH_NM_FREE(h);
+    MSH_NM_FREE(v);
+  }
+  MSH_NM_FREE(h);
 }
 
 /*
@@ -1155,97 +1206,113 @@ void bidiagonalize(const msh_nm_scalar_t *a,int m,int n,msh_nm_scalar_t *u,msh_n
 ** This is Golub's SVD algorithm (Algorithm 8.3-2)
 */
 
-void bidiagonal_svd(msh_nm_scalar_t *b,int m,int n,msh_nm_scalar_t *u,msh_nm_scalar_t *v)
+void msh_svd__bidiagonal_svd(msh_nm_scalar_t *b,int m,int n,msh_nm_scalar_t *u,msh_nm_scalar_t *v)
 {
-    msh_nm_scalar_t anorm, t;
-    int p, q, i, j, z, iter, min=MSH_NM_MIN(m,n);
+  msh_nm_scalar_t anorm, t;
+  int p, q, i, j, z, iter, min=MSH_NM_MIN(m,n);
 
-    /* use the max of the sum of each diagonal element and the
-    ** superdiagonal element above it as a norm for the array.
-    ** The use of this norm comes from the Numerical Recipes (Press et al)
-    ** code.  squawk!
-    */
+  /* use the max of the sum of each diagonal element and the
+  ** superdiagonal element above it as a norm for the array.
+  ** The use of this norm comes from the Numerical Recipes (Press et al)
+  ** code.  squawk!
+  */
 
-    // CHUCKR: this is where the array access if fouling up
-    //for (anorm=MSH_NM_REF2D(b,m,n,0,0), i=1; i<n; i++) {
-    for (anorm = MSH_NM_REF2D(b,m,n,0,0), i=1 ; i < min ; i++) 
+  // CHUCKR: this is where the array access if fouling up
+  //for( anorm=MSH_NM_REF2D(b,m,n,0,0), i=1; i<n; i++) {
+  for( anorm = MSH_NM_REF2D( b, m, n, 0, 0 ), i = 1 ; i < min ; i++ )
+  {
+    t = ((msh_nm_scalar_t) (fabs(MSH_NM_REF2D(b,m,n,i,i)) + fabs(MSH_NM_REF2D(b,m,n,i-1,i))));
+    if (t > anorm) { anorm = t; }
+  }
+
+  /* Each iteration of this loop will zero out the superdiagonal
+  ** element above b[q][q] -- i.e. b[q][q] will be a singular value.
+  */
+  for( q = min-1; q >= 0; q-- )
+  {
+
+  /* Each iteration will make the superdiagonal elements smaller,
+  ** till they drop below numerical noise.  It ought to converge
+  ** by 30 tries.  squawk!  (Increased to 100 tries by funk)
+  */
+    const int max_iter = 100;
+    for( iter=0; iter<max_iter; iter++) 
     {
-	    t = ((msh_nm_scalar_t) (fabs(MSH_NM_REF2D(b,m,n,i,i)) + fabs(MSH_NM_REF2D(b,m,n,i-1,i))));
+      
+      /* Find a block that has a zero on the diagonal or superdiagonal.
+      ** That is, we are breaking up b into three submatrices,
+      ** b11, b22, b33, such that b33 is diagonal and b22 has no zeros 
+      ** on the superdiagonal.
+      ** b33 goes from q+1 to n-1 -- it's the part we already did
+      ** b22 goes from p through q -- it's a bidiagonal block
+      */
 
-	    if (t > anorm) 
-            anorm = t;
+      /* sweep back till we reach a numerically 0 superdiagonal element */
+      for( p = q; p>0; p--)
+      {
+        if (MSH_NM_REF2D(b,m,n,p-1,p) + anorm == anorm)
+        {
+          MSH_NM_REF2D(b,m,n,p-1,p) = 0;
+          break;
+        }
+      }
+
+      /* if b22 is 1x1, i.e. there is a 0 above b[q,q], then
+      ** b[q,q] is the singular value.  Go on to the next
+      ** singular value.  (But first, make sure it's
+      ** positive.  If it's negative, negate it and the
+      ** corresponding row of v)
+      */
+
+      if( p == q )
+      {
+        if( MSH_NM_REF2D( b, m, n, q, q ) < 0 )
+        {
+          MSH_NM_REF2D(b,m,n,q,q) *= -1;
+          for( j = 0; j < n; j++ ) { MSH_NM_REF2D(v,min,n,q,j) *= -1; }
+        }
+        break;
+      }
+
+      /* check for zero on the diagonal */
+      for( z= -1, i=q; i>=p; i--) 
+      {
+        if (MSH_NM_REF2D(b,m,n,i,i)+anorm==anorm)
+        {
+          z = i;
+          break;
+        }
+      }
+
+      if (z >= 0) 
+      {
+        if (z == q)/* get rid of zero on the diagonl.  where is it? */
+        {
+          /* lower-right corner.  clr element above it */
+          msh_svd__clr_bot_supdiag_elt(b,0,z,v,m,n,min);
+        }
+        else
+        {
+          /* in the middle.  clr elt to its right */
+          msh_svd__clr_top_supdiag_elt(b,z,q,u,m,n,min);
+        }
+      }
+      else 
+      {
+        /* b22 has no zeroes on the diagonal or superdiagonal.
+        ** Do magic rotation, leaving glop in the uppermost
+        ** subdiagonal element
+        */
+        msh_svd__golub_kahn_svd_rot(b,p,q,v,m,n,min);
+        /* get rid of the glop in the uppermost subdiagonal */
+        msh_svd__clr_top_subdiag_elt(b,p,q,u,v,m,n,min);
+      }
     }
-
-    /* Each iteration of this loop will zero out the superdiagonal
-    ** element above b[q][q] -- i.e. b[q][q] will be a singular value.
-    */
-    for (q = min-1; q>=0; q--) {
-
-	/* Each iteration will make the superdiagonal elements smaller,
-	** till they drop below numerical noise.  It ought to converge
-	** by 30 tries.  squawk!  (Increased to 100 tries by funk)
-	*/
-        const int max_iter = 100;
-	for (iter=0; iter<max_iter; iter++) {
-	    
-	    /* Find a block that has a zero on the diagonal or superdiagonal.
-	    ** That is, we are breaking up b into three submatrices,
-	    ** b11, b22, b33, such that b33 is diagonal and b22 has no zeros 
-	    ** on the superdiagonal.
-	    ** b33 goes from q+1 to n-1 -- it's the part we already did
-	    ** b22 goes from p through q -- it's a bidiagonal block
-	    */
-
-	    /* sweep back till we reach a numerically 0 superdiagonal element */
-	    for (p = q; p>0; p--) if (MSH_NM_REF2D(b,m,n,p-1,p) + anorm == anorm) {
-		MSH_NM_REF2D(b,m,n,p-1,p) = 0;
-		break;
-	    }
-
-	    /* if b22 is 1x1, i.e. there is a 0 above b[q,q], then
-	    ** b[q,q] is the singular value.  Go on to the next
-	    ** singular value.  (But first, make sure it's
-	    ** positive.  If it's negative, negate it and the
-	    ** corresponding row of v)
-	    */
-
-	    if (p==q) {
-		if (MSH_NM_REF2D(b,m,n,q,q) < 0) {
-		    MSH_NM_REF2D(b,m,n,q,q) *= -1;
-		    for (j=0; j<n; j++) MSH_NM_REF2D(v,min,n,q,j) *= -1;
-		}
-		break;
-	    }
-
-	    /* check for zero on the diagonal */
-	    for (z= -1, i=q; i>=p; i--) if (MSH_NM_REF2D(b,m,n,i,i)+anorm==anorm) {
-		z = i;
-		break;
-	    }
-	    if (z >= 0) {
-		/* get rid of zero on the diagonl.  where is it? */
-		if (z == q)
-		    /* lower-right corner.  clr element above it */
-		    clr_bot_supdiag_elt(b,0,z,v,m,n,min);
-		else
-		    /* in the middle.  clr elt to its right */
-		    clr_top_supdiag_elt(b,z,q,u,m,n,min);
-	    }
-	    else {
-		/* b22 has no zeroes on the diagonal or superdiagonal.
-		** Do magic rotation, leaving glop in the uppermost
-		** subdiagonal element
-		*/
-		golub_kahn_svd_rot(b,p,q,v,m,n,min);
-		/* get rid of the glop in the uppermost subdiagonal */
-		clr_top_subdiag_elt(b,p,q,u,v,m,n,min);
-	    }
-	}
 #if 0
-	if (iter>=max_iter)
-	    (void) fprintf(stderr,"svd: didn't converge after %d iterations\n", max_iter);
+  if (iter>=max_iter)
+      (void) fprintf(stderr,"svd: didn't converge after %d iterations\n", max_iter);
 #endif
-    }
+  }
 }
 
 
@@ -1262,7 +1329,7 @@ void bidiagonal_svd(msh_nm_scalar_t *b,int m,int n,msh_nm_scalar_t *u,msh_nm_sca
 ** 
 ** w is returned as a vector of length min
 **
-**                                                t
+**                                                
 ** NOTE:  the SVD is commonly represented as U W V
 **        where U is m x min and V is n x min.  This routine
 **        computes the min x n transpose of V, placing the result
@@ -1278,9 +1345,9 @@ msh_svd_decompose( int32_t m, int32_t n, const msh_nm_scalar_t *a,
   msh_nm_scalar_t *g, *p, wi;
 
   g = MSH_NM_ALLOC2D(m,n);
-  bidiagonalize(a,m,n,u,g,vt);
+  msh_svd__bidiagonalize(a,m,n,u,g,vt);
 
-  bidiagonal_svd(g,m,n,u,vt);
+  msh_svd__bidiagonal_svd(g,m,n,u,vt);
   for( i = 0; i < min; i++ ) { w[i] = MSH_NM_REF2D(g,m,n,i,i); }
 
   /* insertion sort singular values.  Note that since
@@ -1289,28 +1356,28 @@ msh_svd_decompose( int32_t m, int32_t n, const msh_nm_scalar_t *a,
    */
   for( i = 1; i < min; i++ )
   {
-	  if (w[i] > w[i-1]) 
+    if (w[i] > w[i-1]) 
     {
       /* save w[i], and col i of u and row i of vt.  use "g" as buffer */
       wi = w[i];
-	    p = g;
-	    for( k = 0; k < m; k++ ) {*p++ = MSH_NM_REF2D(u,m,min,k,i);}
-	    for( k = 0; k < n; k++ ) {*p++ = MSH_NM_REF2D(vt,min,n,i,k);}
-	    /* slide columns over */
-	    for( j = i; j > 0 && wi > w[j-1]; j--) 
+      p = g;
+      for( k = 0; k < m; k++ ) {*p++ = MSH_NM_REF2D(u,m,min,k,i);}
+      for( k = 0; k < n; k++ ) {*p++ = MSH_NM_REF2D(vt,min,n,i,k);}
+      /* slide columns over */
+      for( j = i; j > 0 && wi > w[j-1]; j--) 
       {
-	  	  w[j] = w[j-1];
-		    for( k = 0; k < m; k++ ) { MSH_NM_REF2D(u,m,min,k,j)=MSH_NM_REF2D(u,m,min,k,j-1); }
-		    for( k = 0; k < n; k++ ) { MSH_NM_REF2D(vt,min,n,j,k)=MSH_NM_REF2D(vt,min,n,j-1,k); }
-	    }
-	    /* put original i stuff where we ended up */
-	    w[j] = wi;
-	    p=g;
-	    for( k = 0; k < m; k++ ) { MSH_NM_REF2D(u,m,min,k,j) = *p++; }
-	    for( k = 0; k < n; k++ ) { MSH_NM_REF2D(vt,min,n,j,k) = *p++; }
-	  }
+        w[j] = w[j-1];
+        for( k = 0; k < m; k++ ) { MSH_NM_REF2D(u,m,min,k,j)=MSH_NM_REF2D(u,m,min,k,j-1); }
+        for( k = 0; k < n; k++ ) { MSH_NM_REF2D(vt,min,n,j,k)=MSH_NM_REF2D(vt,min,n,j-1,k); }
+      }
+      /* put original i stuff where we ended up */
+      w[j] = wi;
+      p=g;
+      for( k = 0; k < m; k++ ) { MSH_NM_REF2D(u,m,min,k,j) = *p++; }
+      for( k = 0; k < n; k++ ) { MSH_NM_REF2D(vt,min,n,j,k) = *p++; }
+    }
   }
-	    
+      
   MSH_NM_FREE(g);
 }
 
@@ -1351,19 +1418,19 @@ void msh_svd_backsubstitute( int32_t m, int32_t  n,
 
   for( j = 0; j < min; j++ )
   {
-	  msh_nm_scalar_t s = 0;
-	  if( w[j] >= thresh )
+    msh_nm_scalar_t s = 0;
+    if( w[j] >= thresh )
     {
-	    for( i = 0; i < m; i++ ) { s += MSH_NM_REF2D( u, m, min, i, j ) * b[i]; }
-	    s /= w[j];
-	  }
-	  tmp[j] = s;
+      for( i = 0; i < m; i++ ) { s += MSH_NM_REF2D( u, m, min, i, j ) * b[i]; }
+      s /= w[j];
+    }
+    tmp[j] = s;
   }
   for( k=0; k < n; k++ )
   {
-	  msh_nm_scalar_t s = 0;
-	  for( j = 0; j < min; j++ ) { s += MSH_NM_REF2D( vt, min, n, j, k ) * tmp[j]; }
-  	x[k] = s;
+    msh_nm_scalar_t s = 0;
+    for( j = 0; j < min; j++ ) { s += MSH_NM_REF2D( vt, min, n, j, k ) * tmp[j]; }
+    x[k] = s;
   }
   MSH_NM_FREE(tmp);
 }
@@ -1412,3 +1479,7 @@ msh_svd_solve( int32_t m, int32_t n,
 #undef MSH_NM_CLEAR2D
 #undef MSH_NM_COPY2D
 #undef MSH_NM_REF2D
+
+
+//---------------------------------------------------------------------
+// Eigen Decomposition 
