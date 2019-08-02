@@ -501,9 +501,9 @@ MSHDEF size_t      msh_strcpy_range( char* dst, const char* src, size_t start, s
 // MSHDEF char*       msh_strtok( char* string, char* delim );
 
 #if MSH_PLATFORM_WINDOWS && !MSH_CRT_MINGW
-  #define MSH_FILE_SEPARATOR "\\"
+  #define MSH_FILE_SEPARATOR '\\'
 #else
-  #define MSH_FILE_SEPARATOR "/"
+  #define MSH_FILE_SEPARATOR '/'
 #endif
 
 MSHDEF int32_t     msh_path_join( char* buf, size_t size, int32_t n, ... );
@@ -1123,8 +1123,8 @@ MSHDEF char*
 msh_strndup( const char *src, size_t len )
 {
   char* cpy = (char*)malloc( len+1 );
-  strncpy( cpy, src, len );
-  cpy[len] = 0;
+  memcpy( cpy, src, len );
+  cpy[len] = '\0';
   return cpy;
 }
 
@@ -1193,7 +1193,8 @@ msh_path_join( char* buf, size_t size, int32_t n, ... )
     len = msh_strcpy_range( buf, str, len, size );
     if( i < n - 1)
     {
-      len = msh_strcpy_range( buf, MSH_FILE_SEPARATOR, len, size );
+      char separator = MSH_FILE_SEPARATOR;
+      len = msh_strcpy_range( buf, &separator, len, size );
     }
   }
   va_end(args);
@@ -1203,7 +1204,7 @@ msh_path_join( char* buf, size_t size, int32_t n, ... )
 MSHDEF const char*
 msh_path_basename( const char* path )
 {
-  const char* sep_ptr = strrchr( path, MSH_FILE_SEPARATOR[0] );
+  const char* sep_ptr = strrchr( path, MSH_FILE_SEPARATOR );
   if( sep_ptr && strlen(sep_ptr) > 1 ) { return sep_ptr + 1; }
   return path;
 }

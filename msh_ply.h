@@ -1713,7 +1713,8 @@ int
 msh_ply__add_element( msh_ply_t* pf, const char* element_name, const int element_count )
 {
   msh_ply_element_t el = ply_element_zero_init();
-  strncpy( &el.name[0], element_name, 64 );
+  strncpy( &el.name[0], element_name, 63 );
+  el.name[63] = '\0';
   el.count = element_count;
   el.properties = NULL;
   msh_ply_array_push( pf->elements, el );
@@ -1771,7 +1772,8 @@ msh_ply__add_property_to_element( msh_ply_t* pf, const char* element_name,
     for( int i = 0; i < num_properties; ++i )
     {
       msh_ply_property_t pr;
-      strncpy(&pr.name[0], property_names[i], 32);
+      strncpy(&pr.name[0], property_names[i], 31);
+      pr.name[31] = '\0';
 
       if( data == NULL ) { return MSH_PLY_NULL_DATA_PTR_ERR; }
 
