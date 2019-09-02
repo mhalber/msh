@@ -1223,14 +1223,14 @@ msh_path_join( char* buf, size_t size, int32_t n, ... )
   va_start( args, n );
   
   size_t len = 0;
+  char separator[2] = {MSH_FILE_SEPARATOR, 0};
   for( int32_t i = 0; i < n; i++ )
   {
     const char* str = va_arg( args, const char* );
     len = msh_strcpy_range( buf, str, len, size );
     if( i < n - 1)
     {
-      char separator = MSH_FILE_SEPARATOR;
-      len = msh_strcpy_range( buf, &separator, len, size );
+      len = msh_strcpy_range( buf, separator, len, size );
     }
   }
   va_end(args);
@@ -1368,6 +1368,41 @@ msh_file_exists( const char* path )
 }
 
 #endif
+
+
+// TODO(maciej): Needs better error handling...
+MSHDEF int32_t
+msh__mkdir( const char* folder )
+{
+#if MSH_PLATFORM_WINDOWS
+    return _mkdir( folder );
+#else
+    return mkdir( folder, 0777);
+#endif
+}
+
+MSHDEF int32_t
+msh_create_directory( const char* folder )
+{
+  char* start = msh_strdup( folder );
+  char* end = start;
+  int counter = 0;
+  while( 1 )
+  {
+    while( end[0] != MSH_FILE_SEPARATOR && end[0] != 0 ) { end++; }
+    char tmp = end[0];    
+    end[0] = 0;
+    int err = msh__mkdir( start );
+    end[0] = tmp;
+    if( end[0] == 0 ) { break; }
+    end++;   
+    counter++;
+  }
+  free( start );
+  return 0;
+}
+
+
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
