@@ -1,0 +1,234 @@
+
+MunitResult
+test_msh_array_api(const MunitParameter params[], void* fixture) 
+{
+  (void) params;
+  (void) fixture;
+
+  msh_array( int32_t ) arr = {0};
+  munit_assert_size( msh_array_len(arr), ==, 0 );
+  munit_assert_size( msh_array_cap(arr), ==, 0 );
+  msh_array_fit( arr, 32 );
+  munit_assert_size( msh_array_len(arr), ==, 0 );
+  munit_assert_size( msh_array_cap(arr), ==, 32 );
+
+  munit_assert_size( msh_array_len(arr), ==, 0 );
+  munit_assert_size( msh_array_cap(arr), ==, 32 );
+  munit_assert_size( msh_array_sizeof(arr), ==, 0 );
+  munit_assert_int8( msh_array_isempty(arr), ==, true );
+
+  msh_array_push( arr, 10 );
+  msh_array_push( arr, 20 );
+  msh_array_push( arr, 30 );
+  munit_assert_size( msh_array_len(arr), ==, 3 );
+  munit_assert_size( msh_array_cap(arr), ==, 32 );
+
+  msh_array_pop( arr );
+  munit_assert_size( msh_array_len(arr), ==, 2 );
+  munit_assert_size( msh_array_cap(arr), ==, 32 );
+
+  int32_t* front = msh_array_front( arr );
+  int32_t* back  = msh_array_back( arr );
+  munit_assert_int32( *front, ==, 10 );
+  munit_assert_int32( *back, ==, 20 );
+
+  int32_t* end = msh_array_end(arr);
+  munit_assert_int32( *end, ==, 30 );
+
+  msh_array_clear( arr );
+  munit_assert_size( msh_array_len(arr), ==, 0 );
+  munit_assert_size( msh_array_cap(arr), ==, 32 );
+
+  for( int32_t i = 0; i < 33; ++i )
+  {
+    msh_array_push( arr, i*10 );
+  }
+  munit_assert_size( msh_array_sizeof(arr), ==, 33 * sizeof(int32_t) );
+  munit_assert_size( msh_array_len(arr), ==, 33 );
+  munit_assert_size( msh_array_cap(arr), ==, msh_array__grow_formula(32) );
+
+  for( int32_t i = 0; i < 33; ++i )
+  {
+    munit_assert_int32( arr[i], ==, i*10 );
+  }
+
+  msh_array_free( arr );
+  munit_assert_size( msh_array_len(arr), ==, 0 );
+  munit_assert_size( msh_array_cap(arr), ==, 0 );
+
+  return MUNIT_OK;
+}
+
+MunitResult
+test_msh_array_printf(const MunitParameter params[], void* fixture) 
+{
+  (void) params;
+  (void) fixture;
+
+  msh_array( char ) str = {0};
+  msh_array_printf( str, "This" );
+  munit_assert_string_equal( str, "This" );
+  msh_array_printf( str, " is a ");
+  munit_assert_string_equal( str, "This is a " );
+  msh_array_printf( str, "string-builder. ");
+  munit_assert_string_equal( str, "This is a string-builder. " );
+  msh_array_printf( str, "It supports formatting: %03d %2.1f", 12, 0.5 );
+  munit_assert_string_equal( str, "This is a string-builder. It supports formatting: 012 0.5" );
+
+  msh_array_free(str);
+  munit_assert_size( msh_array_len(str), ==, 0 );
+  munit_assert_size( msh_array_cap(str), ==, 0 );
+
+  return MUNIT_OK;
+}
+
+MunitResult
+test_msh_array_copy(const MunitParameter params[], void* fixture) 
+{
+  (void) params;
+  (void) fixture;
+
+  msh_array( int16_t ) src = {0};
+  msh_array( int16_t ) dst = {0};
+  for( int16_t i = 0; i < 100; ++i )
+  {
+    msh_array_push( src, i );
+  }
+  msh_array_copy( dst, src, 20 );
+  munit_assert_size( msh_array_len(src), ==, 100 );
+  munit_assert_size( msh_array_len(dst), ==, 20 );
+
+  for( size_t i = 0; i < msh_array_len(dst); ++i )
+  {
+    munit_assert_int32( src[i], ==, dst[i] );
+  }
+
+  msh_array_free( src );
+  msh_array_free( dst );
+  munit_assert_size( msh_array_len(src), ==, 0 );
+  munit_assert_size( msh_array_len(dst), ==, 0 );
+
+  return MUNIT_OK;
+}
+
+MunitResult
+test_msh_map_api(const MunitParameter params[], void* fixture) 
+{
+  (void) params;
+  (void) fixture;
+  
+  msh_map_t map = {0};
+  
+  msh_map_init( &map, 255 );
+  munit_assert_size( msh_map_len(&map), ==, 0 );
+  munit_assert_size( msh_map_cap(&map), ==, 256 );
+
+  msh_map_insert( &map, 0,  9 );
+  msh_map_insert( &map, 0, 10 );
+  msh_map_insert( &map, 1, 11 );
+  munit_assert_size( msh_map_len( &map ), ==, 2 );
+  msh_map_insert( &map, 2, 12 );
+  msh_map_insert( &map, 3, 13 );
+  msh_map_insert( &map, 3, 14 );
+  munit_assert_size( msh_map_len(&map), ==, 4 );
+  
+  uint64_t* val = NULL;
+  val = msh_map_get( &map, 0 );
+  munit_assert_ptr_not_equal( val, NULL );
+  munit_assert_uint64( *val, ==, 10 );
+  
+  val = msh_map_get( &map, 1 );
+  munit_assert_ptr_not_equal( val, NULL );
+  munit_assert_uint64( *val, ==, 11 );
+  
+  val = msh_map_get( &map, 2 );
+  munit_assert_ptr_not_equal( val, NULL );
+  munit_assert_uint64( *val, ==, 12 );
+
+  val = msh_map_get( &map, 3 );
+  munit_assert_ptr_not_equal( val, NULL );
+  munit_assert_uint64( *val, ==, 14 );
+
+  val = msh_map_get( &map, 5 );
+  munit_assert_ptr_equal( val, NULL );
+
+  msh_map_free( &map );
+  munit_assert_size( msh_map_len( &map ), ==, 0 );
+  munit_assert_size( msh_map_cap( &map ), ==, 0 );
+
+  return MUNIT_OK;
+}
+
+MunitResult
+test_msh_map_iteration(const MunitParameter params[], void* fixture) 
+{
+  (void) params;
+  (void) fixture;
+  
+  msh_map_t map = {0};
+  
+  msh_map_init( &map, 255 );
+  munit_assert_size( msh_map_len(&map), ==, 0 );
+  munit_assert_size( msh_map_cap(&map), ==, 256 );
+
+  for( int32_t i = 0; i < 10; ++i )
+  {
+    msh_map_insert( &map, i,  i*10 + i);
+  }
+ 
+  uint64_t* keys = NULL;
+  uint64_t* vals = NULL;
+  msh_map_get_iterable_keys_and_vals( &map, &keys, &vals );
+  munit_assert_ptr_not_equal( keys, NULL );
+  munit_assert_ptr_not_equal( vals, NULL );
+  for( size_t i = 0; i < msh_map_len( &map ); ++i )
+  {
+    if( keys[i] == i ) 
+    { 
+      munit_assert_uint64( vals[i], ==, keys[i]*10+keys[i] ); 
+    }
+  }
+  free( keys );
+  free( vals );
+  keys = NULL; vals = NULL;
+
+  msh_map_get_iterable_keys( &map, &keys );
+  munit_assert_ptr_not_equal( keys, NULL );
+  for( size_t i = 0; i < msh_map_len( &map ); ++i )
+  {
+    uint64_t* val = msh_map_get( &map, keys[i] );
+    munit_assert_ptr_not_equal( val, NULL);
+    munit_assert_uint64( *val, ==, keys[i]*10 + keys[i] );
+  }
+  free(keys);
+  keys = NULL;
+
+  msh_map_get_iterable_keys( &map, &vals );
+  munit_assert_ptr_not_equal( vals, NULL );
+  for( size_t i = 0; i < msh_map_len( &map ); ++i )
+  {
+    uint64_t* val = msh_map_get( &map, i );
+    munit_assert_ptr_not_equal( val, NULL);
+    munit_assert_uint64( *val, ==, i*10 + i );
+  }
+  free( vals );
+  return MUNIT_OK;
+}
+
+
+MunitResult
+test_msh_map_str_hash(const MunitParameter params[], void* fixture) 
+{
+  (void) params;
+  (void) fixture;
+
+  uint64_t h1 = msh_hash_str( "Dog" );
+  uint64_t h2 = msh_hash_str( "Dog" );
+  uint64_t h3 = msh_hash_str( "dog" );
+
+  munit_assert_uint64( h1, ==, h2 );
+  munit_assert_uint64( h2, !=, h3 );
+  munit_assert_uint64( h1, !=, h3 );
+  
+  return MUNIT_OK;
+}

@@ -134,11 +134,9 @@
     [ ] Come up with a better example code
     [ ] Support for enums?
     [ ] Meta-variables
-    [ ] Default values
     [ ] Better support for multiline argument descriptions
-    [ ] Check for the validity based on type 
-    [ ] C++ API
-
+    [ ] Check for the validity based on type
+    [ ] C++ API?
  */
 
 

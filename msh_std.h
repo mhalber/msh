@@ -421,8 +421,8 @@ MSHDEF char* msh_array__printf(char *buf, const char *fmt, ...);
 #define msh_array_back(a)             ( msh_array_len((a)) ? ((a) + msh_array_len((a)) - 1 ) : NULL) // Ptr to last element
 
 #define msh_array_free(a)             ( (a) ? (free(msh_array__hdr(a)), (a) = NULL) :0 )
-#define msh_array_pop(a)              ( (a) ? (msh_array__hdr((a))->len--) : 0)
-#define msh_array_clear(a)            ( (a) ? (msh_array__hdr((a))->len = 0) : 0)
+#define msh_array_pop(a)              ( (a) ? (msh_array__hdr((a))->len--) : 0 )
+#define msh_array_clear(a)            ( (a) ? (msh_array__hdr((a))->len = 0) : 0 )
 // #define msh_array_fit(a, n)           ( (n) <= msh_array_cap(a) ? (0) : ( *(void**)&(a) = msh_array__grow((a), (n), sizeof(*(a))) )) 
 #define msh_array_fit(a, n)           ( (n) <= msh_array_cap(a) ? (0) : ( (a) = msh_array__grow((a), (n), sizeof(*(a))) )) 
 #define msh_array_push(a, ...)        ( msh_array_fit((a), 1 + msh_array_len((a))), (a)[msh_array__hdr(a)->len++] = (__VA_ARGS__))
@@ -875,6 +875,7 @@ MSHDEF void
 msh_map_insert( msh_map_t* map, uint64_t key, uint64_t val )
 {
   // Increment the key, so that key == 0 is valid, even though 0 is marking empty slot.
+  assert( key < (MSH_U64_MAX - 1) );
   key += 1;
   if( 2 * map->_len >= map->_cap) { msh_map__grow( map, 2 * map->_cap ); }
   assert( 2 * map->_len < map->_cap );
@@ -1009,7 +1010,7 @@ msh__heapify( float *vals, size_t vals_len, size_t cur )
   const size_t left  = (cur<<1) + 1; // multiply by two
   const size_t right = (cur<<1) + 2; // multiply by two
 
-  if( (left < vals_len) && (vals[left] > vals[cur]) )   { max = left; }
+  if( (left < vals_len)  && (vals[left] > vals[cur]) )   { max = left; }
   if( (right < vals_len) && (vals[right] > vals[max]) ) { max = right; }
 
   if( max != cur ) // need to swap

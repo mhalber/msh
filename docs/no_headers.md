@@ -1,4 +1,4 @@
-Why no #include <libx.h>?
+Why not #include <libx.h>?
 ===================
   
 Following the advice from an exellent article by Rob Pike
