@@ -35,36 +35,17 @@
 
   ==================================================================================================
   TODOs:
-  [x] Limits
-  [x] Disjoint Set Implementation
-  [x] Path manipulation
   [ ] Alias method - modify it for frequent weights updates.
   [ ] Memory allocation
     [ ] Tracking memory allocs
     [ ] Alternative allocators
-  [ ] Sorting and Searching
-    [ ] Insetion sort
-    [ ] Radix sort
-    [ ] QuickSort
-    [ ] Binary Search
-    [ ] Quick Select
-    [ ] Common qsort comparator functions
   [ ] Custom prints (stb_sprintf inlined, look at replacing sprintf with "write" function in linux (unistd.h))
-  [ ] Set implementation
-    [ ] Union and intersection operations
 
-  ==================================================================================================
-  REFERENCES:
-  [1] stb.h           https://github.com/nothings/stb/blob/master/stb.h
-  [2] gb.h            https://github.com/gingerBill/gb/blob/master/gb.h
-  [3] stretchy_buffer https://github.com/nothings/stb/blob/master/stretchy_buffer.h
-  [4] cute_headers    https://github.com/RandyGaul/cute_headers
-  [5] libs            https://github.com/gingerBill/gb
+
 */
 
 #ifndef MSH_STD
 #define MSH_STD
-
 
 
 #ifdef __cplusplus
@@ -378,25 +359,6 @@ MSHDEF void msh_print_progress_bar( char* prefix, char* suffix,
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// Sort
-// [ ] Generic with a code gen?
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-MSHDEF void msh_insertion_sort( int32_t* arr, size_t n );
-MSHDEF void msh_insertion_sortf( float* arr, size_t n );
-MSHDEF void msh_insertion_sortd( double* arr, size_t n );
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Disjoint Set
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-struct msh_dset;
-MSHDEF void     msh_dset_init( struct msh_dset* dset, size_t n_vals );
-MSHDEF void     msh_dset_term( struct msh_dset* dset );
-MSHDEF uint64_t msh_dset_find( struct msh_dset* dset, uint64_t idx );
-MSHDEF void     msh_dset_union( struct msh_dset* dset, uint64_t idx_a, uint64_t idx_b );
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
 // String and path manipulation
 // TODO:
 // [ ] String tokenization
@@ -532,7 +494,6 @@ MSHDEF int      msh_rand_range( msh_rand_ctx_t* pcg, int min, int max );
 #define msh_is_within(x, lower, upper) ( ((x) >= (lower)) && ((x) <= (upper)) )
 #define msh_abs(x) ((x) < 0 ? -(x) : (x))
 
-// TODO(maciej): Check if standard supports this?
 #if !MSH_COMPILER_TCC
   #define msh_sq(x) _Generic((x),   \
                 int32_t: msh_sqi32, \
@@ -623,116 +584,6 @@ msh_print_progress_bar( char* prefix, char* suffix, uint64_t iter, uint64_t tota
   {
     printf("\n");
   }
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Sort
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void
-msh_insertion_sort( int32_t* arr, size_t n )
-{
-  assert( arr );
-  if( n <= 1 ) { return; }
-  size_t i, j;
-  int32_t x;
-
-  i = 1;
-  while( i < n )
-  {
-    x = arr[i];
-    j = i - 1;
-    while( j > 0 && arr[j] > x )
-    {
-      arr[j+1] = arr[j];
-      j--;
-    }
-    arr[j+1] = x;
-    i++;
-  }
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Disjoint Set
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-typedef struct msh_dset_el
-{
-  uint64_t parent;
-  uint32_t rank;
-  uint32_t size;
-} msh_dset_el_t;
-
-typedef struct msh_dset
-{
-  msh_dset_el_t* elems;
-  uint32_t num_sets;
-} msh_dset_t;
-
-MSHDEF void
-msh_dset_init( msh_dset_t* dset, size_t n_vals )
-{
-  assert( dset );
-  assert( dset->elems == NULL );
-  dset->elems = (msh_dset_el_t*)malloc( sizeof(msh_dset_el_t) * n_vals );
-  for( size_t i = 0; i < n_vals; ++i )
-  {
-    dset->elems[i].parent = i;
-    dset->elems[i].rank   = 0;
-    dset->elems[i].size   = 1;
-  }
-  dset->num_sets = n_vals;
-}
-
-MSHDEF void
-msh_dset_term( msh_dset_t* dset )
-{
-  assert( dset );
-  assert( dset->elems );
-  free( dset->elems );
-  dset->elems    = NULL;
-  dset->num_sets = 0;
-}
-
-MSHDEF uint64_t
-msh_dset_find( msh_dset_t* dset, uint64_t idx )
-{
-  // Path compression
-  uint64_t parent = dset->elems[idx].parent;
-  if( parent == idx )
-  {
-    return parent;
-  }
-  parent = msh_dset_find( dset, parent );
-  return parent;
-}
-
-MSHDEF void
-msh_dset_union( msh_dset_t* dset, uint64_t idx_a, uint64_t idx_b )
-{
-  uint64_t root_a = msh_dset_find( dset, idx_a );
-  uint64_t root_b = msh_dset_find( dset, idx_b );
- 
-  // check if in the same set
-  if( root_a == root_b)
-  {
-    return;
-  }
- 
-  // if not need to do union(by rank)
-  if( root_a < root_b )
-  {
-    uint64_t tmp = root_a;
-    root_a = root_b;
-    root_b = tmp;
-  }
-  dset->elems[root_b].parent = root_a;
-  dset->elems[root_a].size += dset->elems[root_b].size;
-  if( dset->elems[root_a].rank == dset->elems[root_b].rank )
-  {
-    dset->elems[root_a].rank++;
-  }
-  dset->num_sets--;
 }
 
 
