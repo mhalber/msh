@@ -1,10 +1,13 @@
 #define MSH_STD_INCLUDE_LIBC_HEADERS
 #define MSH_STD_IMPLEMENTATION
+#define MSH_CONTAINERS_IMPLEMENTATION
 #include "msh/msh_std.h"
+#include "msh/msh_containers.h"
 
 #include "munit/munit.h"
 
 #include "msh_containers_test.inl"
+#include "msh_stats_test.inl"
 
 
 int main(int argc, char* const argv[MUNIT_ARRAY_PARAM(argc + 1)])
@@ -21,6 +24,21 @@ int main(int argc, char* const argv[MUNIT_ARRAY_PARAM(argc + 1)])
   {
     .prefix = (char*) "/array",
     .tests = array_tests,
+    .suites = NULL,
+    .iterations = 1,
+    .options = MUNIT_SUITE_OPTION_NONE
+  };
+
+  MunitTest heap_tests[] = 
+  {
+    { .name = (char*) "/api",    .test = test_msh_heap_api, },
+    { 0 }
+  };
+
+  MunitSuite heap_test_suite = 
+  {
+    .prefix = (char*) "/heap",
+    .tests = heap_tests,
     .suites = NULL,
     .iterations = 1,
     .options = MUNIT_SUITE_OPTION_NONE
@@ -43,7 +61,22 @@ int main(int argc, char* const argv[MUNIT_ARRAY_PARAM(argc + 1)])
     .options = MUNIT_SUITE_OPTION_NONE
   };
 
-  MunitSuite test_suites_array[] = { array_test_suite, map_test_suite, {0} };
+  MunitTest stats_tests[] = 
+  {
+    { .name = (char*) "/pdf_sampling", .test = test_msh_discrete_distrib_sampling, },
+    { 0 }
+  };
+
+  MunitSuite stats_test_suite = 
+  {
+    .prefix = (char*) "/stats",
+    .tests = stats_tests,
+    .suites = NULL,
+    .iterations = 1,
+    .options = MUNIT_SUITE_OPTION_NONE
+  };
+
+  MunitSuite test_suites_array[] = { array_test_suite, heap_test_suite, map_test_suite, stats_test_suite, {0} };
 
   const MunitSuite test_suites = 
   {

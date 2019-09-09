@@ -66,15 +66,6 @@
 #define MSH_STD
 
 
-// NOTE(maciej): The cpp template is necessary for msh_array to work without violating strict
-// aliasing. Additionally, templates need external cpp linkage, so we need to pop this out in front
-// of everything. Not great.
-#ifdef __cplusplus
-template<typename T> T * msh_array__grow( T * arr, unsigned long long new_len, unsigned long long elem_size );
-#else
-#define msh_array__grow msh_array__raw_grow
-#endif
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -387,84 +378,6 @@ MSHDEF void msh_print_progress_bar( char* prefix, char* suffix,
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// Dynamic Size Array
-// TODOs 
-//  [ ] Convert this to a function based implementation with things like array bounds (?)
-//  [ ] Change behaviour of msh_array_pop
-// Credits
-//   Seat T. Barrett - idea of stretchy buffers (?)
-//   Cameron Foale   - solution for strict-aliasing violation in cpp
-//   Per Vognsen     - various improvements from his ion implementation
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-typedef struct msh_array_header
-{
-  size_t len;
-  size_t cap;
-} msh_array_hdr_t;
-
-#define msh_array(T) T*
-
-MSHDEF void* msh_array__raw_grow( void *array, size_t new_len, size_t elem_size );
-MSHDEF char* msh_array__printf(char *buf, const char *fmt, ...);
-
-#define msh_array__grow_formula(x)    ( (2.0*(x))+10 )
-#define msh_array__hdr(a)             ( (msh_array_hdr_t *)((char *)(a) - sizeof(msh_array_hdr_t)))
-
-#define msh_array_len(a)              ( (a) ? (msh_array__hdr((a))->len) : 0)
-#define msh_array_cap(a)              ( (a) ? (msh_array__hdr((a))->cap) : 0)
-#define msh_array_sizeof(a)           ( (a) ? (msh_array__hdr((a))->len * sizeof(*(a))) : 0)
-#define msh_array_isempty(a)          ( (a) ? (msh_array__hdr((a))->len <= 0) : 1)
-
-#define msh_array_front(a)            ( (a) ? (a) : NULL)
-#define msh_array_end(a)              ( (a) + msh_array_len((a)) ) // One past the end
-#define msh_array_back(a)             ( msh_array_len((a)) ? ((a) + msh_array_len((a)) - 1 ) : NULL) // Ptr to last element
-
-#define msh_array_free(a)             ( (a) ? (free(msh_array__hdr(a)), (a) = NULL) :0 )
-#define msh_array_pop(a)              ( (a) ? (msh_array__hdr((a))->len--) : 0 )
-#define msh_array_clear(a)            ( (a) ? (msh_array__hdr((a))->len = 0) : 0 )
-// #define msh_array_fit(a, n)           ( (n) <= msh_array_cap(a) ? (0) : ( *(void**)&(a) = msh_array__grow((a), (n), sizeof(*(a))) )) 
-#define msh_array_fit(a, n)           ( (n) <= msh_array_cap(a) ? (0) : ( (a) = msh_array__grow((a), (n), sizeof(*(a))) )) 
-#define msh_array_push(a, ...)        ( msh_array_fit((a), 1 + msh_array_len((a))), (a)[msh_array__hdr(a)->len++] = (__VA_ARGS__))
-
-#define msh_array_copy( dst, src, n )  ( msh_array_fit( (dst), (n) ), msh_array__hdr((dst))->len = (n), memcpy( (void*)(dst), (void*)(src), (n) * sizeof(*(dst) )))
-#define msh_array_printf(b, ...)      ( (b) = msh_array__printf((b), __VA_ARGS__))
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Hash Table
-//
-// Credits
-//   Seat T. Barrett: Judy Array vs. Hash-table text
-//   Niklas Frykholm: The Machinery Container system blog-series
-//   Per Vognsen    : iosn open-addressing, linear probing hashtable
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-typedef struct msh_map
-{
-  uint64_t* keys;
-  uint64_t* vals;
-  size_t _len;
-  size_t _cap;
-} msh_map_t;
-
-MSHDEF uint64_t  msh_hash_uint64( uint64_t x );
-MSHDEF uint64_t  msh_hash_ptr( void *ptr );
-MSHDEF uint64_t  msh_hash_str( const char *str );
-
-MSHDEF void      msh_map_init( msh_map_t *map, uint32_t cap );
-MSHDEF void      msh_map_free( msh_map_t* map );
-
-MSHDEF size_t    msh_map_len( msh_map_t* map );
-MSHDEF size_t    msh_map_cap( msh_map_t* map ); 
-
-MSHDEF void      msh_map_insert( msh_map_t* map, uint64_t key, uint64_t val );
-MSHDEF uint64_t* msh_map_get( const msh_map_t* map, uint64_t key );
-
-MSHDEF void      msh_map_get_iterable_keys( const msh_map_t* map, uint64_t** keys );
-MSHDEF void      msh_map_get_iterable_vals( const msh_map_t* map, uint64_t** vals );
-MSHDEF void      msh_map_get_iterable_keys_and_vals( const msh_map_t* map, uint64_t** key, uint64_t** val );
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
 // Sort
 // [ ] Generic with a code gen?
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -472,19 +385,6 @@ MSHDEF void      msh_map_get_iterable_keys_and_vals( const msh_map_t* map, uint6
 MSHDEF void msh_insertion_sort( int32_t* arr, size_t n );
 MSHDEF void msh_insertion_sortf( float* arr, size_t n );
 MSHDEF void msh_insertion_sortd( double* arr, size_t n );
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Heap
-// TODO:
-//   [ ] Make this generic, currently using only single precision float
-// Credits:
-//   Joerg Arndt, 'Matters Computational'
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-MSHDEF void msh_heap_make( real32_t* vals, size_t n_vals );
-MSHDEF void msh_heap_push( real32_t* vals, size_t n_vals );
-MSHDEF void msh_heap_pop( real32_t* vals, size_t n_vals );
-MSHDEF bool msh_heap_isvalid( real32_t* vals, size_t n_vals );
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Disjoint Set
@@ -726,253 +626,6 @@ msh_print_progress_bar( char* prefix, char* suffix, uint64_t iter, uint64_t tota
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// Dynamic Size Array
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-template<typename T>
-T * msh_array__grow( T * arr, unsigned long long new_len, unsigned long long elem_size ) {
-    return (T*)msh_array__raw_grow( (void *)arr, new_len, elem_size );
-}
-#endif
-
-
-MSHDEF void*
-msh_array__raw_grow( void *array, size_t new_len, size_t elem_size ) {
-  size_t old_cap = msh_array_cap( array );
-  size_t new_cap = (size_t)msh_array__grow_formula( old_cap );
-  new_cap = (size_t)msh_max( new_cap, msh_max(new_len, 16) );
-  assert( new_len <= new_cap );
-  size_t new_size = sizeof(msh_array_hdr_t) + new_cap * elem_size;
-  msh_array_hdr_t *new_hdr;
-  if( array )
-  {
-    new_hdr = (msh_array_hdr_t*)realloc( msh_array__hdr( array ), new_size );
-  } 
-  else
-  {
-    new_hdr = (msh_array_hdr_t*)malloc( new_size );
-    new_hdr->len = 0;
-  }
-  new_hdr->cap = new_cap;
-  return (void*)((char*)new_hdr + sizeof(msh_array_hdr_t));
-}
-
-MSHDEF char*
-msh_array__printf(char *buf, const char *fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
-  size_t cap = msh_array_cap(buf) - msh_array_len(buf) ;
-  int64_t len = vsnprintf( msh_array_end(buf), cap, fmt, args );
-  if( len < 0 ) { len = cap; }
-  size_t n = 1 + len;
-  va_end(args);
-  if( n > cap ) {
-    msh_array_fit( buf, n + msh_array_len(buf) );
-    va_start(args, fmt);
-    size_t new_cap = msh_array_cap(buf) - msh_array_len(buf);
-    len = vsnprintf( msh_array_end(buf), new_cap, fmt, args);
-    if( len < 0 ) { len = new_cap; }
-    n = 1 + len;
-    assert(n <= new_cap);
-    va_end(args);
-  }
-  msh_array__hdr(buf)->len += (n - 1);
-  return buf;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Hash Table
-////////////////////////////////////////////////////////////////////////////////////////////////////
-MSHDEF uint64_t
-msh_hash_uint64( uint64_t x ) 
-{
-  x *= 0xff51afd7ed558ccd;
-  x ^= x >> 32;
-  return x;
-}
-
-MSHDEF uint64_t
-msh_hash_ptr( void *ptr ) 
-{
-  return msh_hash_uint64( (uintptr_t)ptr );
-}
-
-MSHDEF uint64_t
-msh_hash_str( const char *str ) 
-{
-  uint64_t x = 0xcbf29ce484222325;
-  char *buf = (char*)str;
-  while( *buf != 0 )
-  {
-    x ^= *buf;
-    x *= 0x100000001b3;
-    x ^= x >> 32;
-    buf++;
-  }
-  return x;
-}
-
-msh_internal size_t
-msh_map__pow2ceil( uint32_t v )
-{
-  --v;
-  v |= v >> 1;
-  v |= v >> 2;
-  v |= v >> 4;
-  v |= v >> 8;
-  v |= v >> 16;
-  ++v;
-  v += ( v == 0 );
-  return v;
-}
-
-MSHDEF void
-msh_map_init( msh_map_t *map, uint32_t cap )
-{
-  assert( !map->keys && !map->vals );
-  cap = msh_map__pow2ceil( cap );
-  map->keys = (uint64_t*)calloc( cap, sizeof(uint64_t) );
-  map->vals = (uint64_t*)malloc( cap * sizeof(uint64_t) );
-  map->_len = 0;
-  map->_cap = cap;
-}
-
-MSHDEF void
-msh_map__grow( msh_map_t *map, size_t new_cap ) {
-  new_cap = msh_max( new_cap, 16 );
-  msh_map_t new_map;
-  new_map.keys = (uint64_t*)calloc( new_cap, sizeof(uint64_t) );
-  new_map.vals = (uint64_t*)malloc( new_cap * sizeof(uint64_t) );
-  new_map._len = 0;
-  new_map._cap = new_cap;
-
-  for( size_t i = 0; i < map->_cap; i++ ) 
-  {
-    if( map->keys[i] )
-    {
-      msh_map_insert( &new_map, map->keys[i] - 1, map->vals[i] );
-    }
-  }
-  free( map->keys );
-  free( map->vals );
-  *map = new_map;
-}
-
-MSHDEF size_t
-msh_map_len( msh_map_t* map )
-{
-  return map->_len;
-}
-
-MSHDEF size_t
-msh_map_cap( msh_map_t* map )
-{
-  return map->_cap;
-}
-
-MSHDEF void
-msh_map_insert( msh_map_t* map, uint64_t key, uint64_t val )
-{
-  // Increment the key, so that key == 0 is valid, even though 0 is marking empty slot.
-  assert( key < (MSH_U64_MAX - 1) );
-  key += 1;
-  if( 2 * map->_len >= map->_cap) { msh_map__grow( map, 2 * map->_cap ); }
-  assert( 2 * map->_len < map->_cap );
-  size_t i = (size_t)msh_hash_uint64( key );
-  for (;;) 
-  {
-    i &= map->_cap - 1;
-    if( !map->keys[i] )
-    {
-      map->_len++;
-      map->keys[i] = key;
-      map->vals[i] = val;
-      return;
-    } 
-    else if( map->keys[i] == key )
-    {
-      map->vals[i] = val;
-      return;
-    }
-    i++;
-  }
-}
-
-MSHDEF uint64_t*
-msh_map_get( const msh_map_t* map, uint64_t key )
-{
-  if( map->_len == 0 ) { return NULL; }
-  key += 1;
-  size_t i = (size_t)msh_hash_uint64( key );
-  assert( map->_len < map->_cap );
-  for( ;; ) {
-    i &= map->_cap - 1;
-    if( map->keys[i] == key )
-    {
-      return &map->vals[i];
-    } 
-    else if( !map->keys[i] ) 
-    {
-      return NULL;
-    }
-    i++;
-  }
-}
-
-MSHDEF void
-msh_map_free( msh_map_t* map )
-{
-  free( map->keys );
-  free( map->vals );
-  map->_cap = 0;
-  map->_len = 0;
-}
-
-MSHDEF void
-msh_map_get_iterable_keys( const msh_map_t* map, uint64_t** keys )
-{
-  assert( (*keys) == NULL );
-  (*keys) = (uint64_t*)malloc( map->_len * sizeof(uint64_t) );
-  size_t j = 0;
-  for( size_t i = 0; i < map->_cap; ++i )
-  {
-    if( map->keys[i] ) { (*keys)[j++] = map->keys[i] - 1; }
-  }
-}
-
-MSHDEF void
-msh_map_get_iterable_vals( const msh_map_t* map, uint64_t** vals )
-{
-  assert( (*vals) == NULL );
-  (*vals) = (uint64_t*)malloc( map->_len * sizeof(uint64_t) );
-  size_t j = 0;
-  for( size_t i = 0; i < map->_cap; ++i )
-  {
-    if( map->keys[i] ) { (*vals)[j++] = map->vals[i]; }
-  }
-}
-
-MSHDEF void
-msh_map_get_iterable_keys_and_vals( const msh_map_t* map, uint64_t** keys, uint64_t** vals )
-{
-  assert( (*keys) == NULL );
-  assert( (*vals) == NULL );
-  (*keys) = (uint64_t*)malloc( map->_len * sizeof(uint64_t) );
-  (*vals) = (uint64_t*)malloc( map->_len * sizeof(uint64_t) );
-  size_t j = 0;
-  for( size_t i = 0; i < map->_cap; ++i )
-  {
-    if( map->keys[i] )
-    { 
-      (*keys)[j] = map->keys[i] - 1;
-      (*vals)[j] = map->vals[i];
-      j++;
-    }
-  }
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
 // Sort
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -989,7 +642,7 @@ msh_insertion_sort( int32_t* arr, size_t n )
   {
     x = arr[i];
     j = i - 1;
-    while( j >= 0 && arr[j] > x )
+    while( j > 0 && arr[j] > x )
     {
       arr[j+1] = arr[j];
       j--;
@@ -997,75 +650,6 @@ msh_insertion_sort( int32_t* arr, size_t n )
     arr[j+1] = x;
     i++;
   }
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Heap
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-msh_internal void
-msh__heapify( float *vals, size_t vals_len, size_t cur )
-{
-  size_t max = cur;
-  const size_t left  = (cur<<1) + 1; // multiply by two
-  const size_t right = (cur<<1) + 2; // multiply by two
-
-  if( (left < vals_len)  && (vals[left] > vals[cur]) )   { max = left; }
-  if( (right < vals_len) && (vals[right] > vals[max]) ) { max = right; }
-
-  if( max != cur ) // need to swap
-  {
-    float tmp = vals[cur];
-    vals[cur] = vals[max];
-    vals[max] = tmp;
-    msh__heapify( vals, vals_len, max );
-  }
-}
-
-MSHDEF void
-msh_heap_make( real32_t* vals, size_t vals_len )
-{
-  int64_t i = vals_len >> 1; // division by two
-  while ( i >= 0 ) { msh__heapify( vals, vals_len, i-- ); }
-}
-
-MSHDEF void
-msh_heap_pop( real32_t* vals, size_t vals_len )
-{
-  float max = vals[0];
-  vals[0] = vals[vals_len-1];
-  vals[vals_len-1] = max;
-  vals_len--;
-
-  if( vals_len > 0 ){ msh__heapify( vals, vals_len, 0 ); }
-}
-
-MSHDEF void
-msh_heap_push( real32_t* vals, size_t vals_len )
-{
-  int64_t i = vals_len-1;
-  float v = vals[i];
-
-  while( i > 0 )
-  {
-    int64_t j = (i-1) >> 1;
-    
-    if( vals[j] >= v ) break;
-    vals[i] = vals[j];
-    i = j;
-  }
-  vals[i] = v;
-}
-
-MSHDEF bool
-msh_heap_isvalid( real32_t* vals, size_t vals_len )
-{
-  for( int i = vals_len - 1; i > 0; --i )
-  {
-    size_t parent = (i-1) >> 1;
-    if( vals[i] > vals[parent] ) { return false; }
-  }
-  return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1393,7 +977,7 @@ msh_create_directory( const char* folder )
     while( end[0] != MSH_FILE_SEPARATOR && end[0] != 0 ) { end++; }
     char tmp = end[0];    
     end[0] = 0;
-    int err = msh__mkdir( start );
+    msh__mkdir( start );
     end[0] = tmp;
     if( end[0] == 0 ) { break; }
     end++;   
@@ -1621,120 +1205,120 @@ msh_time_now()
 #endif
 
 
-/* TODOs(maciej): 
-[ ] Add naming of the blocks for better reporting
-[ ] Add wall clock time version?
-[ ] Add automatic counter / id gen ( use map ?? )
-[ ] Ensure that it works within for loops.
-*/
+// /* TODOs(maciej): 
+// [ ] Add naming of the blocks for better reporting
+// [ ] Add wall clock time version?
+// [ ] Add automatic counter / id gen ( use map ?? )
+// [ ] Ensure that it works within for loops.
+// */
 
-/*
-NOTES(maciej): String interning for comapring the strings?
-Current issues:
-- If function is hit multipe times, how to store timing? -- Just like handmade hero, record events linearly, and store to which record they hark back, then print record information after pairing the events.
-- How to pair start and end...? -- with stack variable?
-*/
-typedef enum msh_debug_event_type
-{
-  MSH_DEBUG_EVENT_START,
-  MSH_DEBUG_EVENT_END,
-  MSH_DEBUG_EVENT_PROCESSED,
-  MSH_DEBUG_EVENT_COUNT
-} msh_debug_event_type_t;
+// /*
+// NOTES(maciej): String interning for comapring the strings?
+// Current issues:
+// - If function is hit multipe times, how to store timing? -- Just like handmade hero, record events linearly, and store to which record they hark back, then print record information after pairing the events.
+// - How to pair start and end...? -- with stack variable?
+// */
+// typedef enum msh_debug_event_type
+// {
+//   MSH_DEBUG_EVENT_START,
+//   MSH_DEBUG_EVENT_END,
+//   MSH_DEBUG_EVENT_PROCESSED,
+//   MSH_DEBUG_EVENT_COUNT
+// } msh_debug_event_type_t;
 
-typedef struct msh_debug_event
-{
-  uint32_t uid;
-  uint32_t hit_count;
-  uint8_t type;
-  uint64_t clock;
-  char* filename;
-  char* function_name;
-  uint16_t line_number;
-} msh_debug_event_t;
+// typedef struct msh_debug_event
+// {
+//   uint32_t uid;
+//   uint32_t hit_count;
+//   uint8_t type;
+//   uint64_t clock;
+//   char* filename;
+//   char* function_name;
+//   uint16_t line_number;
+// } msh_debug_event_t;
 
-#if 0
-typedef struct msh_debug_event_table
-{
-  uint32_t event_index;
-  msh_array( msh_debug_event_t ) debug_events;
-} msh_debug_event_table_t;
-#endif
+// #if 0
+// typedef struct msh_debug_event_table
+// {
+//   uint32_t event_index;
+//   msh_array( msh_debug_event_t ) debug_events;
+// } msh_debug_event_table_t;
+// #endif
 
-msh_global msh_debug_event_t* DEBUG_EVENT_ARRAY;
+// msh_global msh_debug_event_t* DEBUG_EVENT_ARRAY;
 
-// ((uint64_t)__FUNCTION__ % 15487249) + ((uint64_t)__FILE__ % 1300613) + __LINE__; 
-#define MSH_BEGIN_TIMED_BLOCK() msh_debug_begin_timed_block( uid, (char*)__FILE__, (char*)__FUNCTION__, __LINE__ )
-#define MSH_END_TIMED_BLOCK() msh_debug_end_timed_block( uid, (char*)__FILE__, (char*)__FUNCTION__, __LINE__ )
+// // ((uint64_t)__FUNCTION__ % 15487249) + ((uint64_t)__FILE__ % 1300613) + __LINE__; 
+// #define MSH_BEGIN_TIMED_BLOCK() msh_debug_begin_timed_block( uid, (char*)__FILE__, (char*)__FUNCTION__, __LINE__ )
+// #define MSH_END_TIMED_BLOCK() msh_debug_end_timed_block( uid, (char*)__FILE__, (char*)__FUNCTION__, __LINE__ )
 
-MSHDEF void
-msh_debug_begin_timed_block( int32_t counter, char* filename, char* function_name, int32_t line_number )
-{
-  msh_debug_event_t debug_event;
-  debug_event.uid           = counter; 
-  debug_event.hit_count     = 1;
-  debug_event.type          = MSH_DEBUG_EVENT_START;
-  debug_event.filename      = filename;
-  debug_event.function_name = function_name;
-  debug_event.line_number   = line_number;
-  msh_array_push( DEBUG_EVENT_ARRAY, debug_event );
-  (msh_array_end( DEBUG_EVENT_ARRAY ) - 1)->clock = msh_rdtsc();
-}
+// MSHDEF void
+// msh_debug_begin_timed_block( int32_t counter, char* filename, char* function_name, int32_t line_number )
+// {
+//   msh_debug_event_t debug_event;
+//   debug_event.uid           = counter; 
+//   debug_event.hit_count     = 1;
+//   debug_event.type          = MSH_DEBUG_EVENT_START;
+//   debug_event.filename      = filename;
+//   debug_event.function_name = function_name;
+//   debug_event.line_number   = line_number;
+//   msh_array_push( DEBUG_EVENT_ARRAY, debug_event );
+//   (msh_array_end( DEBUG_EVENT_ARRAY ) - 1)->clock = msh_rdtsc();
+// }
 
-MSHDEF void
-msh_debug_end_timed_block( int32_t counter, char* filename, char* function_name, int32_t line_number )
-{
-  uint64_t clock_val        = msh_rdtsc();
-  msh_debug_event_t debug_event;
-  debug_event.uid           = counter;
-  debug_event.clock         = clock_val;
-  debug_event.hit_count     = 1;
-  debug_event.type          = MSH_DEBUG_EVENT_END;
-  debug_event.filename      = filename;
-  debug_event.function_name = function_name;
-  debug_event.line_number   = line_number;
-  msh_array_push( DEBUG_EVENT_ARRAY, debug_event );
-}
+// MSHDEF void
+// msh_debug_end_timed_block( int32_t counter, char* filename, char* function_name, int32_t line_number )
+// {
+//   uint64_t clock_val        = msh_rdtsc();
+//   msh_debug_event_t debug_event;
+//   debug_event.uid           = counter;
+//   debug_event.clock         = clock_val;
+//   debug_event.hit_count     = 1;
+//   debug_event.type          = MSH_DEBUG_EVENT_END;
+//   debug_event.filename      = filename;
+//   debug_event.function_name = function_name;
+//   debug_event.line_number   = line_number;
+//   msh_array_push( DEBUG_EVENT_ARRAY, debug_event );
+// }
 
-MSHDEF void
-msh_debug_report_debug_events()
-{
-  for( size_t event_idx = 0; event_idx < msh_array_len( DEBUG_EVENT_ARRAY ); ++event_idx )
-  {
-    msh_debug_event_t* cur_event = DEBUG_EVENT_ARRAY + event_idx;
-    if( cur_event->type == MSH_DEBUG_EVENT_PROCESSED ) { continue; }
+// MSHDEF void
+// msh_debug_report_debug_events()
+// {
+//   for( size_t event_idx = 0; event_idx < msh_array_len( DEBUG_EVENT_ARRAY ); ++event_idx )
+//   {
+//     msh_debug_event_t* cur_event = DEBUG_EVENT_ARRAY + event_idx;
+//     if( cur_event->type == MSH_DEBUG_EVENT_PROCESSED ) { continue; }
 
-    msh_debug_event_t* start_event = cur_event;
-    size_t end_event_idx = event_idx;
-    msh_debug_event_t* end_event = DEBUG_EVENT_ARRAY + end_event_idx;
-    for(;;)
-    {
-      end_event_idx++;
-      if( end_event_idx >= msh_array_len( DEBUG_EVENT_ARRAY ) ) { break; }
+//     msh_debug_event_t* start_event = cur_event;
+//     size_t end_event_idx = event_idx;
+//     msh_debug_event_t* end_event = DEBUG_EVENT_ARRAY + end_event_idx;
+//     for(;;)
+//     {
+//       end_event_idx++;
+//       if( end_event_idx >= msh_array_len( DEBUG_EVENT_ARRAY ) ) { break; }
 
-      end_event = DEBUG_EVENT_ARRAY + end_event_idx;
-      if( (end_event->type == MSH_DEBUG_EVENT_END && 
-           end_event->uid == start_event->uid) ) { break; }
-    }
+//       end_event = DEBUG_EVENT_ARRAY + end_event_idx;
+//       if( (end_event->type == MSH_DEBUG_EVENT_END && 
+//            end_event->uid == start_event->uid) ) { break; }
+//     }
 
-    if( end_event->type != MSH_DEBUG_EVENT_END ||
-        end_event->uid != start_event->uid )
-    {
-      printf("ERROR! Block starting at line %d in %s(function %s) does not have pairing end block\n",
-             start_event->line_number, start_event->filename, start_event->function_name );
-    }
-    else
-    {
-      uint32_t start_line = start_event->line_number;
-      uint32_t end_line = end_event->line_number;
-      uint64_t n_cycles = end_event->clock - start_event->clock;
-      printf("Block %d - %d in %s, %s took %d cycles\n", start_line, end_line, start_event->function_name, start_event->filename, (int32_t)n_cycles );
-      start_event->type = MSH_DEBUG_EVENT_PROCESSED;
-      end_event->type = MSH_DEBUG_EVENT_PROCESSED;
-    }
-  }
-  printf("\n");
-}
+//     if( end_event->type != MSH_DEBUG_EVENT_END ||
+//         end_event->uid != start_event->uid )
+//     {
+//       printf("ERROR! Block starting at line %d in %s(function %s) does not have pairing end block\n",
+//              start_event->line_number, start_event->filename, start_event->function_name );
+//     }
+//     else
+//     {
+//       uint32_t start_line = start_event->line_number;
+//       uint32_t end_line = end_event->line_number;
+//       uint64_t n_cycles = end_event->clock - start_event->clock;
+//       printf("Block %d - %d in %s, %s took %d cycles\n", start_line, end_line, start_event->function_name, start_event->filename, (int32_t)n_cycles );
+//       start_event->type = MSH_DEBUG_EVENT_PROCESSED;
+//       end_event->type = MSH_DEBUG_EVENT_PROCESSED;
+//     }
+//   }
+//   printf("\n");
+// }
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1865,54 +1449,56 @@ MSHDEF void
 msh_discrete_distribution_update( msh_discrete_distrib_t* ctx, double* weights, size_t n_weights )
 {
   assert( ctx->n_weights == n_weights );
-  
-  double *pdf = (double*)malloc( ctx->n_weights * sizeof(double) );
+
+  char* data = malloc( ctx->n_weights * (sizeof(double) + sizeof(int32_t)) );
+  double *pdf   = (double*)data;
   msh_distrib2pdf( weights, pdf, ctx->n_weights );
 
   double avg_prob = 1.0 / (double)ctx->n_weights;
-  
-  // Do we really need msh array here?
-  msh_array(int) small = {0};
-  msh_array(int) large = {0};
-
+  uint32_t n_large = 0;
+  uint32_t n_small = 0;
   for( size_t i = 0; i < ctx->n_weights; ++i )
   {
-    if( pdf[i] >= avg_prob ) { msh_array_push(large, i); }
-    else                     { msh_array_push(small, i); }
+    if( pdf[i] >= avg_prob ) { n_large++; }
+    else                     { n_small++; }
   }
 
-  // Start building the alias table.
-  while( !msh_array_isempty(small) && !msh_array_isempty(large) )
+  int32_t *large = (int32_t*)(data + (ctx->n_weights * sizeof(double)));
+  int32_t *small = (int32_t*)(data + (ctx->n_weights * sizeof(double) + n_large * sizeof(uint32_t)));
+
+  n_large = 0;
+  n_small = 0;
+  for( size_t i = 0; i < ctx->n_weights; ++i )
   {
-    int l = small[ msh_array_len(small)-1 ];
-    int g = large[ msh_array_len(large)-1 ];
-    msh_array_pop(small);
-    msh_array_pop(large);
+    if( pdf[i] >= avg_prob ) { large[n_large++] = i; }
+    else                     { small[n_small++] = i; }
+  }
+
+  while( n_small > 0 && n_large > 0 )
+  {
+    int32_t l = small[--n_small];
+    int32_t g = large[--n_large];
 
     ctx->prob[l] = pdf[l] * ctx->n_weights;
     ctx->alias[l] = g;
   
     pdf[g] = (pdf[g] + pdf[l]) - avg_prob;
-    if( pdf[g] >= avg_prob ) { msh_array_push( large, g ); }
-    else                     { msh_array_push( small, g ); }
+    if( pdf[g] >= avg_prob ) { large[n_large++] = g; }
+    else                     { small[n_small++] = g; }
   }
 
-  while( !msh_array_isempty(small) )
+  while( n_small > 0 )
   {
-    int i = small[ msh_array_len(small)-1 ];
-    msh_array_pop(small);
+    int i = small[--n_small];
     ctx->prob[i] = 1.0;
   }
-  while( !msh_array_isempty(large) )
+  while( n_large > 0 )
   {
-    int i = large[ msh_array_len(large)-1 ];
-    msh_array_pop(large);
+    int i = large[--n_large];
     ctx->prob[i] = 1.0;
   }
 
-  msh_array_free(small);
-  msh_array_free(large);
-  free(pdf);
+  free( data );
 }
 
 MSHDEF void

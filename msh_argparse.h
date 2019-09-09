@@ -235,12 +235,12 @@ MSHAPDEF int msh_ap_display_help( msh_argparse_t *argparse );
 
 /* Argument addition function prototype.  */
 /* typename follows the convention of msh_typenames */
-#define MSH_AP_ADD_ARGUMENT(typename,val_t)                                     \
+#define MSH_AP_ADD_ARGUMENT(typename,val_t)                                      \
   MSHAPDEF int msh_ap_add_##typename##_argument( msh_argparse_t *argparse,       \
                                                  const char *name,               \
                                                  const char *shorthand,          \
                                                  const char *message,            \
-                                                 val_t *value,                    \
+                                                 val_t *value,                   \
                                                  const size_t num_vals  ); 
 
 /* msh_add_bool_argument(...) */

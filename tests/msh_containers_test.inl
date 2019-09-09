@@ -64,7 +64,7 @@ test_msh_array_printf(const MunitParameter params[], void* fixture)
 {
   (void) params;
   (void) fixture;
-
+  
   msh_array( char ) str = {0};
   msh_array_printf( str, "This" );
   munit_assert_string_equal( str, "This" );
@@ -230,5 +230,45 @@ test_msh_map_str_hash(const MunitParameter params[], void* fixture)
   munit_assert_uint64( h2, !=, h3 );
   munit_assert_uint64( h1, !=, h3 );
   
+  return MUNIT_OK;
+}
+
+MunitResult
+test_msh_heap_api(const MunitParameter params[], void* fixture) 
+{
+  (void) params;
+  (void) fixture;
+
+  msh_array( int64_t ) heap = {0};
+
+  msh_array_push( heap, 1 );
+  msh_array_push( heap, 8 );
+  msh_array_push( heap, 10 );
+  msh_array_push( heap, 5 );
+  msh_array_push( heap, 3 );
+  
+  munit_assert_false( msh_heap_isvalid(heap, msh_array_len(heap)) );
+  msh_heap_make( heap, msh_array_len(heap));
+  munit_assert_true( msh_heap_isvalid(heap, msh_array_len(heap)) );
+  
+  msh_array_push( heap, 18 );
+  msh_heap_push( heap, msh_array_len(heap) );
+  munit_assert_int64( heap[0], ==, 18 );
+  munit_assert_true( msh_heap_isvalid(heap, msh_array_len(heap)) );
+  
+  msh_array_push( heap, 17 );
+  msh_heap_push( heap, msh_array_len(heap) );
+  
+  munit_assert_int64( heap[0], ==, 18 );
+  munit_assert_true( msh_heap_isvalid(heap, msh_array_len(heap)) );
+
+  msh_heap_pop( heap, msh_array_len(heap) );
+  int64_t max = *msh_array_back(heap);
+  msh_array_pop(heap);
+  
+  munit_assert_int64( heap[0], ==, 17 );
+  munit_assert_int64( max, ==, 18 );
+  munit_assert_true( msh_heap_isvalid(heap, msh_array_len(heap)) );
+
   return MUNIT_OK;
 }
