@@ -3,7 +3,7 @@
 
   MSH_VEC_MATH.H v0.75
 
-  A single header library for a simple 2-4 dimensional vector / matrix operations (and quaternions).
+  A single header library for a simple 2-4 dimensional vecto, quaternion and  matrix operations.
 
   To use the library you simply add:
 
@@ -98,7 +98,6 @@
   ==============================================================================
   TODOs:
   [ ] Make all functions for doubles as well
-      Use generic__ to select correct function. C99 support is pretty wide now.
   [ ] Make use of Per Vogsnen template idea?
   [ ] Write tests
   [ ] Determine the effect of static inline on performance.
@@ -134,6 +133,7 @@ extern "C" {
 #include <stdio.h>
 #include <float.h>
 #include <math.h>
+#include <stdint.h>
 #endif
 
 #ifndef MSH_FLT_EPSILON
@@ -2629,59 +2629,6 @@ msh_mat4_print( msh_mat4_t m )
 {
   msh_mat4_fprint( m, stdout );
 }
-
-
-
-// Color conversion helpers
-#if 0
-msh_vec3_t msh_rgb_to_vec3( msh_rgb_t c )
-{
-  return msh_vec3( c.r, c.g, c.b );
-}
-
-msh_vec3_t msh_rgb_to_vec3_normalized( msh_rgb_t c )
-{
-  real32_t denom = 1.0f / 255.0f;
-  return msh_vec3( (real32_t)(c.r * denom), (real32_t)(c.g * denom), (real32_t)(c.b * denom) );
-}
-
-msh_vec3_t msh_rgba_to_vec4( msh_rgba_t c )
-{
-  return msh_vec4( c.r, c.g, c.b, c.a );
-}
-
-msh_vec3_t msh_rgba_to_vec4_normalized( msh_rgba_t c )
-{
-  real32_t denom = 1.0f / 255.0f;
-  return msh_vec4( (real32_t)( c.r * denom ),
-                   (real32_t)( c.g * denom ),
-                   (real32_t)( c.b * denom ),
-                   (real32_t)( c.a * denom ) );
-}
-
-msh_vec3_t msh_vec3_to_rgb( msh_vec3_t v )
-{
-  return msh_rgb( v.x, v.y, v.z );
-}
-
-msh_vec3_t msh_vec3_normalized_to_rgb( msh_vec3_t v )
-{
-  return msh_rgb( v.x * 255.0f, v.y * 255.0f, v.z * 255.0f );
-}
-
-msh_vec3_t msh_vec4_to_rgb( msh_vec4_t v )
-{
-  return msh_rgba( v.x, v.y, v.z, v.w );
-}
-
-msh_vec3_t msh_rgba_to_vec4_normalized( msh_vec4_t v )
-{
-  return msh_rgba( (real32_t)( v.x * 255.0f ),
-                   (real32_t)( v.y * 255.0f ),
-                   (real32_t)( v.z * 255.0f ),
-                   (real32_t)( v.w * 255.0f ) );
-}
-#endif
 
 #endif /* MSH_VEC_MATH_IMPLEMENTATION */
 

@@ -272,3 +272,67 @@ test_msh_heap_api(const MunitParameter params[], void* fixture)
 
   return MUNIT_OK;
 }
+
+MunitResult
+test_msh_disjoint_set_api(const MunitParameter params[], void* fixture) 
+{
+  (void) params;
+  (void) fixture;
+
+  static const int32_t map_size = 6;
+  char map[] = "111000"
+               "111000"
+               "100010"
+               "011000"
+               "011001"
+               "011010";
+  static const uint32_t num_sets = 6;
+  int32_t n_vals = map_size*map_size;
+  msh_dset_t dset = {0};
+  msh_dset_init( &dset, n_vals );
+  
+  int32_t first_zero_idx = 0;
+  for( int32_t i = 0; i < map_size * map_size; ++i )
+  {
+    if( map[i] == '0' )
+    {
+      first_zero_idx = i;
+      break;
+    }
+  }
+
+  for( int32_t y = 0; y < map_size; ++y )
+  {
+    for( int32_t x = 0; x < map_size; ++x )
+    {
+      int32_t idx = y * map_size + x;
+      char c = map[idx];
+      if( c == '0' ) // background
+      {
+        msh_dset_union( &dset, first_zero_idx, idx );
+      }
+      else // islands
+      {
+        int32_t idx_u = msh_max( y - 1, 0 ) * map_size + x;
+        int32_t idx_d = msh_min( y + 1, map_size - 1 ) * map_size + x;
+        int32_t idx_l = y * map_size + msh_max( x - 1, 0 );
+        int32_t idx_r = y * map_size + msh_min( x + 1, map_size - 1 );
+        if( c == map[idx_u] ) { msh_dset_union( &dset, idx_u, idx ); }
+        if( c == map[idx_d] ) { msh_dset_union( &dset, idx_d, idx ); }
+        if( c == map[idx_l] ) { msh_dset_union( &dset, idx_l, idx ); }
+        if( c == map[idx_r] ) { msh_dset_union( &dset, idx_r, idx ); }
+      }
+    }
+  }
+
+  munit_assert_int32( dset.num_sets, ==, num_sets );
+  munit_assert_int32( msh_dset_find( &dset, 1 ), ==, msh_dset_find( &dset,  6 ) );
+  munit_assert_int32( msh_dset_find( &dset, 5 ), ==, msh_dset_find( &dset, 11 ) );
+
+  msh_dset_term(&dset);
+  munit_assert_int( dset.num_sets, ==, 0 );
+  munit_assert_ptr_null( dset.elems );
+
+
+  return MUNIT_OK;
+}
