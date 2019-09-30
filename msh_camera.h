@@ -1,7 +1,7 @@
 /*
   ==============================================================================
   
-  MSH_CAMERAERA.H - v0.5
+  MSH_CAMERA.H - v0.6
   
   A single header library for camera manipulation 
 
@@ -17,10 +17,9 @@
   TODOs:
   [x] Implement camera speeds
   [ ] Euler angle alternative?
-  [ ] API Implementation
   [ ] API docs
-  [ ] Add camera type and generalize init function
   [ ] Custom inverse function for projection and view matrices
+  [ ] First person camera controls
 
   ==============================================================================
   AUTHORS
@@ -32,17 +31,17 @@
   DEPENDENCES
 
   This library depends on following standard headers:
-    <stdlib.h>  - qsort, atof, atoi
-    <stdio.h>   - printf, sprintf
-    <string.h>  - strncmp
-    <ctype.h>   - isdigit
-    <stdbool.h> - bool type
+    <float.h>
+    <math.h>
+    <stdbool.h>
 
   By default this library does not import these headers. Please see 
   docs/no_headers.md for explanation. Importing heades is enabled by:
 
-  #define MSH_ARGPARSE_INCLUDE_HEADERS
+  #define MSH_CAMERA_INCLUDE_HEADERS
   
+  Additionally, currently it also depends on  on msh_vec_math.h for vector math
+
   ==============================================================================
   REFERENCES:
   [1] nlguillemot/arcball_camera.h    https://github.com/nlguillemot/arcball_camera/blob/master/arcball_camera.h
@@ -86,6 +85,7 @@ typedef struct msh_camera_desc
   float fovy;
   float znear;
   float zfar;
+  bool use_ortho;
 
   float pan_speed;
   float zoom_speed;
@@ -100,10 +100,10 @@ typedef struct msh_camera
   msh_quat_t orientation;
 
   /* Projection Matrix Params */
-  int32_t viewport[4];
+  msh_vec4_t viewport;
   float znear, zfar;
   float fovy;
-  int8_t ortho;
+  bool use_ortho;
 
   /* Options */
   float pan_speed;
@@ -116,7 +116,7 @@ typedef struct msh_camera
   msh_mat4_t proj;
 } msh_camera_t;
 
-void msh_camera_init_arcball( msh_camera_t * cam, msh_camera_desc_t* desc );
+void msh_camera_init( msh_camera_t * cam, msh_camera_desc_t* desc );
 
 void msh_camera_rotate( msh_camera_t* cam, msh_vec2_t prev_pos, msh_vec2_t curr_pos );
 void msh_camera_pan( msh_camera_t* cam, msh_vec2_t prev_pos, msh_vec2_t curr_pos );
@@ -135,13 +135,14 @@ void msh_camera_ray_through_pixel( msh_camera_t* camera, msh_vec2_t p, msh_vec3_
 
 #endif /*MSH_CAMERA_H*/
 
-#ifdef MSH_CAMERA_IMPLEMENTATION
 
+
+#ifdef MSH_CAMERA_IMPLEMENTATION
 
 void 
 msh_camera_pan( msh_camera_t* cam, msh_vec2_t prev_pos, msh_vec2_t curr_pos )
 {
-  float h  = cam->viewport[3] - cam->viewport[1];
+  float h  = cam->viewport.w - cam->viewport.y;
   float x0 = prev_pos.x;
   float y0 = h - prev_pos.y;
   float x1 = curr_pos.x;
@@ -163,11 +164,13 @@ msh_camera_pan( msh_camera_t* cam, msh_vec2_t prev_pos, msh_vec2_t curr_pos )
 void
 msh_camera_zoom( msh_camera_t* cam, float zoom_amount )
 {
-  float norm          = msh_vec3_norm( cam->offset );
-  float zoom_factor   = (norm < 1.0) ? norm: 1.0f;
-  float final_zoom_amount = cam->zoom_speed * zoom_amount * zoom_factor;
-  msh_vec3_t zoom_vec = msh_vec3_scalar_mul( msh_vec3_scalar_div( cam->offset, norm ), final_zoom_amount );
-  cam->offset         = msh_vec3_add( cam->offset, zoom_vec );
+  float norm = msh_vec3_norm( cam->offset );
+  float zoom_factor  = (norm < 1.0) ? norm: 1.0f;
+  if( norm < 0.001f && zoom_amount < 0 ) { return; }
+  msh_vec3_t zoom_dir = msh_vec3_scalar_div( cam->offset, norm );
+  float zoom_mult = cam->zoom_speed * zoom_amount * zoom_factor;
+  msh_vec3_t zoom_vec = msh_vec3_scalar_mul( zoom_dir, zoom_mult );
+  cam->offset = msh_vec3_add( cam->offset, zoom_vec );
 }
 
 void
@@ -181,8 +184,8 @@ void
 msh_camera_rotate( msh_camera_t* cam, msh_vec2_t prev_pos, msh_vec2_t curr_pos )
 {
 #if 1
-  float w = cam->viewport[2] - cam->viewport[0];
-  float h = cam->viewport[3] - cam->viewport[1];
+  float w = cam->viewport.z - cam->viewport.x;
+  float h = cam->viewport.w - cam->viewport.y;
   float r = (w > h) ? h : w;
 
   float x0 = prev_pos.x;
@@ -194,6 +197,7 @@ msh_camera_rotate( msh_camera_t* cam, msh_vec2_t prev_pos, msh_vec2_t curr_pos )
   float dy = (y1 - y0);
 
   if( fabs( dx ) < 1 && fabs( dy ) < 1 ) { return; }
+
   msh_vec3_t p0 = msh_vec3( (x0 - w * 0.5f) / r, (y0 - h * 0.5f) / r, 0.0f );
   p0 = msh_vec3_scalar_mul( p0, cam->rot_speed );
   float l0_sq = p0.x * p0.x + p0.y * p0.y;
@@ -265,10 +269,19 @@ msh_camera_update_view( msh_camera_t * cam )
 void 
 msh_camera_update_proj( msh_camera_t * cam )
 {
-  float w = cam->viewport[2] - cam->viewport[0];
-  float h = cam->viewport[3] - cam->viewport[1];
+  float w = cam->viewport.z - cam->viewport.x;
+  float h = cam->viewport.w - cam->viewport.y;
   float aspect_ratio = w / h;
-  cam->proj = msh_perspective( cam->fovy, aspect_ratio, cam->znear, cam->zfar );
+  if( cam->use_ortho )
+  {
+    float top = 0.85 * cam->zoom_speed * msh_vec3_norm( cam->offset );
+    float left = -aspect_ratio * top;
+    cam->proj = msh_ortho( left, -left, -top, top, cam->znear, cam->zfar );
+  }
+  else
+  {
+    cam->proj = msh_perspective( cam->fovy, aspect_ratio, cam->znear, cam->zfar );
+  }
 }
 
 void 
@@ -279,15 +292,16 @@ msh_camera_update( msh_camera_t * cam )
 }
 
 void 
-msh_camera_init_arcball( msh_camera_t * cam, msh_camera_desc_t* desc )
+msh_camera_init( msh_camera_t * cam, msh_camera_desc_t* desc )
 {
-  cam->fovy        = desc->fovy;
-  cam->viewport[0] = desc->viewport.x;
-  cam->viewport[1] = desc->viewport.y;
-  cam->viewport[2] = desc->viewport.z;
-  cam->viewport[3] = desc->viewport.w;
+  cam->fovy        = ( desc->fovy > 0 ) ? desc->fovy : (2.0f / 3.0f) * MSH_PI;
+  cam->viewport.x = desc->viewport.x;
+  cam->viewport.y = desc->viewport.y;
+  cam->viewport.z = desc->viewport.z;
+  cam->viewport.w = desc->viewport.w;
   cam->znear       = desc->znear;
   cam->zfar        = desc->zfar;
+  cam->use_ortho   = desc->use_ortho;
   
   cam->origin      = desc->center;
   cam->rot_speed   = ( desc->rot_speed > 0 )  ? desc->rot_speed : 1.0f;
@@ -312,8 +326,8 @@ msh_camera_ray_through_pixel( msh_camera_t* camera, msh_vec2_t p, msh_vec3_t* or
   msh_mat4_t inv_v = msh_mat4_se3_inverse( camera->view );
   msh_mat4_t inv_p = msh_mat4_inverse( camera->proj );
   
-  float clip_x = (2.0f * p.x) / camera->viewport[3] - 1.0f;
-  float clip_y = 1.0f - (2.0f * p.y) / camera->viewport[3];
+  float clip_x = (2.0f * p.x) / camera->viewport.w - 1.0f;
+  float clip_y = 1.0f - (2.0f * p.y) / camera->viewport.w;
   msh_vec4_t clip_coords = msh_vec4( clip_x, clip_y, 0.0f, 1.0f );
 
   msh_vec4_t eye_ray_dir = msh_mat4_vec4_mul( inv_p, clip_coords );

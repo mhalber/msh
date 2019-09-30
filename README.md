@@ -6,20 +6,20 @@ This repository contains a number of libraries and utilities that I use for my d
 
 ## Libraries
 
-Name             |  version   | description  
+Name                     |  version   | description  
 :------------------------|:----------:|:---------------------------------------------
-**msh_std.h**            |    0.6     | standard library functionality / extension
+**msh_std.h**            |    0.6     | various helper functions and typedefs
+**msh_containers.h**     |    0.5     | Dynamic Array, Hash table, Disjoint union set
 **msh_argparse.h**       |    0.75    | command-line argument parsing
 **msh_vec_math.h**       |    0.75    | glsl inspired vector math (vectors, matrices and quaternions)
 **msh_ply.h**            |    1.0     | Very fast PLY File I/O [Benchmark](https://github.com/mhalber/ply_io_benchmark)
-**msh_hash_grid.h**      |    0.5     | Hash grid data structure for radius/knn queries in 2D/3D
-**msh_gfx.h**            |    0.1     | openGL wrapper
+**msh_hash_grid.h**      |    0.5     | Hash grid data structure for radius/knn queries in low dimensions 2D/3D
 
 ## Utilites
 
-Name                  |  version   | description                         | dependencies
+Name                     |  version   | description                         | dependencies
 :------------------------|:----------:|:-----------------------------------:|:-------
-**msh_cam.h**            |    0.5     | various types of camera controls    | msh_vec_math.h
+**msh_cam.h**            |    0.6     | various types of camera controls    | msh_vec_math.h
 **msh_geometry.h**       |    0.01    | geometrical primitives manipulation | msh_vec_math.h
 
 ## Experimental folder

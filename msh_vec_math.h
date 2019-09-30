@@ -1032,7 +1032,7 @@ MSHVMDEF msh_vec3_t
 msh_vec3_lerp( msh_vec3_t a, msh_vec3_t b, real32_t t )
 {
   real32_t u = (real32_t)1.0-t;
-  return msh_vec3(t*b.x + u*a.x, t*b.y + u*a.y, t*b.z + u*a.z);
+  return msh_vec3( t*b.x + u*a.x, t*b.y + u*a.y, t*b.z + u*a.z);
 }
 
 MSHVMDEF msh_vec4_t
@@ -2061,6 +2061,85 @@ msh_unproject ( msh_vec3_t win,     msh_mat4_t modelview,
 }
 
 MSHVMDEF msh_mat4_t
+msh_pre_scale( msh_mat4_t m, msh_vec3_t s )
+{
+#if 0
+  msh_mat4_t scale = msh_mat4_identity();
+  scale.col[0].x = s.x;
+  scale.col[1].y = s.y;
+  scale.col[2].z = s.z;
+  return msh_mat4_mul( scale, m );
+#else
+  msh_vec4_t s4 = msh_vec4( s.x, s.y, s.z, 1.0 );
+  m.col[0] = msh_vec4_mul( m.col[0], s4 );
+  m.col[1] = msh_vec4_mul( m.col[1], s4 );
+  m.col[2] = msh_vec4_mul( m.col[2], s4 );
+  m.col[3] = msh_vec4_mul( m.col[3], s4 );
+  return m;
+#endif
+}
+
+
+MSHVMDEF msh_mat4_t
+msh_pre_translate( msh_mat4_t m, msh_vec3_t t )
+{
+#if 0
+  msh_mat4_t translate = msh_mat4_identity();
+  translate.col[3].x = t.x;
+  translate.col[3].y = t.y;
+  translate.col[3].z = t.z;
+  return msh_mat4_mul( translate, m );
+#else
+  m.col[3] = msh_vec4( m.col[3].x + t.x, 
+                       m.col[3].y + t.y,
+                       m.col[3].z + t.z,
+                       1.0f );
+  return m;
+#endif
+}
+
+MSHVMDEF msh_mat4_t
+msh_pre_rotate( msh_mat4_t m, float angle, msh_vec3_t v )
+{
+#if 0
+  msh_mat4_t rot = msh_quat_to_mat4( msh_quat_from_axis_angle( v, angle ) );
+  return msh_mat4_mul( rot, m );
+#else
+  real32_t c = cosf( angle );
+  real32_t s = sinf( angle );
+  real32_t t = 1.0f - c;
+
+  msh_vec3_t axis = msh_vec3_normalize( v );
+
+  msh_mat4_t rotate = msh_mat4_identity();
+  rotate.data[ 0] = c + axis.x * axis.x * t;
+  rotate.data[ 5] = c + axis.y * axis.y * t;
+  rotate.data[10] = c + axis.z * axis.z * t;
+
+  real32_t tmp_1 = axis.x * axis.y * t;
+  real32_t tmp_2 = axis.z * s;
+
+  rotate.data[1] = tmp_1 + tmp_2;
+  rotate.data[4] = tmp_1 - tmp_2;
+
+  tmp_1 = axis.x * axis.z * t;
+  tmp_2 = axis.y * s;
+
+  rotate.data[2] = tmp_1 - tmp_2;
+  rotate.data[8] = tmp_1 + tmp_2;
+
+  tmp_1 = axis.y * axis.z * t;
+  tmp_2 = axis.x * s;
+
+  rotate.data[6] = tmp_1 + tmp_2;
+  rotate.data[9] = tmp_1 - tmp_2;
+
+  return msh_mat4_mul( rotate, m );
+#endif
+}
+
+
+MSHVMDEF msh_mat4_t
 msh_translate( msh_mat4_t m, msh_vec3_t t )
 {
   msh_mat4_t result = m;
@@ -2124,12 +2203,12 @@ msh_rotate( msh_mat4_t m, real32_t angle, msh_vec3_t v )
 
   result.col[1]=msh_vec4_add(msh_vec4_scalar_mul(m.col[0], rotate.data[4]),
                 msh_vec4_add(msh_vec4_scalar_mul(m.col[1], rotate.data[5]),
-                              msh_vec4_scalar_mul(m.col[2], rotate.data[6])));
+                             msh_vec4_scalar_mul(m.col[2], rotate.data[6])));
 
   result.col[2]=msh_vec4_add(msh_vec4_scalar_mul(m.col[0], rotate.data[8]),
                 msh_vec4_add(msh_vec4_scalar_mul(m.col[1], rotate.data[9]),
                              msh_vec4_scalar_mul(m.col[2], rotate.data[10])));
-  result.col[3]=m.col[3];
+  result.col[3] = m.col[3];
   return result;
 }
 

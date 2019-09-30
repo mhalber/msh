@@ -970,7 +970,7 @@ msh_time_diff_ms( uint64_t t2, uint64_t t1 )
 }
 
 MSHDEF double
-mse_diff_us( uint64_t t2, uint64_t t1 )
+msh_time_diff_us( uint64_t t2, uint64_t t1 )
 { 
    return msh_time_diff( MSHT_US, t2, t1 );
 }
