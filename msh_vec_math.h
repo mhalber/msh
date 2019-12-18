@@ -40,14 +40,15 @@
   -------------------
     Helper function for SE3( rigid body) transformations:
 
-      msh_mat4_t msh_rotate( msh_mat4_t m, real32_t angle, msh_vec3_t axis )
+      msh_mat4_t msh_pre_rotate( msh_mat4_t m, real32_t angle, msh_vec3_t axis )
+      msh_mat4_t msh_post_rotate( msh_mat4_t m, real32_t angle, msh_vec3_t axis )
     
-      msh_mat4_t msh_translate( msh_mat4_t m, msh_vec3_t translation )
-    
-      msh_mat4_t msh_scale( msh_mat4_t m, msh_vec3_t scale )
-    
-    TODO(maciej): Write how to chain them to get the transformation
-
+      msh_mat4_t msh_pre_translate( msh_mat4_t m, msh_vec3_t translation )
+      msh_mat4_t msh_post_translate( msh_mat4_t m, msh_vec3_t translation )
+     
+      msh_mat4_t msh_pre_scale( msh_mat4_t m, msh_vec3_t scale )
+      msh_mat4_t msh_post_scale( msh_mat4_t m, msh_vec3_t scale )
+   
     OpenGL Helpers:
       Reimplementations of standard GLU procedures.
 
@@ -430,8 +431,8 @@ MSHVMDEF msh_mat3_t msh_mat3_transpose( msh_mat3_t m );
 MSHVMDEF msh_mat4_t msh_mat4_transpose( msh_mat4_t m );
 
 MSHVMDEF msh_mat4_t msh_look_at( msh_vec3_t eye,
-                        msh_vec3_t center,
-                        msh_vec3_t up );
+                                 msh_vec3_t center,
+                                 msh_vec3_t up );
 
 MSHVMDEF msh_mat4_t msh_frustum( real32_t left,   real32_t right,
                                  real32_t bottom, real32_t top,
@@ -456,11 +457,12 @@ MSHVMDEF msh_vec4_t msh_unproject( msh_vec3_t win,
                                    msh_mat4_t project,
                                    msh_vec4_t viewport );
 
-MSHVMDEF msh_mat4_t msh_translate( msh_mat4_t m, msh_vec3_t t );
-MSHVMDEF msh_mat4_t msh_scale( msh_mat4_t m, msh_vec3_t s );
-MSHVMDEF msh_mat4_t msh_rotate( msh_mat4_t m,
-                       real32_t angle,
-                       msh_vec3_t axis );
+MSHVMDEF msh_mat4_t msh_pre_translate( msh_mat4_t m, msh_vec3_t t );
+MSHVMDEF msh_mat4_t msh_post_translate( msh_mat4_t m, msh_vec3_t t );
+MSHVMDEF msh_mat4_t msh_pre_scale( msh_mat4_t m, msh_vec3_t s );
+MSHVMDEF msh_mat4_t msh_post_scale( msh_mat4_t m, msh_vec3_t s );
+MSHVMDEF msh_mat4_t msh_pre_rotate( msh_mat4_t m, real32_t angle, msh_vec3_t axis );
+MSHVMDEF msh_mat4_t msh_post_rotate( msh_mat4_t m, real32_t angle, msh_vec3_t axis );
 
 MSHVMDEF msh_vec3_t msh_mat3_to_euler( msh_mat3_t m );
 MSHVMDEF msh_mat3_t msh_mat3_from_euler( msh_vec3_t euler_angles );
@@ -2063,48 +2065,28 @@ msh_unproject ( msh_vec3_t win,     msh_mat4_t modelview,
 MSHVMDEF msh_mat4_t
 msh_pre_scale( msh_mat4_t m, msh_vec3_t s )
 {
-#if 0
-  msh_mat4_t scale = msh_mat4_identity();
-  scale.col[0].x = s.x;
-  scale.col[1].y = s.y;
-  scale.col[2].z = s.z;
-  return msh_mat4_mul( scale, m );
-#else
   msh_vec4_t s4 = msh_vec4( s.x, s.y, s.z, 1.0 );
   m.col[0] = msh_vec4_mul( m.col[0], s4 );
   m.col[1] = msh_vec4_mul( m.col[1], s4 );
   m.col[2] = msh_vec4_mul( m.col[2], s4 );
   m.col[3] = msh_vec4_mul( m.col[3], s4 );
   return m;
-#endif
 }
 
 
 MSHVMDEF msh_mat4_t
 msh_pre_translate( msh_mat4_t m, msh_vec3_t t )
 {
-#if 0
-  msh_mat4_t translate = msh_mat4_identity();
-  translate.col[3].x = t.x;
-  translate.col[3].y = t.y;
-  translate.col[3].z = t.z;
-  return msh_mat4_mul( translate, m );
-#else
   m.col[3] = msh_vec4( m.col[3].x + t.x, 
                        m.col[3].y + t.y,
                        m.col[3].z + t.z,
                        1.0f );
   return m;
-#endif
 }
 
 MSHVMDEF msh_mat4_t
 msh_pre_rotate( msh_mat4_t m, float angle, msh_vec3_t v )
 {
-#if 0
-  msh_mat4_t rot = msh_quat_to_mat4( msh_quat_from_axis_angle( v, angle ) );
-  return msh_mat4_mul( rot, m );
-#else
   real32_t c = cosf( angle );
   real32_t s = sinf( angle );
   real32_t t = 1.0f - c;
@@ -2135,12 +2117,11 @@ msh_pre_rotate( msh_mat4_t m, float angle, msh_vec3_t v )
   rotate.data[9] = tmp_1 - tmp_2;
 
   return msh_mat4_mul( rotate, m );
-#endif
 }
 
 
 MSHVMDEF msh_mat4_t
-msh_translate( msh_mat4_t m, msh_vec3_t t )
+msh_post_translate( msh_mat4_t m, msh_vec3_t t )
 {
   msh_mat4_t result = m;
   result.col[3] = msh_vec4_add(
@@ -2152,7 +2133,7 @@ msh_translate( msh_mat4_t m, msh_vec3_t t )
 }
 
 MSHVMDEF msh_mat4_t
-msh_scale( msh_mat4_t m, msh_vec3_t s )
+msh_post_scale( msh_mat4_t m, msh_vec3_t s )
 {
   msh_mat4_t result = m;
   result.col[0] = msh_vec4_scalar_mul( result.col[0], s.x );
@@ -2165,7 +2146,7 @@ msh_scale( msh_mat4_t m, msh_vec3_t s )
  * http://www.euclideanspace.com/matrixhs/geometry/rotations/conversions/angleToMatrix/
  */
 MSHVMDEF msh_mat4_t
-msh_rotate( msh_mat4_t m, real32_t angle, msh_vec3_t v )
+msh_post_rotate( msh_mat4_t m, real32_t angle, msh_vec3_t v )
 {
   real32_t c = cosf( angle );
   real32_t s = sinf( angle );

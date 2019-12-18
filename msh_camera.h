@@ -277,6 +277,7 @@ msh_camera_update_proj( msh_camera_t * cam )
     float top = 0.85 * cam->zoom_speed * msh_vec3_norm( cam->offset );
     float left = -aspect_ratio * top;
     cam->proj = msh_ortho( left, -left, -top, top, cam->znear, cam->zfar );
+    // cam->proj = msh_ortho( -w/2, w/2, -h/2, h/2,  cam->znear, cam->zfar );
   }
   else
   {
@@ -295,10 +296,10 @@ void
 msh_camera_init( msh_camera_t * cam, msh_camera_desc_t* desc )
 {
   cam->fovy        = ( desc->fovy > 0 ) ? desc->fovy : (2.0f / 3.0f) * MSH_PI;
-  cam->viewport.x = desc->viewport.x;
-  cam->viewport.y = desc->viewport.y;
-  cam->viewport.z = desc->viewport.z;
-  cam->viewport.w = desc->viewport.w;
+  cam->viewport.x  = desc->viewport.x;
+  cam->viewport.y  = desc->viewport.y;
+  cam->viewport.z  = desc->viewport.z;
+  cam->viewport.w  = desc->viewport.w;
   cam->znear       = desc->znear;
   cam->zfar        = desc->zfar;
   cam->use_ortho   = desc->use_ortho;
@@ -316,6 +317,7 @@ msh_camera_init( msh_camera_t * cam, msh_camera_desc_t* desc )
   
   cam->offset      = msh_mat3_vec3_mul( msh_mat3_transpose(R), rot_offset );
   cam->orientation = msh_mat3_to_quat( R );
+
   msh_camera_update( cam );
 }
 
