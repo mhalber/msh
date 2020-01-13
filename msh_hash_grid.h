@@ -1,5 +1,7 @@
 /*
-  ==============================================================================
+  ==================================================================================================
+  Licensing information can be found at the end of the file.
+  ==================================================================================================
   
   MSH_HASH_GRID.H v0.5
   
@@ -121,7 +123,6 @@
     Map implementation based on                 bitwise    by Per Vogsnen
     Dynamic array based on                      stb.h      by Sean T. Barrett
 
-  Licensing information can be found at the end of the file.
   ==============================================================================
   TODOs:
   [ ] Replace openMP with a custom threading/scheduler implementation
@@ -1607,7 +1608,7 @@ This software is available under 2 licenses - you may choose the one you like.
 
 ALTERNATIVE A - MIT License
 
-Copyright (c) 2018 Maciej Halber
+Copyright (c) 2018-2020 Maciej Halber
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of 
 this software and associated documentation files (the "Software"), to deal in 
