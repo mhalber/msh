@@ -1,10 +1,11 @@
 #define MSH_STD_INCLUDE_LIBC_HEADERS
 #define MSH_STD_IMPLEMENTATION
-// #define MSH_CONTAINERS_INCLUDE_HEADERS
+#define MSH_VEC_MATH_IMPLEMENTATION
+#define MSH_VEC_MATH_DOUBLE_PRECISION
 #define MSH_CONTAINERS_IMPLEMENTATION
 #include "msh/msh_std.h"
 #include "msh/msh_containers.h"
-#include "generic.h"
+#include "msh/msh_vec_math.h"
 
 #include "munit/munit.h"
 
@@ -17,7 +18,8 @@ int main(int argc, char* const argv[MUNIT_ARRAY_PARAM(argc + 1)])
 {
   MunitTest vec_math_tests[] = 
   {
-    { .name = (char*) "/vector",    .test = test_msh_vector, },
+    { .name = (char*) "/vector_init",          .test = test_msh_vec_math_vector_init },
+    { .name = (char*) "/vector_arithmetic",    .test = test_msh_vec_math_vector_arithmetic },
     { 0 }
   };
 
@@ -50,7 +52,7 @@ int main(int argc, char* const argv[MUNIT_ARRAY_PARAM(argc + 1)])
   MunitTest misc_test[] = 
   {
     { .name = (char*) "/disjoint_set_api",    .test = test_msh_disjoint_set_api, },
-    { .name = (char*) "/heap_api",    .test = test_msh_heap_api, },
+    { .name = (char*) "/heap_api",            .test = test_msh_heap_api, },
     { 0 }
   };
 
@@ -102,7 +104,7 @@ int main(int argc, char* const argv[MUNIT_ARRAY_PARAM(argc + 1)])
     .prefix = (char*) "msh",
     .tests = NULL,
     .suites = test_suites_array,
-    .iterations = 0,
+    .iterations = 1,
     .options = MUNIT_SUITE_OPTION_NONE
   };
 
