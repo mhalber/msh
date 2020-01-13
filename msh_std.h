@@ -28,7 +28,7 @@
     Maciej Halber
 
   ADDITIONAL CREDITS:
-    Sean T. Barrett, Per Vognsen, Mattias Gustavsson, Randy Gaul, Ginger Bill, 
+    Sean T. Barrett, Per Vognsen, Mattias Gustavsson, Randy Gaul, Ginger Bill,
     Бранимир Караџић
     
     Please see particular sections for exact source of code / inspiration

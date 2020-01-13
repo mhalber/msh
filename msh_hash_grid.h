@@ -5,7 +5,7 @@
   
   MSH_HASH_GRID.H v0.5
   
-  A single header library for low-dimensional(2d and 3d) range and nearest neighbor queries.
+  A single header library for low-dimensional (2d and 3d) range and nearest neighbor queries.
 
   To use the library you simply add:
     #define MSH_HASH_GRID_IMPLEMENTATION

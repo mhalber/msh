@@ -3,7 +3,7 @@
   Licensing information can be found at the end of the file.
   ==================================================================================================
 
-  MSH_VEC_MATH.H v0.75
+  MSH_VEC_MATH.H v0.8
 
   A single header library for a simple 2-4 dimensional vecto, quaternion and  matrix operations.
 

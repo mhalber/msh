@@ -13,7 +13,6 @@
 
   #define MSH_ARGPARSE_IMPLEMENTATION
   #include "msh_argparse.h"
-
  
   ==============================================================================
   DOCUMENTATION

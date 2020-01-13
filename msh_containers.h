@@ -10,8 +10,8 @@
 
   To use the library you simply add:
   
-  #define MSH_STD_IMPLEMENTATION
-  #include "msh_std.h"
+  #define MSH_CONTAINERS_IMPLEMENTATION
+  #include "msh_containers.h"
 
   The define should only include once in your source.
 
@@ -50,6 +50,7 @@
   [4] cute_headers    https://github.com/RandyGaul/cute_headers
   [5] libs            https://github.com/gingerBill/gb
 */
+
 #ifndef MSH_CONTAINERS
 #define MSH_CONTAINERS
 
