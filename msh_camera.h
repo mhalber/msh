@@ -165,11 +165,11 @@ void
 msh_camera_zoom( msh_camera_t* cam, float zoom_amount )
 {
   float norm = msh_vec3_norm( cam->offset );
-  float zoom_factor  = (norm < 1.0) ? norm: 1.0f;
-  if( norm < 0.001f && zoom_amount < 0 ) { return; }
+  float zoom_factor  = (norm < 1.0) ? norm : 1.0f;
   msh_vec3_t zoom_dir = msh_vec3_scalar_div( cam->offset, norm );
-  float zoom_mult = cam->zoom_speed * zoom_amount * zoom_factor;
+  float zoom_mult = cam->zoom_speed * zoom_amount * zoom_factor * zoom_factor;
   msh_vec3_t zoom_vec = msh_vec3_scalar_mul( zoom_dir, zoom_mult );
+
   cam->offset = msh_vec3_add( cam->offset, zoom_vec );
 }
 
