@@ -274,6 +274,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <sys/stat.h>
 #endif
 
 #ifndef MSH_PLY_MALLOC
@@ -1962,6 +1963,7 @@ int32_t
 msh_ply__write_data_binary( const msh_ply_t* pf )
 {
   int8_t swap_endianness = (pf->_system_format != pf->format);
+
   for( size_t i = 0; i < msh_ply_array_len(pf->elements); ++i )
   {
     msh_ply_element_t* el = &pf->elements[i];
@@ -1990,8 +1992,7 @@ msh_ply__write_data_binary( const msh_ply_t* pf )
           // figure out stride
           if( !pr->list_count )
           {
-            pr->stride = msh_ply__calculate_list_property_stride( pr, el->properties, 
-                                                                  swap_endianness );
+            pr->stride = msh_ply__calculate_list_property_stride( pr, el->properties, swap_endianness );
             pr->list_count = msh_ply__get_data_as_int( (uint8_t*)pr->list_data + pr->list_offset, 
                                                                  pr->list_type, swap_endianness );
             
@@ -2057,7 +2058,21 @@ msh_ply__write_data_binary( const msh_ply_t* pf )
         }
       }
     }
-    fwrite( dst, buffer_size, 1, pf->_fp );
+
+    // NOTE(maciej): Can someone explain why below is faster than a single call to fwrite..?
+    size_t block_size = 32 * 65536;
+    size_t remaining_buffer = buffer_size;
+    uint8_t* mem = dst;
+    while( true )
+    {
+      if( remaining_buffer < block_size ) break;
+      fwrite( mem, block_size, 1, pf->_fp );
+      mem += block_size;
+      remaining_buffer -= block_size;
+    }
+    fwrite( mem, remaining_buffer, 1, pf->_fp );
+    
+    MSH_PLY_FREE( dst );
   }
   return MSH_PLY_NO_ERR;
 }
@@ -2094,6 +2109,7 @@ msh_ply_write( msh_ply_t* pf )
   if( error ) { return error; }
 
   error = msh_ply__write_data( pf );
+  
   return error;
 }
 #endif /* MSH_PLY_DECODER_ONLY */
@@ -2164,9 +2180,8 @@ msh_ply_open( const char* filename, const char* mode )
   else                 { mode_str = mode; }
   FILE* fp = fopen( filename, mode_str );
   
-
   if( fp )
-  {
+  {  
     pf                 = (msh_ply_t*)MSH_PLY_MALLOC(sizeof(msh_ply_t));
     pf->valid          = 0;
     pf->format         = -1;
