@@ -477,10 +477,10 @@ MSHDEF int      msh_rand_range( msh_rand_ctx_t* pcg, int min, int max );
   #define MSH_F64_MAX 1.7976931348623157e+308
 #endif
 
-#define MSH_PI          3.1415926535897932384626433832
-#define MSH_TWO_PI      6.2831853072
-#define MSH_INV_PI      0.3183098862
-#define MSH_PI_OVER_TWO 1.5707963268
+#define MSH_PI          3.14159265358979323846264338327950288419716939937510582097494459231
+#define MSH_TWO_PI      6.28318530717958647692528676655900576839433879875021164194988918462
+#define MSH_INV_PI      0.31830988618379067153776752674502872406891929148091289749533468812
+#define MSH_PI_OVER_TWO 1.57079632679489661923132169163975144209858469968755291048747229615
 
 #define msh_isnan(x) ( (x) != (x) )
 #define msh_rad2deg(x) ((x) * 180.0 * MSH_INV_PI)
@@ -1299,7 +1299,7 @@ msh_discrete_distribution_update( msh_discrete_distrib_t* ctx, double* weights, 
 {
   assert( ctx->n_weights == n_weights );
 
-  char* data = malloc( ctx->n_weights * (sizeof(double) + sizeof(int32_t)) );
+  char* data = (char*)malloc( ctx->n_weights * (sizeof(double) + sizeof(int32_t)) );
   double *pdf   = (double*)data;
   msh_distrib2pdf( weights, pdf, ctx->n_weights );
 

@@ -38,7 +38,7 @@
   By default this library does not import these headers. Please see 
   docs/no_headers.md for explanation. Importing heades is enabled by:
 
-  #define MSH_CAMERA_INCLUDE_HEADERS
+  #define MSH_CAMERA_INCLUDE_LIBC_HEADERS
   
   Additionally, currently it also depends on  on msh_vec_math.h for vector math
 
@@ -62,7 +62,7 @@
 extern "C" {
 #endif
 
-#ifdef MSH_CAMERA_INCLUDE_HEADERS
+#ifdef MSH_CAMERA_INCLUDE_LIBC_HEADERS
 #include <float.h>
 #include <math.h>
 #include <stdbool.h>

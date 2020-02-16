@@ -89,7 +89,7 @@
   files multiple times, especially within single compilation unit. 
   To actually include the headers, simply define following before including the library:
 
-  #define MSH_VEC_MATH_INCLUDE_HEADERS
+  #define MSH_VEC_MATH_INCLUDE_LIBC_HEADERS
 
   ==============================================================================
   AUTHORS
@@ -125,7 +125,7 @@
 extern "C" {
 #endif
 
-#ifdef MSH_VEC_MATH_INCLUDE_HEADERS
+#ifdef MSH_VEC_MATH_INCLUDE_LIBC_HEADERS
 #include <stdio.h>
 #include <float.h>
 #include <math.h>
@@ -673,7 +673,6 @@ msh_vec4_scalar_sub( msh_vec4_t v, msh_scalar_t s )
   return MSHVM_INIT_CAST(msh_vec4_t){{ v.x - s, v.y - s, v.z - s, v.w - s }};
 }
 
-
 MSHVMDEF msh_vec2_t
 msh_vec2_mul( msh_vec2_t a, msh_vec2_t b )
 {
@@ -709,7 +708,6 @@ msh_vec4_scalar_mul( msh_vec4_t v, msh_scalar_t s )
 {
   return MSHVM_INIT_CAST(msh_vec4_t){{ v.x * s, v.y * s, v.z * s, v.w * s }};
 }
-
 
 MSHVMDEF msh_vec2_t
 msh_vec2_div( msh_vec2_t a, msh_vec2_t b )
@@ -864,7 +862,6 @@ msh_vec4_normalize( msh_vec4_t v )
   msh_vec4_t o = MSHVM_INIT_CAST(msh_vec4_t){{ v.x * denom, v.y * denom, v.z * denom, v.w * denom }};
   return o;
 }
-
 
 MSHVMDEF msh_scalar_t
 msh_vec2_dot( msh_vec2_t a, msh_vec2_t b )
