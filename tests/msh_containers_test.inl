@@ -152,6 +152,21 @@ test_msh_map_api(const MunitParameter params[], void* fixture)
   val = msh_map_get( &map, 5 );
   munit_assert_ptr_equal( val, NULL );
 
+  msh_map_remove( &map, 0 );
+  munit_assert_size( msh_map_len( &map ), ==, 3 );
+  
+  val = msh_map_get( &map, 0 );
+  munit_assert_ptr_equal( val, NULL );
+
+  msh_map_remove( &map, 7 );
+  munit_assert_size( msh_map_len( &map ), ==, 3 );
+
+  msh_map_insert( &map, 0, 9 );
+  val = msh_map_get( &map, 0 );
+  munit_assert_ptr_not_equal( val, NULL );
+  munit_assert_uint64( *val, ==, 9 );
+  munit_assert_size( msh_map_len(&map), ==, 4 );
+  
   msh_map_free( &map );
   munit_assert_size( msh_map_len( &map ), ==, 0 );
   munit_assert_size( msh_map_cap( &map ), ==, 0 );

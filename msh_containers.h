@@ -151,6 +151,7 @@ MSH_CONT_DEF size_t    msh_map_len( msh_map_t* map );
 MSH_CONT_DEF size_t    msh_map_cap( msh_map_t* map ); 
 
 MSH_CONT_DEF void      msh_map_insert( msh_map_t* map, uint64_t key, uint64_t val );
+MSH_CONT_DEF void      msh_map_remove( msh_map_t* map, uint64_t key );
 MSH_CONT_DEF uint64_t* msh_map_get( const msh_map_t* map, uint64_t key );
 
 MSH_CONT_DEF void      msh_map_get_iterable_keys( const msh_map_t* map, uint64_t** keys );
@@ -424,6 +425,29 @@ msh_map_insert( msh_map_t* map, uint64_t key, uint64_t val )
     else if( map->keys[i] == key )
     {
       map->vals[i] = val;
+      return;
+    }
+    i++;
+  }
+}
+
+MSH_CONT_DEF void
+msh_map_remove( msh_map_t* map, uint64_t key )
+{
+  if( map->_len == 0 ) { return; }
+  key += 1;
+  size_t i = (size_t)msh_hash_uint64( key );
+  assert( map->_len < map->_cap );
+  for( ;; ) {
+    i &= map->_cap - 1;
+    if( map->keys[i] == key )
+    {
+      map->keys[i] = 0;
+      map->_len--;
+      return;
+    }
+    else if( !map->keys[i] ) 
+    {
       return;
     }
     i++;
