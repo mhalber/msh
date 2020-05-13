@@ -3,23 +3,44 @@
 #define MSH_VEC_MATH_IMPLEMENTATION
 #define MSH_VEC_MATH_DOUBLE_PRECISION
 #define MSH_CONTAINERS_IMPLEMENTATION
-#include "msh/msh_std.h"
-#include "msh/msh_containers.h"
-#include "msh/msh_vec_math.h"
+#define MSH_ARGPARSE_IMPLEMENTATION
+#include "msh_std.h"
+#include "msh_containers.h"
+#include "msh_vec_math.h"
+#include "msh_argparse.h"
 
-#include "munit/munit.h"
+#include "tests/munit/munit.h"
 
-#include "msh_containers_test.inl"
-#include "msh_stats_test.inl"
-#include "msh_vec_math_test.inl"
+#include "tests/msh_containers_test.inl"
+#include "tests/msh_stats_test.inl"
+#include "tests/msh_vec_math_test.inl"
+#include "tests/msh_argparse_test.inl"
 
 
-int main(int argc, char* const argv[MUNIT_ARRAY_PARAM(argc + 1)])
+int
+main(int argc, char* const argv[MUNIT_ARRAY_PARAM(argc + 1)])
 {
+
+  MunitTest argparse_tests[] =
+  {
+    { .name = (char*)"/argparse", .test = test_msh_argparse },
+    { 0 }
+  };
+
+  MunitSuite argparse_test_suite = 
+  {
+    .prefix = (char*) "/argparse",
+    .tests = argparse_tests,
+    .suites = NULL,
+    .iterations = 1,
+    .options = MUNIT_SUITE_OPTION_NONE
+  };
+
   MunitTest vec_math_tests[] = 
   {
     { .name = (char*) "/vector_init",          .test = test_msh_vec_math_vector_init },
     { .name = (char*) "/vector_arithmetic",    .test = test_msh_vec_math_vector_arithmetic },
+    { .name = (char*) "/vector_convert",       .test= test_msh_vec_math_vector_convert },
     { 0 }
   };
 
@@ -97,7 +118,16 @@ int main(int argc, char* const argv[MUNIT_ARRAY_PARAM(argc + 1)])
     .options = MUNIT_SUITE_OPTION_NONE
   };
 
-  MunitSuite test_suites_array[] = { vec_math_test_suite, array_test_suite, misc_test_suite, map_test_suite, stats_test_suite, {0} };
+  MunitSuite test_suites_array[] = 
+  {
+    argparse_test_suite,
+    vec_math_test_suite,
+    array_test_suite,
+    misc_test_suite,
+    map_test_suite,
+    stats_test_suite,
+    {0} 
+  };
 
   const MunitSuite test_suites = 
   {

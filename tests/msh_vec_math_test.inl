@@ -126,7 +126,13 @@ test_msh_vec_math_vector_convert( const MunitParameter params[], void* fixture )
   msh_vec2_t v2; msh_vec3_t v3; msh_vec4_t v4;
   v4 = msh_vec4( 1.0, 2.0, 3.0, 4.0 );
   v3 = msh_vec4_to_vec3( v4 );
-  return MUNIT_FAIL;
+
+  assert_equal_vec3( v3, 1.0, 2.0, 3.0 );
+
+  v2 = msh_vec3_to_vec2( v3 );
+  assert_equal_vec2( v2, 1.0, 2.0 );
+
+  return MUNIT_OK;
 }
 
 MunitResult
