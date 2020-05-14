@@ -4,6 +4,7 @@
 #define MSH_VEC_MATH_DOUBLE_PRECISION
 #define MSH_CONTAINERS_IMPLEMENTATION
 #define MSH_ARGPARSE_IMPLEMENTATION
+#define _CRT_SECURE_NO_WARNINGS
 #include "msh_std.h"
 #include "msh_containers.h"
 #include "msh_vec_math.h"
@@ -20,7 +21,6 @@
 int
 main(int argc, char* const argv[MUNIT_ARRAY_PARAM(argc + 1)])
 {
-
   MunitTest argparse_tests[] =
   {
     { .name = (char*)"/argparse", .test = test_msh_argparse },

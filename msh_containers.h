@@ -87,7 +87,7 @@ typedef struct msh_array_header
 MSH_CONT_DEF void *msh_array__grow_fnct(void *array, size_t new_len, size_t elem_size);
 MSH_CONT_DEF char *msh_array__printf(char *buf, const char *fmt, ...);
 
-#define msh_array__grow_formula(x) ((2.0 * (x)) + 8)
+#define msh_array__grow_formula(x) ((2 * (x)) + 8)
 #define msh_array__hdr(a) ((msh_array_hdr_t *)((char *)(a) - sizeof(msh_array_hdr_t)))
 
 #define msh_array_len(a) ((a) ? (msh_array__hdr((a))->len) : 0)
@@ -168,7 +168,7 @@ MSH_CONT_DEF void msh_dset_union(struct msh_dset *dset, uint64_t idx_a, uint64_t
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Heap for all basic numeric types using C11 Generics
-//
+// Does not work in msvc sadly :<
 // Credits:
 //   Joerg Arndt, 'Matters Computational'
 ////////////////////////////////////////////////////////////////////////////////////////////////////

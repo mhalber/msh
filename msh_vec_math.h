@@ -3,7 +3,7 @@
   Licensing information can be found at the end of the file.
   ==================================================================================================
 
-  MSH_VEC_MATH.H v0.8
+  MSH_VEC_MATH.H v0.81
 
   A single header library for a simple 2-4 dimensional vecto, quaternion and  matrix operations.
 
@@ -82,7 +82,7 @@
 
   This file requires following c stdlib headers:
     - <float.h>  -- FLT_EPSILON
-    - <math.h>   -- sinf, cosf, sqrtf
+    - <math.h>   -- transcendental functions, fmin, fmax
     - <stdio.h>  -- fprintf, printf
 
   Note that this file will not pull them in. This is to prevent pulling the same
@@ -144,8 +144,24 @@ extern "C" {
     
 #ifndef MSH_VEC_MATH_DOUBLE_PRECISION
     typedef float msh_scalar_t;
+    #define MSHVM_MIN(x,y) fminf((x), (y))
+    #define MSHVM_MAX(x,y) fmaxf((x), (y))
+    #define MSHVM_FABS(x) fabsf(x)
+    #define MSHVM_SIN(x)  sinf(x)
+    #define MSHVM_COS(x)  cosf(x)
+    #define MSHVM_TAN(x)  tanf(x)
+    #define MSHVM_ACOS(x) acosf(x)
+    #define MSHVM_SQRT(x) sqrtf(x)
 #else
     typedef double msh_scalar_t;
+    #define MSHVM_MIN(x,y) fmin((x), (y))
+    #define MSHVM_MAX(x,y) fmin((x), (y))
+    #define MSHVM_FABS(x) fabs(x)
+    #define MSHVM_SIN(x) sin(x)
+    #define MSHVM_COS(x) cos(x)
+    #define MSHVM_TAN(x) tan(x)
+    #define MSHVM_ACOS(x) acos(x)
+    #define MSHVM_SQRT(x) sqrt(x)
 #endif
     
     typedef union vec2
@@ -751,75 +767,76 @@ msh_vec4_scalar_div( msh_vec4_t v, msh_scalar_t s )
 MSHVMDEF msh_vec2_t
 msh_vec2_abs( msh_vec2_t v )
 {
-    return MSHVM_INIT_CAST(msh_vec2_t){{ (msh_scalar_t)fabs(v.x), (msh_scalar_t)fabs(v.y) }};
+    return MSHVM_INIT_CAST(msh_vec2_t){{ MSHVM_FABS(v.x),
+                                         MSHVM_FABS(v.y) }};
 }
 
 MSHVMDEF msh_vec3_t
 msh_vec3_abs( msh_vec3_t v )
 {
-    return MSHVM_INIT_CAST(msh_vec3_t){{ (msh_scalar_t)fabs(v.x),
-            (msh_scalar_t)fabs(v.y),
-            (msh_scalar_t)fabs(v.z) }};
+    return MSHVM_INIT_CAST(msh_vec3_t){{ MSHVM_FABS(v.x),
+                                         MSHVM_FABS(v.y),
+                                         MSHVM_FABS(v.z) }};
 }
 
 MSHVMDEF msh_vec4_t
 msh_vec4_abs( msh_vec4_t v )
 {
-    return MSHVM_INIT_CAST(msh_vec4_t){{ (msh_scalar_t)fabs(v.x),
-            (msh_scalar_t)fabs(v.y),
-            (msh_scalar_t)fabs(v.z),
-            (msh_scalar_t)fabs(v.w) }};
+    return MSHVM_INIT_CAST(msh_vec4_t){{ MSHVM_FABS(v.x),
+                                         MSHVM_FABS(v.y),
+                                         MSHVM_FABS(v.z),
+                                         MSHVM_FABS(v.w) }};
 }
 
 MSHVMDEF msh_vec2_t
 msh_vec2_sqrt( msh_vec2_t v )
 {
-    return MSHVM_INIT_CAST(msh_vec2_t){{ (msh_scalar_t)sqrt(v.x),
-            (msh_scalar_t)sqrt(v.y) }};
+    return MSHVM_INIT_CAST(msh_vec2_t){{ MSHVM_SQRT(v.x),
+                                         MSHVM_SQRT(v.y) }};
 }
 
 MSHVMDEF msh_vec3_t
 msh_vec3_sqrt( msh_vec3_t v )
 {
-    return MSHVM_INIT_CAST(msh_vec3_t){{ (msh_scalar_t)sqrt(v.x),
-            (msh_scalar_t)sqrt(v.y),
-            (msh_scalar_t)sqrt(v.z) }};
+    return MSHVM_INIT_CAST(msh_vec3_t){{ MSHVM_SQRT(v.x),
+                                         MSHVM_SQRT(v.y),
+                                         MSHVM_SQRT(v.z) }};
 }
 
 MSHVMDEF msh_vec4_t
 msh_vec4_sqrt( msh_vec4_t v )
 {
-    return MSHVM_INIT_CAST(msh_vec4_t){{ (msh_scalar_t)sqrt(v.x),
-            (msh_scalar_t)sqrt(v.y),
-            (msh_scalar_t)sqrt(v.z),
-            (msh_scalar_t)sqrt(v.w) }};
+    return MSHVM_INIT_CAST(msh_vec4_t){{ MSHVM_SQRT(v.x),
+                                         MSHVM_SQRT(v.y),
+                                         MSHVM_SQRT(v.z),
+                                         MSHVM_SQRT(v.w) }};
 }
 
 MSHVMDEF msh_vec2_t
 msh_vec2_clamp( msh_vec2_t v, msh_scalar_t min, msh_scalar_t max )
 {
     if ( min > max ){ return v; }
-    return MSHVM_INIT_CAST(msh_vec2_t){{ fminf( fmaxf( v.x, min ), max ),
-            fminf( fmaxf( v.y, min ), max ) }};
+    return MSHVM_INIT_CAST(msh_vec2_t){{ MSHVM_MIN( MSHVM_MAX( v.x, min ), max ),
+                                         MSHVM_MIN( MSHVM_MAX( v.y, min ), max ) }};
 }
 
 MSHVMDEF msh_vec3_t
 msh_vec3_clamp( msh_vec3_t v, msh_scalar_t min, msh_scalar_t max )
 {
     if ( min > max ) { return v; }
-    return MSHVM_INIT_CAST(msh_vec3_t ){{ fminf( fmaxf( v.x, min ), max ),
-            fminf( fmaxf( v.y, min ), max ),
-            fminf( fmaxf( v.z, min ), max ) }};
+    return MSHVM_INIT_CAST(msh_vec3_t){{ MSHVM_MIN( MSHVM_MAX( v.x, min ), max ),
+                                         MSHVM_MIN( MSHVM_MAX( v.y, min ), max ),
+                                         MSHVM_MIN( MSHVM_MAX( v.z, min ), max ) }};
 }
 
 MSHVMDEF msh_vec4_t
 msh_vec4_clamp( msh_vec4_t v, msh_scalar_t min, msh_scalar_t max )
 {
     if ( min > max ){ return v; }
-    return MSHVM_INIT_CAST(msh_vec4_t){{ fminf( fmaxf( v.x, min ), max ),
-            fminf( fmaxf( v.y, min ), max ),
-            fminf( fmaxf( v.z, min ), max ),
-            fminf( fmaxf( v.w, min ), max ) }};
+    return MSHVM_INIT_CAST(msh_vec4_t){{ MSHVM_MIN( MSHVM_MAX( v.x, min ), max ),
+                                         MSHVM_MIN( MSHVM_MAX( v.y, min ), max ),
+                                         MSHVM_MIN( MSHVM_MAX( v.z, min ), max ),
+                                         MSHVM_MIN( MSHVM_MAX( v.w, min ), max ) }};
 }
 
 MSHVMDEF msh_vec2_t
@@ -844,21 +861,21 @@ msh_vec4_invert( msh_vec4_t v )
 MSHVMDEF msh_vec2_t
 msh_vec2_normalize( msh_vec2_t v )
 {
-    msh_scalar_t denom = 1.0f / sqrtf( v.x * v.x + v.y * v.y );
+    msh_scalar_t denom = 1.0f / MSHVM_SQRT( v.x * v.x + v.y * v.y );
     return MSHVM_INIT_CAST(msh_vec2_t){{ v.x * denom, v.y * denom }};
 }
 
 MSHVMDEF msh_vec3_t
 msh_vec3_normalize( msh_vec3_t v )
 {
-    msh_scalar_t denom = 1.0f / sqrtf( v.x * v.x + v.y * v.y + v.z * v.z );
+    msh_scalar_t denom = 1.0f / MSHVM_SQRT( v.x * v.x + v.y * v.y + v.z * v.z );
     return MSHVM_INIT_CAST(msh_vec3_t){{ v.x * denom, v.y * denom, v.z * denom }};
 }
 
 MSHVMDEF msh_vec4_t
 msh_vec4_normalize( msh_vec4_t v )
 {
-    msh_scalar_t denom = 1.0f / sqrtf( v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w );
+    msh_scalar_t denom = 1.0f / MSHVM_SQRT( v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w );
     msh_vec4_t o = MSHVM_INIT_CAST(msh_vec4_t){{ v.x * denom, v.y * denom, v.z * denom, v.w * denom }};
     return o;
 }
@@ -1028,25 +1045,25 @@ msh_vec4_lerp( msh_vec4_t a, msh_vec4_t b, msh_scalar_t t )
 MSHVMDEF int
 msh_vec2_equal( msh_vec2_t a, msh_vec2_t b )
 {
-    return (fabs(a.x - b.x) <= MSH_FLT_EPSILON) &&
-        (fabs(a.y - b.y) <= MSH_FLT_EPSILON);
+    return (MSHVM_FABS(a.x - b.x) <= MSH_FLT_EPSILON) &&
+           (MSHVM_FABS(a.y - b.y) <= MSH_FLT_EPSILON);
 }
 
 MSHVMDEF int
 msh_vec3_equal( msh_vec3_t a, msh_vec3_t b )
 {
-    return (fabs(a.x - b.x) <= MSH_FLT_EPSILON) &&
-        (fabs(a.y - b.y) <= MSH_FLT_EPSILON) &&
-        (fabs(a.z - b.z) <= MSH_FLT_EPSILON);
+    return (MSHVM_FABS(a.x - b.x) <= MSH_FLT_EPSILON) &&
+           (MSHVM_FABS(a.y - b.y) <= MSH_FLT_EPSILON) &&
+           (MSHVM_FABS(a.z - b.z) <= MSH_FLT_EPSILON);
 }
 
 MSHVMDEF int
 msh_vec4_equal( msh_vec4_t a, msh_vec4_t b )
 {
-    return (fabs(a.x - b.x) <= MSH_FLT_EPSILON) &&
-        (fabs(a.y - b.y) <= MSH_FLT_EPSILON) &&
-        (fabs(a.z - b.z) <= MSH_FLT_EPSILON) &&
-        (fabs(a.w - b.w) <= MSH_FLT_EPSILON);
+    return (MSHVM_FABS(a.x - b.x) <= MSH_FLT_EPSILON) &&
+           (MSHVM_FABS(a.y - b.y) <= MSH_FLT_EPSILON) &&
+           (MSHVM_FABS(a.z - b.z) <= MSH_FLT_EPSILON) &&
+           (MSHVM_FABS(a.w - b.w) <= MSH_FLT_EPSILON);
 }
 
 #ifdef __cplusplus
@@ -1681,263 +1698,264 @@ msh_mat4_determinant( msh_mat4_t m )
 MSHVMDEF msh_scalar_t
 msh_mat2_frobenius_norm( msh_mat2_t m )
 {
-    return sqrtf( m.data[0] * m.data[0] +
-                 m.data[1] * m.data[1] +
-                 m.data[2] * m.data[2] +
-                 m.data[3] * m.data[3] );
+    return MSHVM_SQRT( m.data[0] * m.data[0] +
+                       m.data[1] * m.data[1] +
+                       m.data[2] * m.data[2] +
+                       m.data[3] * m.data[3] );
 }
 
 MSHVMDEF msh_scalar_t
 msh_mat3_frobenius_norm( msh_mat3_t m )
 {
-    return sqrtf( m.data[0] * m.data[0] +
-                 m.data[1] * m.data[1] +
-                 m.data[2] * m.data[2] +
-                 m.data[3] * m.data[3] +
-                 m.data[4] * m.data[4] +
-                 m.data[5] * m.data[5] +
-                 m.data[6] * m.data[6] +
-                 m.data[7] * m.data[7] +
-                 m.data[8] * m.data[8] );
+    return MSHVM_SQRT( m.data[0] * m.data[0] +
+                       m.data[1] * m.data[1] +
+                       m.data[2] * m.data[2] +
+                       m.data[3] * m.data[3] +
+                       m.data[4] * m.data[4] +
+                       m.data[5] * m.data[5] +
+                       m.data[6] * m.data[6] +
+                       m.data[7] * m.data[7] +
+                       m.data[8] * m.data[8] );
 }
 
 MSHVMDEF msh_scalar_t
 msh_mat4_frobenius_norm( msh_mat4_t m )
 {
-    return sqrtf( m.data[ 0] * m.data[ 0] +
-                 m.data[ 1] * m.data[ 1] +
-                 m.data[ 2] * m.data[ 2] +
-                 m.data[ 3] * m.data[ 3] +
-                 m.data[ 4] * m.data[ 4] +
-                 m.data[ 5] * m.data[ 5] +
-                 m.data[ 6] * m.data[ 6] +
-                 m.data[ 7] * m.data[ 7] +
-                 m.data[ 8] * m.data[ 8] +
-                 m.data[ 9] * m.data[ 9] +
-                 m.data[10] * m.data[10] +
-                 m.data[11] * m.data[11] +
-                 m.data[12] * m.data[12] +
-                 m.data[13] * m.data[13] +
-                 m.data[14] * m.data[14] +
-                 m.data[15] * m.data[15] );
+    return MSHVM_SQRT( m.data[ 0] * m.data[ 0] +
+                       m.data[ 1] * m.data[ 1] +
+                       m.data[ 2] * m.data[ 2] +
+                       m.data[ 3] * m.data[ 3] +
+                       m.data[ 4] * m.data[ 4] +
+                       m.data[ 5] * m.data[ 5] +
+                       m.data[ 6] * m.data[ 6] +
+                       m.data[ 7] * m.data[ 7] +
+                       m.data[ 8] * m.data[ 8] +
+                       m.data[ 9] * m.data[ 9] +
+                       m.data[10] * m.data[10] +
+                       m.data[11] * m.data[11] +
+                       m.data[12] * m.data[12] +
+                       m.data[13] * m.data[13] +
+                       m.data[14] * m.data[14] +
+                       m.data[15] * m.data[15] );
 }
 
 MSHVMDEF msh_mat2_t
 msh_mat2_inverse( msh_mat2_t m )
 {
-    msh_scalar_t denom = 1.0f / (m.data[0] * m.data[3] - m.data[2] * m.data[1]);
-    msh_mat2_t mi;
-    mi.data[0] =  m.data[3] * denom;
-    mi.data[1] = -m.data[1] * denom;
-    mi.data[2] = -m.data[2] * denom;
-    mi.data[3] =  m.data[0] * denom;
-    return mi;
+  msh_scalar_t denom = 1.0f / (m.data[0] * m.data[3] - m.data[2] * m.data[1]);
+  msh_mat2_t mi;
+  mi.data[0] =  m.data[3] * denom;
+  mi.data[1] = -m.data[1] * denom;
+  mi.data[2] = -m.data[2] * denom;
+  mi.data[3] =  m.data[0] * denom;
+  return mi;
 }
 
 MSHVMDEF msh_mat3_t
 msh_mat3_inverse( msh_mat3_t m )
 {
-    /* To calculate inverse :
-           1. Transpose M
-           2. Calculate cofactor matrix C
-           3. Caluclate determinant of M
-           4. Inverse is given as (1/det) * C
+  /* To calculate inverse :
+          1. Transpose M
+          2. Calculate cofactor matrix C
+          3. Caluclate determinant of M
+          4. Inverse is given as (1/det) * C
+
+      Access cheat sheat for transpose matrix:
+          original indices
+          0  1  2
+          3  4  5
+          6  7  8
+
+          transposed indices
+          0  3  6
+          1  4  7
+          2  5  8
+  */
   
-       Access cheat sheat for transpose matrix:
-           original indices
-            0  1  2
-            3  4  5
-            6  7  8
+  /* Calulate cofactor matrix */
+  msh_scalar_t C[9];
+  C[0] = m.data[4] * m.data[8] - m.data[7] * m.data[5];
+  C[1] = m.data[7] * m.data[2] - m.data[1] * m.data[8]; /*negated*/
+  C[2] = m.data[1] * m.data[5] - m.data[4] * m.data[2];
+  C[3] = m.data[6] * m.data[5] - m.data[3] * m.data[8]; /*negated*/
+  C[4] = m.data[0] * m.data[8] - m.data[6] * m.data[2];
+  C[5] = m.data[3] * m.data[2] - m.data[0] * m.data[5]; /*negated*/
+  C[6] = m.data[3] * m.data[7] - m.data[6] * m.data[4];
+  C[7] = m.data[6] * m.data[1] - m.data[0] * m.data[7]; /*negated*/
+  C[8] = m.data[0] * m.data[4] - m.data[3] * m.data[1];
   
-           transposed indices
-            0  3  6
-            1  4  7
-            2  5  8
-    */
-    
-    /* Calulate cofactor matrix */
-    msh_scalar_t C[9];
-    C[0] = m.data[4] * m.data[8] - m.data[7] * m.data[5];
-    C[1] = m.data[7] * m.data[2] - m.data[1] * m.data[8]; /*negated*/
-    C[2] = m.data[1] * m.data[5] - m.data[4] * m.data[2];
-    C[3] = m.data[6] * m.data[5] - m.data[3] * m.data[8]; /*negated*/
-    C[4] = m.data[0] * m.data[8] - m.data[6] * m.data[2];
-    C[5] = m.data[3] * m.data[2] - m.data[0] * m.data[5]; /*negated*/
-    C[6] = m.data[3] * m.data[7] - m.data[6] * m.data[4];
-    C[7] = m.data[6] * m.data[1] - m.data[0] * m.data[7]; /*negated*/
-    C[8] = m.data[0] * m.data[4] - m.data[3] * m.data[1];
-    
-    /* determinant */
-    msh_scalar_t det = m.data[0] * C[0] + m.data[3] * C[1] + m.data[6] * C[2];
-    msh_scalar_t denom = 1.0f / det;
-    
-    /* calculate inverse */
-    msh_mat3_t mi;
-    mi.data[0] = denom * C[0];
-    mi.data[1] = denom * C[1];
-    mi.data[2] = denom * C[2];
-    mi.data[3] = denom * C[3];
-    mi.data[4] = denom * C[4];
-    mi.data[5] = denom * C[5];
-    mi.data[6] = denom * C[6];
-    mi.data[7] = denom * C[7];
-    mi.data[8] = denom * C[8];
-    return mi;
+  /* determinant */
+  msh_scalar_t det = m.data[0] * C[0] + m.data[3] * C[1] + m.data[6] * C[2];
+  msh_scalar_t denom = 1.0f / det;
+  
+  /* calculate inverse */
+  msh_mat3_t mi;
+  mi.data[0] = denom * C[0];
+  mi.data[1] = denom * C[1];
+  mi.data[2] = denom * C[2];
+  mi.data[3] = denom * C[3];
+  mi.data[4] = denom * C[4];
+  mi.data[5] = denom * C[5];
+  mi.data[6] = denom * C[6];
+  mi.data[7] = denom * C[7];
+  mi.data[8] = denom * C[8];
+  return mi;
 }
 
 MSHVMDEF msh_mat4_t
 msh_mat4_se3_inverse( msh_mat4_t m )
 {
-    msh_vec3_t t = msh_vec4_to_vec3( m.col[3] );
-    m.col[3] = msh_vec4( 0.0f, 0.0f, 0.0f, 1.0f );
-    m = msh_mat4_transpose( m );
-    t = msh_vec3_invert( msh_mat4_vec3_mul( m, t, 0 ) );
-    m.col[3] = msh_vec3_to_vec4( t );
-    m.col[3].w = 1.0f;
-    return m;
+  msh_vec3_t t = msh_vec4_to_vec3( m.col[3] );
+  m.col[3] = msh_vec4( 0.0f, 0.0f, 0.0f, 1.0f );
+  m = msh_mat4_transpose( m );
+  t = msh_vec3_invert( msh_mat4_vec3_mul( m, t, 0 ) );
+  m.col[3] = msh_vec3_to_vec4( t );
+  m.col[3].w = 1.0f;
+  return m;
 }
 
 MSHVMDEF msh_mat4_t
 msh_mat4_inverse( msh_mat4_t m )
 {
-    /* Inverse using cramers rule
-           1. Transpose  M
-           2. Calculate cofactor matrix C
-           3. Caluclate determinant of M
-           4. Inverse is given as (1/det) * C
+  /* Inverse using cramers rule
+          1. Transpose  M
+          2. Calculate cofactor matrix C
+          3. Caluclate determinant of M
+          4. Inverse is given as (1/det) * C
+
+      Access cheat sheat:
+          original indices
+          0  1  2  3
+          4  5  6  7
+          8  9 10 11
+          12 13 14 15
+
+          transposed indices
+          0  4  8 12
+          1  5  9 13
+          2  6 10 14
+          3  7 11 15
+  */
   
-       Access cheat sheat:
-           original indices
-            0  1  2  3
-            4  5  6  7
-            8  9 10 11
-           12 13 14 15
+  /* Calulate cofactor matrix */
+  msh_scalar_t C[16];
+  msh_scalar_t dets[6];
   
-           transposed indices
-            0  4  8 12
-            1  5  9 13
-            2  6 10 14
-            3  7 11 15                              */
-    
-    /* Calulate cofactor matrix */
-    msh_scalar_t C[16];
-    msh_scalar_t dets[6];
-    
-    /* First 8 */
-    /* dets are determinants of 2x2 matrices */
-    dets[0] = m.data[10] * m.data[15] - m.data[14] * m.data[11];
-    dets[1] = m.data[ 6] * m.data[11] - m.data[10] * m.data[ 7];
-    dets[2] = m.data[ 2] * m.data[ 7] - m.data[ 6] * m.data[ 3];
-    dets[3] = m.data[ 6] * m.data[15] - m.data[14] * m.data[ 7];
-    dets[4] = m.data[ 2] * m.data[11] - m.data[10] * m.data[ 3];
-    dets[5] = m.data[ 2] * m.data[15] - m.data[14] * m.data[ 3];
-    
-    /* Cofactor matrix */
-    /*00*/C[0] = m.data[5]*dets[0] - m.data[9]*dets[3] + m.data[13]*dets[1];
-    /*01*/C[1] = m.data[9]*dets[5] - m.data[1]*dets[0] - m.data[13]*dets[4]; /* negated */
-    /*02*/C[2] = m.data[1]*dets[3] - m.data[5]*dets[5] + m.data[13]*dets[2];
-    /*03*/C[3] = m.data[5]*dets[4] - m.data[9]*dets[2] - m.data[ 1]*dets[1]; /* negated */
-    
-    /*10*/C[4] = m.data[8]*dets[3] - m.data[4]*dets[0] - m.data[12]*dets[1]; /* negated */
-    /*11*/C[5] = m.data[0]*dets[0] - m.data[8]*dets[5] + m.data[12]*dets[4];
-    /*12*/C[6] = m.data[4]*dets[5] - m.data[0]*dets[3] - m.data[12]*dets[2]; /* negated */
-    /*13*/C[7] = m.data[0]*dets[1] - m.data[4]*dets[4] + m.data[ 8]*dets[2];
-    
-    /*Second 8 */
-    
-    /* dets are determinants of 2x2 matrices */
-    dets[0] = m.data[ 8]*m.data[13] - m.data[12]*m.data[ 9];
-    dets[1] = m.data[ 4]*m.data[ 9] - m.data[ 8]*m.data[ 5];
-    dets[2] = m.data[ 0]*m.data[ 5] - m.data[ 4]*m.data[ 1];
-    dets[3] = m.data[ 4]*m.data[13] - m.data[12]*m.data[ 5];
-    dets[4] = m.data[ 0]*m.data[ 9] - m.data[ 8]*m.data[ 1];
-    dets[5] = m.data[ 0]*m.data[13] - m.data[12]*m.data[ 1];
-    
-    /* actual coefficient matrix */
-    /*20*/C[ 8] = m.data[ 7]*dets[0] - m.data[11]*dets[3] + m.data[15]*dets[1];
-    /*21*/C[ 9] = m.data[11]*dets[5] - m.data[ 3]*dets[0] - m.data[15]*dets[4]; /* negated */
-    /*22*/C[10] = m.data[ 3]*dets[3] - m.data[ 7]*dets[5] + m.data[15]*dets[2];
-    /*23*/C[11] = m.data[ 7]*dets[4] - m.data[ 3]*dets[1] - m.data[11]*dets[2]; /* negated */
-    
-    /*30*/C[12] = m.data[10]*dets[3] - m.data[ 6]*dets[0] - m.data[14]*dets[1]; /* negated */
-    /*31*/C[13] = m.data[ 2]*dets[0] - m.data[10]*dets[5] + m.data[14]*dets[4];
-    /*32*/C[14] = m.data[ 6]*dets[5] - m.data[ 2]*dets[3] - m.data[14]*dets[2]; /* negated */
-    /*33*/C[15] = m.data[ 2]*dets[1] - m.data[ 6]*dets[4] + m.data[10]*dets[2];
-    
-    /* determinant */
-    msh_scalar_t det = m.data[0]*C[0] + m.data[4]*C[1] +
-        m.data[8]*C[2] + m.data[12]*C[3];
-    msh_scalar_t denom = 1.0f / det;
-    
-    /* calculate inverse */
-    msh_mat4_t mi;
-    mi.data[ 0] = denom*C[ 0];
-    mi.data[ 1] = denom*C[ 1];
-    mi.data[ 2] = denom*C[ 2];
-    mi.data[ 3] = denom*C[ 3];
-    mi.data[ 4] = denom*C[ 4];
-    mi.data[ 5] = denom*C[ 5];
-    mi.data[ 6] = denom*C[ 6];
-    mi.data[ 7] = denom*C[ 7];
-    mi.data[ 8] = denom*C[ 8];
-    mi.data[ 9] = denom*C[ 9];
-    mi.data[10] = denom*C[10];
-    mi.data[11] = denom*C[11];
-    mi.data[12] = denom*C[12];
-    mi.data[13] = denom*C[13];
-    mi.data[14] = denom*C[14];
-    mi.data[15] = denom*C[15];
-    return mi;
+  /* First 8 */
+  /* dets are determinants of 2x2 matrices */
+  dets[0] = m.data[10] * m.data[15] - m.data[14] * m.data[11];
+  dets[1] = m.data[ 6] * m.data[11] - m.data[10] * m.data[ 7];
+  dets[2] = m.data[ 2] * m.data[ 7] - m.data[ 6] * m.data[ 3];
+  dets[3] = m.data[ 6] * m.data[15] - m.data[14] * m.data[ 7];
+  dets[4] = m.data[ 2] * m.data[11] - m.data[10] * m.data[ 3];
+  dets[5] = m.data[ 2] * m.data[15] - m.data[14] * m.data[ 3];
+  
+  /* Cofactor matrix */
+  /*00*/C[0] = m.data[5]*dets[0] - m.data[9]*dets[3] + m.data[13]*dets[1];
+  /*01*/C[1] = m.data[9]*dets[5] - m.data[1]*dets[0] - m.data[13]*dets[4]; /* negated */
+  /*02*/C[2] = m.data[1]*dets[3] - m.data[5]*dets[5] + m.data[13]*dets[2];
+  /*03*/C[3] = m.data[5]*dets[4] - m.data[9]*dets[2] - m.data[ 1]*dets[1]; /* negated */
+  
+  /*10*/C[4] = m.data[8]*dets[3] - m.data[4]*dets[0] - m.data[12]*dets[1]; /* negated */
+  /*11*/C[5] = m.data[0]*dets[0] - m.data[8]*dets[5] + m.data[12]*dets[4];
+  /*12*/C[6] = m.data[4]*dets[5] - m.data[0]*dets[3] - m.data[12]*dets[2]; /* negated */
+  /*13*/C[7] = m.data[0]*dets[1] - m.data[4]*dets[4] + m.data[ 8]*dets[2];
+  
+  /*Second 8 */
+  
+  /* dets are determinants of 2x2 matrices */
+  dets[0] = m.data[ 8]*m.data[13] - m.data[12]*m.data[ 9];
+  dets[1] = m.data[ 4]*m.data[ 9] - m.data[ 8]*m.data[ 5];
+  dets[2] = m.data[ 0]*m.data[ 5] - m.data[ 4]*m.data[ 1];
+  dets[3] = m.data[ 4]*m.data[13] - m.data[12]*m.data[ 5];
+  dets[4] = m.data[ 0]*m.data[ 9] - m.data[ 8]*m.data[ 1];
+  dets[5] = m.data[ 0]*m.data[13] - m.data[12]*m.data[ 1];
+  
+  /* actual coefficient matrix */
+  /*20*/C[ 8] = m.data[ 7]*dets[0] - m.data[11]*dets[3] + m.data[15]*dets[1];
+  /*21*/C[ 9] = m.data[11]*dets[5] - m.data[ 3]*dets[0] - m.data[15]*dets[4]; /* negated */
+  /*22*/C[10] = m.data[ 3]*dets[3] - m.data[ 7]*dets[5] + m.data[15]*dets[2];
+  /*23*/C[11] = m.data[ 7]*dets[4] - m.data[ 3]*dets[1] - m.data[11]*dets[2]; /* negated */
+  
+  /*30*/C[12] = m.data[10]*dets[3] - m.data[ 6]*dets[0] - m.data[14]*dets[1]; /* negated */
+  /*31*/C[13] = m.data[ 2]*dets[0] - m.data[10]*dets[5] + m.data[14]*dets[4];
+  /*32*/C[14] = m.data[ 6]*dets[5] - m.data[ 2]*dets[3] - m.data[14]*dets[2]; /* negated */
+  /*33*/C[15] = m.data[ 2]*dets[1] - m.data[ 6]*dets[4] + m.data[10]*dets[2];
+  
+  /* determinant */
+  msh_scalar_t det = m.data[0]*C[0] + m.data[4]*C[1] +
+      m.data[8]*C[2] + m.data[12]*C[3];
+  msh_scalar_t denom = 1.0f / det;
+  
+  /* calculate inverse */
+  msh_mat4_t mi;
+  mi.data[ 0] = denom*C[ 0];
+  mi.data[ 1] = denom*C[ 1];
+  mi.data[ 2] = denom*C[ 2];
+  mi.data[ 3] = denom*C[ 3];
+  mi.data[ 4] = denom*C[ 4];
+  mi.data[ 5] = denom*C[ 5];
+  mi.data[ 6] = denom*C[ 6];
+  mi.data[ 7] = denom*C[ 7];
+  mi.data[ 8] = denom*C[ 8];
+  mi.data[ 9] = denom*C[ 9];
+  mi.data[10] = denom*C[10];
+  mi.data[11] = denom*C[11];
+  mi.data[12] = denom*C[12];
+  mi.data[13] = denom*C[13];
+  mi.data[14] = denom*C[14];
+  mi.data[15] = denom*C[15];
+  return mi;
 }
 
 MSHVMDEF msh_mat2_t
 msh_mat2_transpose( msh_mat2_t m )
 {
-    msh_mat2_t mt;
-    mt.data[0] = m.data[0];
-    mt.data[1] = m.data[2];
-    mt.data[2] = m.data[1];
-    mt.data[3] = m.data[3];
-    return mt;
+  msh_mat2_t mt;
+  mt.data[0] = m.data[0];
+  mt.data[1] = m.data[2];
+  mt.data[2] = m.data[1];
+  mt.data[3] = m.data[3];
+  return mt;
 }
 
 MSHVMDEF msh_mat3_t
 msh_mat3_transpose( msh_mat3_t m )
 {
-    msh_mat3_t mt;
-    mt.data[0] = m.data[0];
-    mt.data[1] = m.data[3];
-    mt.data[2] = m.data[6];
-    mt.data[3] = m.data[1];
-    mt.data[4] = m.data[4];
-    mt.data[5] = m.data[7];
-    mt.data[6] = m.data[2];
-    mt.data[7] = m.data[5];
-    mt.data[8] = m.data[8];
-    return mt;
+  msh_mat3_t mt;
+  mt.data[0] = m.data[0];
+  mt.data[1] = m.data[3];
+  mt.data[2] = m.data[6];
+  mt.data[3] = m.data[1];
+  mt.data[4] = m.data[4];
+  mt.data[5] = m.data[7];
+  mt.data[6] = m.data[2];
+  mt.data[7] = m.data[5];
+  mt.data[8] = m.data[8];
+  return mt;
 }
 
 MSHVMDEF msh_mat4_t
 msh_mat4_transpose( msh_mat4_t m )
 {
-    msh_mat4_t mt;
-    mt.data[ 0] = m.data[ 0];
-    mt.data[ 1] = m.data[ 4];
-    mt.data[ 2] = m.data[ 8];
-    mt.data[ 3] = m.data[12];
-    mt.data[ 4] = m.data[ 1];
-    mt.data[ 5] = m.data[ 5];
-    mt.data[ 6] = m.data[ 9];
-    mt.data[ 7] = m.data[13];
-    mt.data[ 8] = m.data[ 2];
-    mt.data[ 9] = m.data[ 6];
-    mt.data[10] = m.data[10];
-    mt.data[11] = m.data[14];
-    mt.data[12] = m.data[ 3];
-    mt.data[13] = m.data[ 7];
-    mt.data[14] = m.data[11];
-    mt.data[15] = m.data[15];
-    return mt;
+  msh_mat4_t mt;
+  mt.data[ 0] = m.data[ 0];
+  mt.data[ 1] = m.data[ 4];
+  mt.data[ 2] = m.data[ 8];
+  mt.data[ 3] = m.data[12];
+  mt.data[ 4] = m.data[ 1];
+  mt.data[ 5] = m.data[ 5];
+  mt.data[ 6] = m.data[ 9];
+  mt.data[ 7] = m.data[13];
+  mt.data[ 8] = m.data[ 2];
+  mt.data[ 9] = m.data[ 6];
+  mt.data[10] = m.data[10];
+  mt.data[11] = m.data[14];
+  mt.data[12] = m.data[ 3];
+  mt.data[13] = m.data[ 7];
+  mt.data[14] = m.data[11];
+  mt.data[15] = m.data[15];
+  return mt;
 }
 
 MSHVMDEF msh_mat4_t
@@ -1945,15 +1963,15 @@ msh_look_at( msh_vec3_t eye,
             msh_vec3_t center,
             msh_vec3_t up )
 {
-    msh_vec3_t z = msh_vec3_normalize( msh_vec3_sub(eye, center) );
-    msh_vec3_t x = msh_vec3_normalize( msh_vec3_cross( up, z ) );
-    msh_vec3_t y = msh_vec3_normalize( msh_vec3_cross( z, x ) );
-    
-    msh_mat4_t o = {{   x.x,                   y.x,                  z.x, 0.0f,
-            x.y,                   y.y,                  z.y, 0.0f,
-            x.z,                   y.z,                  z.z, 0.0f,
-            -msh_vec3_dot(eye,x), -msh_vec3_dot(eye,y), -msh_vec3_dot(eye,z), 1.0f }};
-    return o;
+  msh_vec3_t z = msh_vec3_normalize( msh_vec3_sub(eye, center) );
+  msh_vec3_t x = msh_vec3_normalize( msh_vec3_cross( up, z ) );
+  msh_vec3_t y = msh_vec3_normalize( msh_vec3_cross( z, x ) );
+  
+  msh_mat4_t o = {{   x.x,                   y.x,                  z.x, 0.0f,
+          x.y,                   y.y,                  z.y, 0.0f,
+          x.z,                   y.z,                  z.z, 0.0f,
+          -msh_vec3_dot(eye,x), -msh_vec3_dot(eye,y), -msh_vec3_dot(eye,z), 1.0f }};
+  return o;
 }
 
 MSHVMDEF msh_mat4_t
@@ -1961,19 +1979,19 @@ msh_frustum( msh_scalar_t left,   msh_scalar_t right,
             msh_scalar_t bottom, msh_scalar_t top,
             msh_scalar_t z_near, msh_scalar_t z_far )
 {
-    msh_scalar_t x_diff = right - left;
-    msh_scalar_t y_diff = top - bottom;
-    msh_scalar_t z_diff = z_far - z_near;
-    msh_scalar_t a      = (right + left) / x_diff;
-    msh_scalar_t b      = (top + bottom) / y_diff;
-    msh_scalar_t c      = -(z_far + z_near ) / z_diff;
-    msh_scalar_t d      = -(2.0f * z_far * z_near ) / z_diff;
-    
-    msh_mat4_t o = {{ (2.0f*z_near)/x_diff,                 0.0f, 0.0f,  0.0f,
-            0.0f, (2.0f*z_near)/y_diff, 0.0f,  0.0f,
-            a,                    b,    c, -1.0f,
-            0.0f,                 0.0f,    d,  0.0f }};
-    return o;
+  msh_scalar_t x_diff = right - left;
+  msh_scalar_t y_diff = top - bottom;
+  msh_scalar_t z_diff = z_far - z_near;
+  msh_scalar_t a      = (right + left) / x_diff;
+  msh_scalar_t b      = (top + bottom) / y_diff;
+  msh_scalar_t c      = -(z_far + z_near ) / z_diff;
+  msh_scalar_t d      = -(2.0f * z_far * z_near ) / z_diff;
+  
+  msh_mat4_t o = {{ (2.0f*z_near)/x_diff,                 0.0f, 0.0f,  0.0f,
+          0.0f, (2.0f*z_near)/y_diff, 0.0f,  0.0f,
+          a,                    b,    c, -1.0f,
+          0.0f,                 0.0f,    d,  0.0f }};
+  return o;
 }
 
 MSHVMDEF msh_mat4_t
@@ -1982,15 +2000,15 @@ msh_perspective( msh_scalar_t fovy,
                 msh_scalar_t z_near,
                 msh_scalar_t z_far)
 {
-    msh_scalar_t xmin, xmax, ymin, ymax;
-    
-    ymax = z_near * tanf( fovy * 0.5f );
-    ymin = -ymax;
-    
-    xmin = ymin * aspect;
-    xmax = ymax * aspect;
-    
-    return msh_frustum( xmin, xmax, ymin, ymax, z_near, z_far );
+  msh_scalar_t xmin, xmax, ymin, ymax;
+  
+  ymax = z_near * MSHVM_TAN( fovy * 0.5f );
+  ymin = -ymax;
+  
+  xmin = ymin * aspect;
+  xmax = ymax * aspect;
+  
+  return msh_frustum( xmin, xmax, ymin, ymax, z_near, z_far );
 }
 
 MSHVMDEF msh_mat4_t
@@ -1998,129 +2016,129 @@ msh_ortho( msh_scalar_t left,   msh_scalar_t right,
           msh_scalar_t bottom, msh_scalar_t top,
           msh_scalar_t z_near, msh_scalar_t z_far )
 {
-    msh_scalar_t x_diff = right - left;
-    msh_scalar_t y_diff = top - bottom;
-    msh_scalar_t z_diff = z_far - z_near;
-    msh_scalar_t tx     = -( right + left ) / x_diff;
-    msh_scalar_t ty     = -( top + bottom ) / y_diff;
-    msh_scalar_t tz     = -( z_near + z_far ) / z_diff;
-    
-    msh_mat4_t o = {{ 2.0f / x_diff,          0.0f,           0.0f, 0.0f,
-            0.0f, 2.0f / y_diff,           0.0f, 0.0f,
-            0.0f,          0.0f, -2.0f / z_diff, 0.0f,
-            tx,            ty,             tz, 1.0f }};
-    return o;
+  msh_scalar_t x_diff = right - left;
+  msh_scalar_t y_diff = top - bottom;
+  msh_scalar_t z_diff = z_far - z_near;
+  msh_scalar_t tx     = -( right + left ) / x_diff;
+  msh_scalar_t ty     = -( top + bottom ) / y_diff;
+  msh_scalar_t tz     = -( z_near + z_far ) / z_diff;
+  
+  msh_mat4_t o = {{ 2.0f / x_diff,          0.0f,           0.0f, 0.0f,
+                    0.0f, 2.0f / y_diff,           0.0f, 0.0f,
+                    0.0f,          0.0f, -2.0f / z_diff, 0.0f,
+                    tx,            ty,             tz, 1.0f }};
+  return o;
 }
 
 MSHVMDEF msh_vec3_t
-msh_project ( msh_vec4_t obj,     msh_mat4_t modelview,
+msh_project( msh_vec4_t obj,     msh_mat4_t modelview,
              msh_mat4_t project, msh_vec4_t viewport )
 {
-    msh_vec4_t tmp = msh_mat4_vec4_mul(msh_mat4_mul(project, modelview), obj);
-    tmp = msh_vec4_scalar_div(tmp, tmp.w);
-    
-    msh_vec3_t win;
-    win.x = viewport.x + (viewport.z * (tmp.x + 1.0f)) / 2.0f;
-    win.y = viewport.y + (viewport.w * (tmp.y + 1.0f)) / 2.0f;
-    win.z = (tmp.z + 1.0f) / 2.0f;
-    
-    return win;
+  msh_vec4_t tmp = msh_mat4_vec4_mul(msh_mat4_mul(project, modelview), obj);
+  tmp = msh_vec4_scalar_div(tmp, tmp.w);
+  
+  msh_vec3_t win;
+  win.x = viewport.x + (viewport.z * (tmp.x + 1.0f)) / 2.0f;
+  win.y = viewport.y + (viewport.w * (tmp.y + 1.0f)) / 2.0f;
+  win.z = (tmp.z + 1.0f) / 2.0f;
+  
+  return win;
 }
 
 MSHVMDEF msh_vec4_t
 msh_unproject ( msh_vec3_t win,     msh_mat4_t modelview,
                msh_mat4_t project, msh_vec4_t viewport )
 {
-    msh_mat4_t inv_pm = msh_mat4_inverse( msh_mat4_mul(project, modelview) );
-    msh_vec4_t tmp;
-    tmp.x = (2.0f * ( win.x - viewport.x )) / viewport.z - 1.0f;
-    tmp.y = (2.0f * ( win.y - viewport.y )) / viewport.w - 1.0f;
-    tmp.z = 2.0f * win.z - 1.0f;
-    tmp.w = 1.0f;
-    
-    msh_vec4_t obj = msh_mat4_vec4_mul( inv_pm, tmp );
-    obj = msh_vec4_scalar_div( obj, obj.w );
-    return obj;
+  msh_mat4_t inv_pm = msh_mat4_inverse( msh_mat4_mul(project, modelview) );
+  msh_vec4_t tmp;
+  tmp.x = (2.0f * ( win.x - viewport.x )) / viewport.z - 1.0f;
+  tmp.y = (2.0f * ( win.y - viewport.y )) / viewport.w - 1.0f;
+  tmp.z = 2.0f * win.z - 1.0f;
+  tmp.w = 1.0f;
+  
+  msh_vec4_t obj = msh_mat4_vec4_mul( inv_pm, tmp );
+  obj = msh_vec4_scalar_div( obj, obj.w );
+  return obj;
 }
 
 MSHVMDEF msh_mat4_t
 msh_pre_scale( msh_mat4_t m, msh_vec3_t s )
 {
-    msh_vec4_t s4 = msh_vec4( s.x, s.y, s.z, 1.0 );
-    m.col[0] = msh_vec4_mul( m.col[0], s4 );
-    m.col[1] = msh_vec4_mul( m.col[1], s4 );
-    m.col[2] = msh_vec4_mul( m.col[2], s4 );
-    m.col[3] = msh_vec4_mul( m.col[3], s4 );
-    return m;
+  msh_vec4_t s4 = msh_vec4( s.x, s.y, s.z, 1.0 );
+  m.col[0] = msh_vec4_mul( m.col[0], s4 );
+  m.col[1] = msh_vec4_mul( m.col[1], s4 );
+  m.col[2] = msh_vec4_mul( m.col[2], s4 );
+  m.col[3] = msh_vec4_mul( m.col[3], s4 );
+  return m;
 }
 
 
 MSHVMDEF msh_mat4_t
 msh_pre_translate( msh_mat4_t m, msh_vec3_t t )
 {
-    m.col[3] = msh_vec4( m.col[3].x + t.x,
-                        m.col[3].y + t.y,
-                        m.col[3].z + t.z,
-                        1.0f );
-    return m;
+  m.col[3] = msh_vec4( m.col[3].x + t.x,
+                      m.col[3].y + t.y,
+                      m.col[3].z + t.z,
+                      1.0f );
+  return m;
 }
 
 MSHVMDEF msh_mat4_t
 msh_pre_rotate( msh_mat4_t m, msh_scalar_t angle, msh_vec3_t v )
 {
-    msh_scalar_t c = cosf( angle );
-    msh_scalar_t s = sinf( angle );
-    msh_scalar_t t = 1.0f - c;
-    
-    msh_vec3_t axis = msh_vec3_normalize( v );
-    
-    msh_mat4_t rotate = msh_mat4_identity();
-    rotate.data[ 0] = c + axis.x * axis.x * t;
-    rotate.data[ 5] = c + axis.y * axis.y * t;
-    rotate.data[10] = c + axis.z * axis.z * t;
-    
-    msh_scalar_t tmp_1 = axis.x * axis.y * t;
-    msh_scalar_t tmp_2 = axis.z * s;
-    
-    rotate.data[1] = tmp_1 + tmp_2;
-    rotate.data[4] = tmp_1 - tmp_2;
-    
-    tmp_1 = axis.x * axis.z * t;
-    tmp_2 = axis.y * s;
-    
-    rotate.data[2] = tmp_1 - tmp_2;
-    rotate.data[8] = tmp_1 + tmp_2;
-    
-    tmp_1 = axis.y * axis.z * t;
-    tmp_2 = axis.x * s;
-    
-    rotate.data[6] = tmp_1 + tmp_2;
-    rotate.data[9] = tmp_1 - tmp_2;
-    
-    return msh_mat4_mul( rotate, m );
+  msh_scalar_t c = MSHVM_COS( angle );
+  msh_scalar_t s = MSHVM_SIN( angle );
+  msh_scalar_t t = 1.0f - c;
+  
+  msh_vec3_t axis = msh_vec3_normalize( v );
+  
+  msh_mat4_t rotate = msh_mat4_identity();
+  rotate.data[ 0] = c + axis.x * axis.x * t;
+  rotate.data[ 5] = c + axis.y * axis.y * t;
+  rotate.data[10] = c + axis.z * axis.z * t;
+  
+  msh_scalar_t tmp_1 = axis.x * axis.y * t;
+  msh_scalar_t tmp_2 = axis.z * s;
+  
+  rotate.data[1] = tmp_1 + tmp_2;
+  rotate.data[4] = tmp_1 - tmp_2;
+  
+  tmp_1 = axis.x * axis.z * t;
+  tmp_2 = axis.y * s;
+  
+  rotate.data[2] = tmp_1 - tmp_2;
+  rotate.data[8] = tmp_1 + tmp_2;
+  
+  tmp_1 = axis.y * axis.z * t;
+  tmp_2 = axis.x * s;
+  
+  rotate.data[6] = tmp_1 + tmp_2;
+  rotate.data[9] = tmp_1 - tmp_2;
+  
+  return msh_mat4_mul( rotate, m );
 }
 
 
 MSHVMDEF msh_mat4_t
 msh_post_translate( msh_mat4_t m, msh_vec3_t t )
 {
-    msh_mat4_t result = m;
-    result.col[3] = msh_vec4_add(
-                                 msh_vec4_add( msh_vec4_scalar_mul( m.col[0], t.x ),
-                                              msh_vec4_scalar_mul( m.col[1], t.y )),
-                                 msh_vec4_add( msh_vec4_scalar_mul( m.col[2], t.z ),
-                                              m.col[3]) );
-    return result;
+  msh_mat4_t result = m;
+  result.col[3] = msh_vec4_add(
+                                msh_vec4_add( msh_vec4_scalar_mul( m.col[0], t.x ),
+                                            msh_vec4_scalar_mul( m.col[1], t.y )),
+                                msh_vec4_add( msh_vec4_scalar_mul( m.col[2], t.z ),
+                                            m.col[3]) );
+  return result;
 }
 
 MSHVMDEF msh_mat4_t
 msh_post_scale( msh_mat4_t m, msh_vec3_t s )
 {
-    msh_mat4_t result = m;
-    result.col[0] = msh_vec4_scalar_mul( result.col[0], s.x );
-    result.col[1] = msh_vec4_scalar_mul( result.col[1], s.y );
-    result.col[2] = msh_vec4_scalar_mul( result.col[2], s.z );
-    return result;
+  msh_mat4_t result = m;
+  result.col[0] = msh_vec4_scalar_mul( result.col[0], s.x );
+  result.col[1] = msh_vec4_scalar_mul( result.col[1], s.y );
+  result.col[2] = msh_vec4_scalar_mul( result.col[2], s.z );
+  return result;
 }
 
 /* derivation :
@@ -2129,49 +2147,49 @@ msh_post_scale( msh_mat4_t m, msh_vec3_t s )
 MSHVMDEF msh_mat4_t
 msh_post_rotate( msh_mat4_t m, msh_scalar_t angle, msh_vec3_t v )
 {
-    msh_scalar_t c = cosf( angle );
-    msh_scalar_t s = sinf( angle );
-    msh_scalar_t t = 1.0f - c;
-    
-    msh_vec3_t axis = msh_vec3_normalize( v );
-    
-    msh_mat4_t rotate = msh_mat4_zeros();
-    rotate.data[ 0] = c + axis.x * axis.x * t;
-    rotate.data[ 5] = c + axis.y * axis.y * t;
-    rotate.data[10] = c + axis.z * axis.z * t;
-    
-    msh_scalar_t tmp_1 = axis.x * axis.y * t;
-    msh_scalar_t tmp_2 = axis.z * s;
-    
-    rotate.data[1] = tmp_1 + tmp_2;
-    rotate.data[4] = tmp_1 - tmp_2;
-    
-    tmp_1 = axis.x * axis.z * t;
-    tmp_2 = axis.y * s;
-    
-    rotate.data[2] = tmp_1 - tmp_2;
-    rotate.data[8] = tmp_1 + tmp_2;
-    
-    tmp_1 = axis.y * axis.z * t;
-    tmp_2 = axis.x * s;
-    
-    rotate.data[6] = tmp_1 + tmp_2;
-    rotate.data[9] = tmp_1 - tmp_2;
-    
-    msh_mat4_t result = m;
-    result.col[0]=msh_vec4_add(msh_vec4_scalar_mul(m.col[0], rotate.data[0]),
-                               msh_vec4_add(msh_vec4_scalar_mul(m.col[1], rotate.data[1]),
-                                            msh_vec4_scalar_mul(m.col[2], rotate.data[2])));
-    
-    result.col[1]=msh_vec4_add(msh_vec4_scalar_mul(m.col[0], rotate.data[4]),
-                               msh_vec4_add(msh_vec4_scalar_mul(m.col[1], rotate.data[5]),
-                                            msh_vec4_scalar_mul(m.col[2], rotate.data[6])));
-    
-    result.col[2]=msh_vec4_add(msh_vec4_scalar_mul(m.col[0], rotate.data[8]),
-                               msh_vec4_add(msh_vec4_scalar_mul(m.col[1], rotate.data[9]),
-                                            msh_vec4_scalar_mul(m.col[2], rotate.data[10])));
-    result.col[3] = m.col[3];
-    return result;
+  msh_scalar_t c = MSHVM_COS( angle );
+  msh_scalar_t s = MSHVM_SIN( angle );
+  msh_scalar_t t = 1.0f - c;
+  
+  msh_vec3_t axis = msh_vec3_normalize( v );
+  
+  msh_mat4_t rotate = msh_mat4_zeros();
+  rotate.data[ 0] = c + axis.x * axis.x * t;
+  rotate.data[ 5] = c + axis.y * axis.y * t;
+  rotate.data[10] = c + axis.z * axis.z * t;
+  
+  msh_scalar_t tmp_1 = axis.x * axis.y * t;
+  msh_scalar_t tmp_2 = axis.z * s;
+  
+  rotate.data[1] = tmp_1 + tmp_2;
+  rotate.data[4] = tmp_1 - tmp_2;
+  
+  tmp_1 = axis.x * axis.z * t;
+  tmp_2 = axis.y * s;
+  
+  rotate.data[2] = tmp_1 - tmp_2;
+  rotate.data[8] = tmp_1 + tmp_2;
+  
+  tmp_1 = axis.y * axis.z * t;
+  tmp_2 = axis.x * s;
+  
+  rotate.data[6] = tmp_1 + tmp_2;
+  rotate.data[9] = tmp_1 - tmp_2;
+  
+  msh_mat4_t result = m;
+  result.col[0]=msh_vec4_add(msh_vec4_scalar_mul(m.col[0], rotate.data[0]),
+                              msh_vec4_add(msh_vec4_scalar_mul(m.col[1], rotate.data[1]),
+                                          msh_vec4_scalar_mul(m.col[2], rotate.data[2])));
+  
+  result.col[1]=msh_vec4_add(msh_vec4_scalar_mul(m.col[0], rotate.data[4]),
+                              msh_vec4_add(msh_vec4_scalar_mul(m.col[1], rotate.data[5]),
+                                          msh_vec4_scalar_mul(m.col[2], rotate.data[6])));
+  
+  result.col[2]=msh_vec4_add(msh_vec4_scalar_mul(m.col[0], rotate.data[8]),
+                              msh_vec4_add(msh_vec4_scalar_mul(m.col[1], rotate.data[9]),
+                                          msh_vec4_scalar_mul(m.col[2], rotate.data[10])));
+  result.col[3] = m.col[3];
+  return result;
 }
 
 // Euler angles decoded as yaw, pitch, roll
@@ -2179,30 +2197,30 @@ msh_post_rotate( msh_mat4_t m, msh_scalar_t angle, msh_vec3_t v )
 MSHVMDEF msh_vec3_t
 msh_mat3_to_euler( msh_mat3_t m )
 {
-    msh_scalar_t pi = (msh_scalar_t)3.14159265359;
-    msh_vec3_t angles;
-    if( m.col[2].x < 1.0 )
-    {
-        if ( m.col[2].x > -1.0)
-        {
-            angles.y = (msh_scalar_t)asin( m.col[2].x );
-            angles.x = (msh_scalar_t)atan2( -m.col[2].y, m.col[2].z );
-            angles.z = (msh_scalar_t)atan2( -m.col[1].x, m.col[0].x );
-        }
-        else
-        {
-            angles.y = (msh_scalar_t)(-pi * 0.5);
-            angles.x = (msh_scalar_t)(-atan2(m.col[0].y, m.col[1].y ));
-            angles.z = (msh_scalar_t)0.0;
-        }
-    }
-    else
-    {
-        angles.y = (msh_scalar_t)(pi * 0.5);
-        angles.x = (msh_scalar_t)atan2(m.col[0].y, m.col[1].y );
-        angles.z = (msh_scalar_t)0;
-    }
-    return angles;
+  msh_scalar_t pi = (msh_scalar_t)3.14159265359;
+  msh_vec3_t angles;
+  if( m.col[2].x < 1.0 )
+  {
+      if ( m.col[2].x > -1.0)
+      {
+          angles.y = (msh_scalar_t)asin( m.col[2].x );
+          angles.x = (msh_scalar_t)atan2( -m.col[2].y, m.col[2].z );
+          angles.z = (msh_scalar_t)atan2( -m.col[1].x, m.col[0].x );
+      }
+      else
+      {
+          angles.y = (msh_scalar_t)(-pi * 0.5);
+          angles.x = (msh_scalar_t)(-atan2(m.col[0].y, m.col[1].y ));
+          angles.z = (msh_scalar_t)0.0;
+      }
+  }
+  else
+  {
+      angles.y = (msh_scalar_t)(pi * 0.5);
+      angles.x = (msh_scalar_t)atan2(m.col[0].y, m.col[1].y );
+      angles.z = (msh_scalar_t)0;
+  }
+  return angles;
 }
 
 
@@ -2232,7 +2250,7 @@ msh_quat_from_axis_angle( msh_vec3_t axis, msh_scalar_t angle )
 {
     msh_scalar_t a = (msh_scalar_t)(angle * 0.5);
     msh_scalar_t s = (msh_scalar_t)sin(a);
-    return MSHVM_INIT_CAST(msh_quat_t){{ axis.x * s, axis.y * s, axis.z * s, cosf(a)}};
+    return MSHVM_INIT_CAST(msh_quat_t){{ axis.x * s, axis.y * s, axis.z * s, MSHVM_COS(a)}};
 }
 
 MSHVMDEF msh_quat_t
@@ -2265,7 +2283,7 @@ msh_quat_from_vectors( msh_vec3_t v1, msh_vec3_t v2 )
          * around an arbitrary orthogonal axis. Axis normalisation
          * can happen later, when we normalise the quaternion. */
         real_part = 0.0f;
-        v3 = fabs(v1.x) > fabs(v1.z) ? msh_vec3( -v1.y, v1.x, 0.0f )
+        v3 = MSHVM_FABS(v1.x) > MSHVM_FABS(v1.z) ? msh_vec3( -v1.y, v1.x, 0.0f )
             : msh_vec3( 0.0f, -v1.z, v1.y );
     }
     else
@@ -2416,9 +2434,9 @@ msh_quat_slerp( msh_quat_t q,
                msh_quat_t r,
                msh_scalar_t t )
 {
-    msh_scalar_t a = acosf( msh_quat_dot(q, r) );
+    msh_scalar_t a = MSHVM_ACOS( msh_quat_dot(q, r) );
     msh_quat_t o;
-    if ( fabs( a ) > 1e-6 )
+    if ( MSHVM_FABS( a ) > 1e-6 )
     {
         o = msh_quat_add(msh_quat_scalar_mul(q, (msh_scalar_t)(sin(a * (1.0-t)) / sin(a)) ),
                          msh_quat_scalar_mul(r, (msh_scalar_t)(sin(a * t) / sin(a)) ) );
@@ -2475,7 +2493,7 @@ msh_mat3_to_quat( msh_mat3_t m )
     msh_quat_t q;
     if ( tr > MSH_FLT_EPSILON )
     {
-        msh_scalar_t s = sqrtf( tr + 1.0f ) * 2.0f;
+        msh_scalar_t s = MSHVM_SQRT( tr + 1.0f ) * 2.0f;
         q.w = 0.25f * s;
         q.x = ( m.data[5] - m.data[7] ) / s;
         q.y = ( m.data[6] - m.data[2] ) / s;
@@ -2483,7 +2501,7 @@ msh_mat3_to_quat( msh_mat3_t m )
     }
     else if ( ( m.data[0] > m.data[4]) && (m.data[0] > m.data[8] ) )
     {
-        msh_scalar_t s = sqrtf( 1.0f + m.data[0] - m.data[4] - m.data[8]) * 2.0f;
+        msh_scalar_t s = MSHVM_SQRT( 1.0f + m.data[0] - m.data[4] - m.data[8]) * 2.0f;
         q.w = ( m.data[5] - m.data[7] ) / s;
         q.x = 0.25f * s;
         q.y = ( m.data[3] + m.data[1] ) / s;
@@ -2491,7 +2509,7 @@ msh_mat3_to_quat( msh_mat3_t m )
     }
     else if ( m.data[4] > m.data[8] )
     {
-        msh_scalar_t s = sqrtf( 1.0f + m.data[4] - m.data[0] - m.data[8]) * 2.0f;
+        msh_scalar_t s = MSHVM_SQRT( 1.0f + m.data[4] - m.data[0] - m.data[8]) * 2.0f;
         q.w = ( m.data[6] - m.data[2] ) / s;
         q.x = ( m.data[3] + m.data[1] ) / s;
         q.y = 0.25f * s;
@@ -2499,7 +2517,7 @@ msh_mat3_to_quat( msh_mat3_t m )
     }
     else
     {
-        msh_scalar_t s = sqrtf( 1.0f + m.data[8] - m.data[0] - m.data[4] ) * 2.0f;
+        msh_scalar_t s = MSHVM_SQRT( 1.0f + m.data[8] - m.data[0] - m.data[4] ) * 2.0f;
         q.w = ( m.data[1] - m.data[3] ) / s;
         q.x = ( m.data[6] + m.data[2] ) / s;
         q.y = ( m.data[7] + m.data[5] ) / s;

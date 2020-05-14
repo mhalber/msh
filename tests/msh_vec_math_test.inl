@@ -44,6 +44,8 @@ assert_equal_vec4( msh_vec4_t v, msh_scalar_t a, msh_scalar_t b, msh_scalar_t c,
 MunitResult
 test_msh_vec_math_vector_init( const MunitParameter params[], void* fixture )
 {
+  (void)fixture;
+  (void)params;
   msh_vec2_t v2; msh_vec3_t v3; msh_vec4_t v4;
   v2 = msh_vec2_zeros();
   v3 = msh_vec3_zeros();
@@ -123,6 +125,8 @@ test_msh_vec_math_vector_init( const MunitParameter params[], void* fixture )
 MunitResult
 test_msh_vec_math_vector_convert( const MunitParameter params[], void* fixture )
 {
+  (void)fixture;
+  (void)params;
   msh_vec2_t v2; msh_vec3_t v3; msh_vec4_t v4;
   v4 = msh_vec4( 1.0, 2.0, 3.0, 4.0 );
   v3 = msh_vec4_to_vec3( v4 );
@@ -138,6 +142,8 @@ test_msh_vec_math_vector_convert( const MunitParameter params[], void* fixture )
 MunitResult
 test_msh_vec_math_vector_arithmetic( const MunitParameter params[], void* fixture )
 {
+  (void)fixture;
+  (void)params;
   msh_scalar_t d = 2.0;
   msh_vec2_t a2, b2, c2;
   a2 = msh_vec2( 1.0, 2.0 );
