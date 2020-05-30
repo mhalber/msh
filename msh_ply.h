@@ -340,7 +340,7 @@ struct msh_ply_desc
   msh_ply_type_id_t list_type;
   void*             data;
   void*             list_data;
-  size_t*           data_count;
+  int32_t*           data_count;
   uint8_t           list_size_hint;
 };
 
@@ -436,7 +436,7 @@ struct msh_ply_property
 struct msh_ply_element
 {
   char name[64];
-  size_t count;
+  int32_t count;
   msh_ply_array( msh_ply_property_t ) properties;
   
   long file_anchor;
@@ -993,7 +993,7 @@ msh_ply__calculate_elem_size_binary(msh_ply_t* pf, msh_ply_element_t* el)
       }
       else
       {
-        size_t count = 1; 
+        int32_t count = 1; 
         double dummy_data[MSH_PLY_MAX_LIST_ELEMENTS] = {0};
 
         size_t read_count = fread( &count, pr->list_byte_size, 1, pf->_fp );
@@ -1360,7 +1360,7 @@ int32_t
 msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name, 
                                     const char** property_names, int32_t num_requested_properties, 
                                     msh_ply_type_id_t requested_type, msh_ply_type_id_t requested_list_type, 
-                                    void** data, void** list_data, size_t *data_count )
+                                    void** data, void** list_data, int32_t *data_count )
 {
   // TODO(maciej): Errors!
   int8_t swap_endianness = pf->format != MSH_PLY_ASCII ? (pf->_system_format != pf->format) : 0;
@@ -1743,7 +1743,7 @@ msh_ply__add_property_to_element( msh_ply_t* pf, const char* element_name,
                                   const char** property_names, int32_t num_properties,
                                   const msh_ply_type_id_t data_type, const msh_ply_type_id_t list_type, 
                                   void** data, void** list_data, 
-                                  size_t element_count, int32_t size_hint )
+                                  int32_t element_count, int32_t size_hint )
 {
   // Check if list type is integral type
   if( list_type == MSH_PLY_FLOAT || list_type == MSH_PLY_DOUBLE )
@@ -1791,7 +1791,7 @@ msh_ply__add_property_to_element( msh_ply_t* pf, const char* element_name,
       if( pr.list_count == 0 ) // No hint was present
       {
         pr.total_byte_size = 0;
-        for( size_t j = 0; j < element_count; ++j )
+        for( int32_t j = 0; j < element_count; ++j )
         {
           // NOTE(maciej): list type needs to be dereferenced to correct type
           int32_t offset = (pr.list_offset + j * pr.list_stride);
