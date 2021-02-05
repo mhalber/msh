@@ -1311,38 +1311,38 @@ msh_discrete_distribution_update( msh_discrete_distrib_t* ctx, double* weights, 
         else                     { n_small++; }
     }
     
-    int32_t *large = (int32_t*)(data + (ctx->n_weights * sizeof(double)));
-    int32_t *small = (int32_t*)(data + (ctx->n_weights * sizeof(double) + n_large * sizeof(uint32_t)));
+    int32_t *large_vals = (int32_t*)(data + (ctx->n_weights * sizeof(double)));
+    int32_t *small_vals = (int32_t*)(data + (ctx->n_weights * sizeof(double) + n_large * sizeof(uint32_t)));
     
     n_large = 0;
     n_small = 0;
     for( int32_t i = 0; i < ctx->n_weights; ++i )
     {
-        if( pdf[i] >= avg_prob ) { large[n_large++] = i; }
-        else                     { small[n_small++] = i; }
+        if( pdf[i] >= avg_prob ) { large_vals[n_large++] = i; }
+        else                     { small_vals[n_small++] = i; }
     }
     
     while( n_small > 0 && n_large > 0 )
     {
-        int32_t l = small[--n_small];
-        int32_t g = large[--n_large];
+        int32_t l = small_vals[--n_small];
+        int32_t g = large_vals[--n_large];
         
         ctx->prob[l] = pdf[l] * ctx->n_weights;
         ctx->alias[l] = g;
         
         pdf[g] = (pdf[g] + pdf[l]) - avg_prob;
-        if( pdf[g] >= avg_prob ) { large[n_large++] = g; }
-        else                     { small[n_small++] = g; }
+        if( pdf[g] >= avg_prob ) { large_vals[n_large++] = g; }
+        else                     { small_vals[n_small++] = g; }
     }
     
     while( n_small > 0 )
     {
-        int i = small[--n_small];
+        int i = small_vals[--n_small];
         ctx->prob[i] = 1.0;
     }
     while( n_large > 0 )
     {
-        int i = large[--n_large];
+        int i = large_vals[--n_large];
         ctx->prob[i] = 1.0;
     }
     

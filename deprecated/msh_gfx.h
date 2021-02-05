@@ -1921,7 +1921,7 @@ mshgfx_texture2d_update( mshgfx_texture2d_t *tex,
       internal_format = GL_RGBA;
       format = GL_RGB;
   }
-  //NOTE(maciej): Nasty workaround. Need to rethink how textures are handled! Workaround!
+  //NOTE(maciej): Nasty workaround. Need to rethink how textures are handled! 
   if(type == GL_DEPTH_COMPONENT)
   {
     glTexImage2D( GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,

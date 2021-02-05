@@ -12,7 +12,7 @@
   #define MSH_VEC_MATH_IMPLEMENTATION
   #include "msh_vec_math.h"
 
-  ==============================================================================
+  ==================================================================================================
   API DOCUMENTATION
   
   This library provides the utilites for creating and manipulating 2-4 dimentional
@@ -25,16 +25,20 @@
     msh_<entity><dimension>_t  msh_<entity><dimention>_<action>( operands...)
   
   Examples:
-    4d vector addition       : msh_vec4_t msh_vec4_add( msh_vec4_t vec_a, msh_vec4_t vec_b );
-    3d matrix multiplication : msh_mat3_t msh_mat3_mul( msh_mat4_t mat_a, msh_mat4_t mat_b );
+    4d vector addition       : msh_vec4_t msh_vec4_add(msh_vec4_t vec_a, msh_vec4_t vec_b);
+    3d matrix multiplication : msh_mat3_t msh_mat3_mul(msh_mat4_t mat_a, msh_mat4_t mat_b);
 
   If operands of the function don't have same type, following structure is used instead:
 
-    msh_<entity><dimension>_t return_value = msh_<entinty><dimension>_<entity><dimension>_>action( operands ...)
+    msh_<entity><dimension>_t return_value = 
+                    msh_<entity><dimension>_<entity><dimension>_>action(operands ...)
 
   Examples:
-    Vector-Scalar multiplication: msh_vec4_t vec_b = msh_vec4_scalar_mul( msh_vec4_t vec_a, msh_scalar_t scalar );
-    Matrix-Vector multiplication: msh_vec4_t vec_b = msh_mat4_vec4_mul( msh_mat4_t mat, msh_vec4_t vec_a );
+    Vector-Scalar multiplication: 
+      msh_vec4_t vec_b = msh_vec4_scalar_mul(msh_vec4_t vec_a, msh_scalar_t scalar);
+    
+    Matrix-Vector multiplication: 
+      msh_vec4_t vec_b = msh_mat4_vec4_mul(msh_mat4_t mat, msh_vec4_t vec_a);
 
   Special functions:
   -------------------
@@ -52,32 +56,37 @@
     OpenGL Helpers:
       Reimplementations of standard GLU procedures.
 
-        msh_mat4_t msh_perspective( msh_scalar_t fovy, msh_scalar_t aspect_raio, msh_scalar_t z_near, msh_scalar_t z_far );
+        msh_mat4_t msh_perspective(msh_scalar_t fovy, msh_scalar_t aspect_ratio, 
+                                   msh_scalar_t z_near, msh_scalar_t z_far);
         
-        msh_mat4_t msh_ortho(msh_scalar_t left, msh_scalar_t right, msh_scalar_t bottom, msh_scalar_t top, msh_scalar_t z_near, msh_scalar_t z_far );
+        msh_mat4_t msh_ortho(msh_scalar_t left, msh_scalar_t right, 
+                             msh_scalar_t bottom, msh_scalar_t top, 
+                             msh_scalar_t z_near, msh_scalar_t z_far);
         
-        msh_mat4_t msh_look_at( msh_vec3_t eye, msh_vec3_t center, msh_vec3_t up );
+        msh_mat4_t msh_look_at(msh_vec3_t eye, msh_vec3_t center, msh_vec3_t up);
 
-        msh_vec3_t msh_project( msh_vec4_t obj, msh_mat4_t model_matrix, msh_mat4_t projection_matrix, msh_vec4_t viewport );
+        msh_vec3_t msh_project(msh_vec4_t obj,
+                               msh_mat4_t model_matrix, 
+                               msh_mat4_t projection_matrix,
+                               msh_vec4_t viewport);
 
-        msh_vec4_t msh_unproject( msh_vec3_t win, msh_mat4_t model, msh_mat4_t project, msh_vec4_t viewport );
+        msh_vec4_t msh_unproject(msh_vec3_t win,
+                                 msh_mat4_t model,
+                                 msh_mat4_t project, 
+                                 msh_vec4_t viewport);
 
 
     Point/Normal transformation Helpers:
-      msh_mat4_vec3_mul
-      ------------------
+      msh_mat4_vec3_mul:
 
-        msh_vec3_t msh_mat4_vec3_mul( msh_mat4_t m, msh_vec3_t v, int32_t is_point );
+        msh_vec3_t msh_mat4_vec3_mul( msh_mat4_t m, msh_vec3_t v, int32_t is_point);
 
       Applies transformation described in 'm' to 'v'. For points 'is_point' should be true,
       for normals it should be false. This function is useful for applying transformations to
       mesh points and normals, without having to transform 3d points/vectors to 4d homogenous
       coordinates.
 
-      NOTE(maciej): Writing this it seems to me that the name of the function should be more explicit,
-      like msh_apply_xform( msh_mat4_t xform, msh_vec3_t v, int32_t is_point );
-
-  ==============================================================================
+  ==================================================================================================
   DEPENDENCIES
 
   This file requires following c stdlib headers:
@@ -97,10 +106,7 @@
 
   ==============================================================================
   TODOs:
-  [ ] Tests
   [ ] Make use of Per Vogsnen template idea?
-  [ ] Determine the effect of static inline on performance.
-  [ ] Fix x_equal functions. The epsilon comparison is apparently wrong.
   [ ] Normalize the quaternion after lerping!
 
   ==============================================================================
@@ -565,11 +571,9 @@ typedef double msh_scalar_t;
   MSHVMDEF void msh_vec3_print(msh_vec3_t v);
   MSHVMDEF void msh_vec4_print(msh_vec4_t v);
 
-  /*
-     * =============================================================================
-     *       MATRICES
-     * =============================================================================
-     */
+////////////////////////////////////////////////////////////////////////////////////////////////////
+//       MATRICES
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define msh_mat2_zeros()      \
   MSHVM_INIT_CAST(msh_mat2_t) \
@@ -744,11 +748,9 @@ typedef double msh_scalar_t;
   MSHVMDEF void msh_mat3_print(msh_mat3_t v);
   MSHVMDEF void msh_mat4_print(msh_mat4_t v);
 
-  /*
-     * =============================================================================
-     *       QUATERNIONS
-     * =============================================================================
-     */
+////////////////////////////////////////////////////////////////////////////////////////////////////
+//       QUATERNIONS
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define msh_quat_zeros()      \
   MSHVM_INIT_CAST(msh_quat_t) \
@@ -815,11 +817,10 @@ typedef double msh_scalar_t;
 }
 #endif
 
-/*
- * =============================================================================
- *       OPERATORS
- * =============================================================================
- */
+////////////////////////////////////////////////////////////////////////////////////////////////////
+//       OPERATORS
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 #ifdef __cplusplus
 MSHVMDEF msh_vec2_t operator+(msh_vec2_t a, msh_vec2_t b);
@@ -835,11 +836,9 @@ MSHVMDEF msh_vec4_t &operator+=(msh_vec4_t &a, msh_vec4_t &b);
 
 #ifdef MSH_VEC_MATH_IMPLEMENTATION
 
-/*
- * =============================================================================
- *       VECTOR IMPLEMENTATION
- * =============================================================================
- */
+////////////////////////////////////////////////////////////////////////////////////////////////////
+//       VECTOR IMPLEMENTATION
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 MSHVMDEF msh_vec2_t
 msh_vec3_to_vec2(msh_vec3_t v)
@@ -1387,11 +1386,9 @@ msh_vec4_t &operator+=(msh_vec4_t &a, msh_vec4_t &b)
 
 #endif
 
-/*
- * =============================================================================
- *       MATRIX IMPELEMENTATION
- * =============================================================================
- */
+////////////////////////////////////////////////////////////////////////////////////////////////////
+//       MATRIX IMPELEMENTATION
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 MSHVMDEF msh_mat2_t
 msh_mat3_to_mat2(msh_mat3_t m)
@@ -1935,7 +1932,7 @@ msh_mat2_determinant(msh_mat2_t m)
 MSHVMDEF msh_scalar_t
 msh_mat3_determinant(msh_mat3_t m)
 {
-  /* get required cofactors */
+  /* get the required cofactors */
   msh_scalar_t C[3];
   C[0] = m.data[4] * m.data[8] - m.data[5] * m.data[7];
   C[1] = m.data[5] * m.data[6] - m.data[3] * m.data[8]; /* negated */
@@ -2519,11 +2516,9 @@ msh_mat3_from_euler(msh_vec3_t euler_angles)
                                       cx * sy * cz + sx * sz, cx * sy * sz - sx * cz, cx * cy}};
 }
 
-/*
- * =============================================================================
- *       QUATERNION IMPLEMENTATION
- * =============================================================================
- */
+////////////////////////////////////////////////////////////////////////////////////////////////////
+//       QUATERNION IMPLEMENTATION
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 MSHVMDEF msh_quat_t
 msh_quat_from_axis_angle(msh_vec3_t axis, msh_scalar_t angle)
@@ -2858,11 +2853,9 @@ msh_mat4_equal(msh_mat4_t a, msh_mat4_t b)
   return result;
 }
 
-/*
- * =============================================================================
- *       DEBUG IMPLEMENTATION
- * =============================================================================
- */
+////////////////////////////////////////////////////////////////////////////////////////////////////
+//       DEBUG IMPLEMENTATION
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 MSHVMDEF void
 msh_vec2_fprint(msh_vec2_t v, FILE *stream)
