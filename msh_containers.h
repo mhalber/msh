@@ -54,7 +54,7 @@
 #ifndef MSH_CONTAINERS
 #define MSH_CONTAINERS
 
-#ifdef MSH_CONTAINERS_INCLUDE_HEADERS
+#ifdef MSH_CONTAINERS_INCLUDE_LIBC_HEADERS
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -78,8 +78,8 @@
 
 typedef struct msh_array_header
 {
-    size_t len;
-    size_t cap;
+  size_t len;
+  size_t cap;
 } msh_array_hdr_t;
 
 #define msh_array(T) T *
@@ -168,7 +168,7 @@ MSH_CONT_DEF void msh_dset_union(struct msh_dset *dset, uint64_t idx_a, uint64_t
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Heap for all basic numeric types using C11 Generics
-// Does not work in msvc sadly :<
+// TODO: check if works with new MSVC
 // Credits:
 //   Joerg Arndt, 'Matters Computational'
 ////////////////////////////////////////////////////////////////////////////////////////////////////

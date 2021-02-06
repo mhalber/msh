@@ -129,6 +129,7 @@
 
   ==============================================================================
   TODOs:
+    [ ] Parsing options from file
     [ ] Come up with a better example code
     [ ] Support for enums?
     [ ] Meta-variables
@@ -164,7 +165,7 @@
 extern "C" {
 #endif
 
-#ifdef MSH_ARGPARSE_INCLUDE_HEADERS
+#ifdef MSH_ARGPARSE_INCLUDE_LIBC_HEADERS
 #include <string.h>
 #include <ctype.h>
 #include <stdbool.h>
@@ -173,9 +174,9 @@ extern "C" {
 #endif
 
 #ifdef MSH_ARGPARSE_STATIC
-#define MSHAPDEF static
+#define MSH_AP_DEF static
 #else
-#define MSHAPDEF extern
+#define MSH_AP_DEF extern
 #endif
 
 typedef enum 
@@ -222,20 +223,20 @@ typedef struct msh_argparse
 } msh_argparse_t;
 
 
-MSHAPDEF void msh_ap_init( msh_argparse_t *argparse,
+MSH_AP_DEF void msh_ap_init( msh_argparse_t *argparse,
                           const char *program_name, 
                           const char *program_description );
 
-MSHAPDEF int msh_ap_parse( msh_argparse_t *argparse,
+MSH_AP_DEF int msh_ap_parse( msh_argparse_t *argparse,
                            int argc, 
                            char **argv );
 
-MSHAPDEF int msh_ap_display_help( msh_argparse_t *argparse );
+MSH_AP_DEF int msh_ap_display_help( msh_argparse_t *argparse );
 
 /* Argument addition function prototype.  */
 /* typename follows the convention of msh_typenames */
 #define MSH_AP_ADD_ARGUMENT(typename,val_t)                                      \
-  MSHAPDEF int msh_ap_add_##typename##_argument( msh_argparse_t *argparse,       \
+  MSH_AP_DEF int msh_ap_add_##typename##_argument( msh_argparse_t *argparse,       \
                                                  const char *name,               \
                                                  const char *shorthand,          \
                                                  const char *message,            \
@@ -549,7 +550,7 @@ msh_ap__parse_argument( msh_arg_t * arg,
 
 
 #define MSH_AP_ADD_ARGUMENT_IMPL(typename, val_t)                                 \
-  MSHAPDEF int                                                                    \
+  MSH_AP_DEF int                                                                    \
   msh_ap_add_##typename##_argument( msh_argparse_t * argparse,                    \
                                     const char * name,                            \
                                     const char * shorthand,                       \
@@ -635,7 +636,7 @@ MSH_AP_ADD_ARGUMENT_IMPL(double, double)
 MSH_AP_ADD_ARGUMENT_IMPL(string, char*)
 
 
-MSHAPDEF void
+MSH_AP_DEF void
 msh_ap_init( msh_argparse_t * argparse,
              const char * program_name,
              const char * program_description )
@@ -690,7 +691,7 @@ msh_ap_init( msh_argparse_t * argparse,
 
 }
 
-MSHAPDEF int
+MSH_AP_DEF int
 msh_ap_parse( msh_argparse_t * argparse,
               int argc, 
               char **argv )
@@ -744,7 +745,7 @@ msh_ap_parse( msh_argparse_t * argparse,
 }
 
 //NOTE(maciej): This assumes argparse->program description is valid null-terminated string
-MSHAPDEF int 
+MSH_AP_DEF int 
 msh_ap_display_help( msh_argparse_t *argparse )
 {
   printf("\n|%s\n", argparse->program_name );

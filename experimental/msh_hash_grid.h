@@ -129,8 +129,8 @@
   [ ] Compatibility function
     [ ] Allow user to specify compatibility function instead of just L2 norm
     [ ] Allow user to provide some extra user data like normals for computing the distances
-    [ ] Write ICP example + visualization to test this. Question how well that helps icp converge
-  [ ] Assert proof
+    [ ] Write ICP example + visualization to test this.
+  [ ] Add asserts
   [ ] Docs
   [x] Fix issue when _init function cannot be used if no implementation is declared.
   [x] Optimization - in both knn and radius I need a better way to determine whether I can early out
@@ -155,7 +155,7 @@
 #ifndef MSH_HASH_GRID_H
 #define MSH_HASH_GRID_H
 
-#if defined(MSH_HASH_GRID_INCLUDE_HEADERS)
+#if defined(MSH_HASH_GRID_INCLUDE_LIBC_HEADERS)
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
@@ -379,7 +379,8 @@ msh_hash_grid__bin_pt( const msh_hash_grid_t* hg, uint64_t ix, uint64_t iy, uint
   return bin_idx;
 }
 
-int uint64_compare( const void * a, const void * b )
+int32_t 
+msh_hash_grid__uint64_compare( const void * a, const void * b )
 {
   return ( *(uint64_t*)a - *(uint64_t*)b );
 }
@@ -509,7 +510,7 @@ msh_hash_grid__init( msh_hash_grid_t* hg,
       msh_array_push( filled_bin_indices, hg->bin_table->keys[i] - 1);
     }
   }
-  qsort( filled_bin_indices, msh_hg_array_len( filled_bin_indices ), sizeof(uint64_t), uint64_compare );
+  qsort( filled_bin_indices, msh_hg_array_len( filled_bin_indices ), sizeof(uint64_t), msh_hash_grid__uint64_compare );
 
   // Now lay the data into an array based on the sorted keys (following fill order)
   // TODO(maciej): Morton ordering?
@@ -574,7 +575,7 @@ msh_hash_grid_term( msh_hash_grid_t* hg )
 }
 
 
-// NOTE(maciej): This implementation is a special case modification of a templated
+// NOTE(maciej): This implementation is a specialized case modification of a templated
 // sort by Sean T. Barret from stb.h. We simply want to allow sorting both the indices
 // and distances if user requested returning sorted results.
 void
@@ -1224,6 +1225,7 @@ size_t msh_hash_grid_radius_search( const msh_hash_grid_t* hg,
             }
           }
         }
+        
 msh_hash_grid_lbl__find_neighbors:
         msh_hash_grid__sort( bin_dists_sq, bin_indices, n_visited_bins );
 
@@ -1292,8 +1294,9 @@ msh_hash_grid__add_bin_contents( const msh_hash_grid_t* hg, const uint64_t bin_i
   
 }
 
-size_t msh_hash_grid_knn_search( const msh_hash_grid_t* hg,
-                                 msh_hash_grid_search_desc_t* hg_sd )
+size_t 
+msh_hash_grid_knn_search( const msh_hash_grid_t* hg,
+                          msh_hash_grid_search_desc_t* hg_sd )
 {
   assert( hg_sd->query_pts );
   assert( hg_sd->distances_sq );

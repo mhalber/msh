@@ -140,7 +140,8 @@ extern "C"
 
 #ifdef MSH_CAMERA_IMPLEMENTATION
 
-void msh_camera_pan(msh_camera_t *cam, msh_vec2_t prev_pos, msh_vec2_t curr_pos)
+void 
+msh_camera_pan(msh_camera_t *cam, msh_vec2_t prev_pos, msh_vec2_t curr_pos)
 {
   float h = cam->viewport.w - cam->viewport.y;
   float x0 = prev_pos.x;
@@ -164,7 +165,8 @@ void msh_camera_pan(msh_camera_t *cam, msh_vec2_t prev_pos, msh_vec2_t curr_pos)
   cam->origin = msh_vec3_add(cam->origin, v);
 }
 
-void msh_camera_zoom(msh_camera_t *cam, float zoom_amount)
+void 
+msh_camera_zoom(msh_camera_t *cam, float zoom_amount)
 {
   float norm = msh_vec3_norm(cam->offset);
   float zoom_factor = (norm <= 2.0) ? 0.5f * norm : 1.0f;
@@ -174,14 +176,15 @@ void msh_camera_zoom(msh_camera_t *cam, float zoom_amount)
   cam->offset = msh_vec3_add(cam->offset, zoom_vec);
 }
 
-void msh_camera_move(msh_camera_t *cam, msh_vec3_t translation)
+void 
+msh_camera_move(msh_camera_t *cam, msh_vec3_t translation)
 {
   cam->origin = msh_vec3_add(cam->origin, translation);
 }
 
-void msh_camera_rotate(msh_camera_t *cam, msh_vec2_t prev_pos, msh_vec2_t curr_pos)
+void 
+msh_camera_rotate(msh_camera_t *cam, msh_vec2_t prev_pos, msh_vec2_t curr_pos)
 {
-#if 1
   float w = cam->viewport.z - cam->viewport.x;
   float h = cam->viewport.w - cam->viewport.y;
   float r = (w > h) ? h : w;
@@ -230,33 +233,10 @@ void msh_camera_rotate(msh_camera_t *cam, msh_vec2_t prev_pos, msh_vec2_t curr_p
   rot.re = msh_vec3_dot(p0, p1);
 
   cam->orientation = msh_quat_mul(cam->orientation, msh_quat_conjugate(rot));
-
-#elif 0 /* Accumulate yaw and pitch */
-  float x0 = prev_pos.x;
-  float y0 = prev_pos.y;
-  float x1 = curr_pos.x;
-  float y1 = curr_pos.y;
-  float xdiff = x0 - x1;
-  float ydiff = y0 - y1;
-  cam->yaw += msh_deg2rad(xdiff * 0.25);
-  cam->pitch += msh_deg2rad(ydiff * 0.25);
-  cam->orientation = msh_quat_from_euler_angles(cam->pitch, cam->yaw, 0.0);
-#elif 0 /* Yaw and pitch are not accumulated - just incremental angle with accumulation within the quaternion.*/
-  float x0 = prev_pos.x;
-  float y0 = prev_pos.y;
-  float x1 = curr_pos.x;
-  float y1 = curr_pos.y;
-  float xdiff = x0 - x1;
-  float ydiff = y0 - y1;
-  cam->yaw = msh_deg2rad(xdiff * 0.25);
-  cam->pitch = msh_deg2rad(ydiff * 0.25);
-  msh_quat_t qy = msh_quat_from_euler_angles(0, cam->yaw, 0);
-  msh_quat_t qp = msh_quat_from_euler_angles(cam->pitch, 0, 0);
-  cam->orientation = msh_quat_mul(qy, msh_quat_mul(cam->orientation, qp));
-#endif
 }
 
-void msh_camera_update_view(msh_camera_t *cam)
+void 
+msh_camera_update_view(msh_camera_t *cam)
 {
   msh_mat3_t orientation = msh_quat_to_mat3(cam->orientation);
   msh_vec3_t rot_offset = msh_mat3_vec3_mul(orientation, cam->offset);
@@ -266,7 +246,8 @@ void msh_camera_update_view(msh_camera_t *cam)
   cam->view = msh_mat4_se3_inverse(inv_view);
 }
 
-void msh_camera_update_proj(msh_camera_t *cam)
+void 
+msh_camera_update_proj(msh_camera_t *cam)
 {
   float w = cam->viewport.z - cam->viewport.x;
   float h = cam->viewport.w - cam->viewport.y;
@@ -284,7 +265,8 @@ void msh_camera_update_proj(msh_camera_t *cam)
   }
 }
 
-void msh_camera_update(msh_camera_t *cam)
+void 
+msh_camera_update(msh_camera_t *cam)
 {
   msh_camera_update_view(cam);
   msh_camera_update_proj(cam);

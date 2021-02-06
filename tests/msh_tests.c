@@ -18,7 +18,7 @@
 #include "tests/msh_argparse_test.inl"
 
 
-int
+int32_t
 main(int argc, char* const argv[MUNIT_ARRAY_PARAM(argc + 1)])
 {
   MunitTest argparse_tests[] =
