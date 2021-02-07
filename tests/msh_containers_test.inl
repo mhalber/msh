@@ -348,6 +348,5 @@ test_msh_disjoint_set_api(const MunitParameter params[], void* fixture)
   munit_assert_uint64( dset.num_sets, ==, 0 );
   munit_assert_ptr_null( dset.elems );
 
-
   return MUNIT_OK;
 }

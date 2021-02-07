@@ -816,9 +816,9 @@ msh_create_directory(const char* folder)
 MSH_STD_DEF void
 msh_sleep(uint64_t ms) {
 #if MSH_PLATFORM_WINDOWS
-    Sleep((DWORD)ms);
-#elif MSH_PLATFORM_LINUX || MSH_PLATFORM_MACOS
-    usleep(1000 * ms);
+  Sleep((DWORD)ms);
+#elif MSH_PLATFORM_POSIX
+  usleep(1000 * ms);
 #endif
 }
 
@@ -828,7 +828,7 @@ msh_rdtsc()
 {
 #if MSH_PLATFORM_WINDOWS
     return __rdtsc();
-#elif MSH_PLATFORM_LINUX || MSH_PLATFORM_MACOS
+#elif MSH_PLATFORM_POSIX
     /* From:
        https://stackoverflow.com/questions/9887839/how-to-count-clock-cycles-with-rdtsc-in-gcc-x86
     */

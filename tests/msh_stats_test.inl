@@ -29,8 +29,8 @@ test_msh_discrete_distrib_sampling( const MunitParameter params[], void* fixture
     counts[i] = 0;
   }
   weights[8] = 1;
+
   msh_discrete_distribution_update( &sampler, weights, msh_count_of(weights) );
-  n_samples = 10000;
   for( int32_t i = 0; i < n_samples; ++i )
   {
     int32_t sample = msh_discrete_distribution_sample( &sampler );
@@ -40,7 +40,5 @@ test_msh_discrete_distrib_sampling( const MunitParameter params[], void* fixture
 
   msh_discrete_distribution_free( &sampler );
   munit_assert_size( 0, ==, sampler.n_weights );
-
-
   return MUNIT_OK;
 }
