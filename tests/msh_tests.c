@@ -1,3 +1,6 @@
+// Compile with MSVC:
+//  cl -Fobin\ -Febin\msh_tests.exe -I . -I tests\munit\ -I tests\ tests\munit\munit.c tests\msh_tests.c 
+
 #define MSH_STD_INCLUDE_LIBC_HEADERS
 #define MSH_STD_IMPLEMENTATION
 #define MSH_VEC_MATH_IMPLEMENTATION
