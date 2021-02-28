@@ -122,8 +122,8 @@ typedef struct msh_camera
   /* Params */
   float fovy;
   float aspect_ratio;
-  real32_t znear;
-  real32_t zfar;
+  float znear;
+  float zfar;
 
   /* Generated -- Not sure if should be stored, or computed per request*/
   msh_mat4_t view;
@@ -403,4 +403,24 @@ msh_flythrough_camera( msh_camera_t *camera,
   camera->view.col[3].z = -inv_p.z;
   camera->view.col[3].w = 1.0f;
 }
+
+
+void msh_camera_ray_through_pixel(msh_camera_t *camera, msh_vec4_t viewport, msh_vec2_t p, msh_vec3_t *origin, msh_vec3_t *direction)
+{
+  *origin = camera->position;
+  msh_mat4_t inv_v = msh_mat4_se3_inverse(camera->view);
+  msh_mat4_t inv_p = msh_mat4_inverse(camera->proj);
+
+  float clip_x = (2.0f * p.x) / viewport.z - 1.0f;
+  float clip_y = 1.0f - (2.0f * p.y) / viewport.w;
+ 
+  msh_vec4_t clip_coords = msh_vec4(clip_x, clip_y, 0.0f, 1.0f);
+
+  msh_vec4_t eye_ray_dir = msh_mat4_vec4_mul(inv_p, clip_coords);
+  eye_ray_dir.z = -1.0f;
+  eye_ray_dir.w = 0.0f;
+  msh_vec3_t world_ray_dir = msh_vec4_to_vec3(msh_mat4_vec4_mul(inv_v, eye_ray_dir));
+  *direction = msh_vec3_normalize(world_ray_dir);
+}
+
 #endif

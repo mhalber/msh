@@ -443,7 +443,7 @@ MSH_STD_DEF int      msh_rand_range(msh_rand_ctx_t* pcg, int min, int max);
 #define MSH_I64_MAX 0x7fffffffffffffffll
 
 #define MSH_F32_MIN 1.17549435e-38f
-#define MSH_F32_MAX 3.40282347e+38f
+#define MSH_F32_MAX 1.70141183e+38f
 
 #define MSH_F64_MIN 2.2250738585072014e-308
 #define MSH_F64_MAX 1.7976931348623157e+308

@@ -393,7 +393,7 @@ MSH_PLY_DEF int32_t             msh_ply_write( msh_ply_t* pf );
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// THIS IS A SIMPLIFIED VERSION OF MSH_STD_ARRAY
+// THIS IS A SIMPLIFIED VERSION OF MSH_ARRAY
 
 #ifdef __cplusplus
 extern "C" {
@@ -501,7 +501,8 @@ enum msh_ply_err
   MSH_PLY_INVALID_LIST_TYPE_ERR = 23,
   MSH_PLY_ASCII_FILE_READ_ERR = 24,
   MSH_PLY_ASCII_FILE_EOF_ERR = 25,
-  MSH_PLY_REQUIRED_PROPERTY_IS_MISSING = 26,
+  MSH_PLY_READ_REQUIRED_PROPERTY_IS_MISSING = 26,
+  MSH_PLY_WRITE_REQUIRED_PROPERTY_IS_MISSING = 27,
   MSH_PLY_NUM_OF_ERRORS
 };
 
@@ -532,7 +533,8 @@ static const char* msh_ply_error_msgs[MSH_PLY_NUM_OF_ERRORS] = {
   "MSH_PLY: Invalid descriptor: Incorrect list type. List type cannot be float or double.",
   "MSH_PLY: Error reading ASCII PLY file.",
   "MSH_PLY: Reached EOF when reading ASCII PLY file."
-  "MSH_PLY: Required property not found in the input file"
+  "MSH_PLY: When reading file, the required property not found in the input file",
+  "MSH_PLY: When write file, the required property not found in the input file",
 };
 
 MSH_PLY_DEF const char* 

@@ -194,7 +194,7 @@ mshgeo_pts2d_centroid( msh_vec2_t* pts, size_t n_pts )
   {
     c = msh_vec2_add( c, pts[i] );
   }
-  c = msh_vec2_scalar_div( c, (real32_t)n_pts );
+  c = msh_vec2_scalar_div( c, (float)n_pts );
   return c;
 }
 
@@ -248,7 +248,7 @@ mshgeo_pts3d_centroid( msh_vec3_t* pts, size_t n_pts )
   {
     c = msh_vec3_add( c, pts[i] );
   }
-  c = msh_vec3_scalar_div( c, (real32_t)n_pts );
+  c = msh_vec3_scalar_div( c, (float)n_pts );
   return c;
 }
 
@@ -396,11 +396,11 @@ mshgeo_ray_aabb_test( const msh_ray_t* ray, const msh_aabb_t* box )
   msh_vec3_t d = msh_vec3_sub( p1, m );
   m =  msh_vec3_sub( m, c );
 
-  real32_t adx = fabs( d.x );
+  float adx = fabs( d.x );
   if( abs(m.x) > e.x + adx ) { return 0; }
-  real32_t ady = fabs( d.y );
+  float ady = fabs( d.y );
   if( abs(m.y) > e.y + ady ) { return 0; }
-  real32_t adz = fabs( d.z );
+  float adz = fabs( d.z );
   if( abs(m.z) > e.z + adz ) { return 0; }
 
   adx += MSHGEO_EPSILON; ady += MSHGEO_EPSILON; adz += MSHGEO_EPSILON;
@@ -445,10 +445,10 @@ mshgeo_ray_aabb_intersects( const msh_ray_t* ray,
   return 1;
 }
 
-MSHGEODEF real32_t
+MSHGEODEF float
 mshgeo_point_aabb_dist_sq( const msh_vec3_t* p, const msh_aabb_t* b )
 {
-  real32_t dist_sq = 0.0f;
+  float dist_sq = 0.0f;
 
   // For each axis count any excess distance outside box extents 
   if( p->x < b->min_pt.x) { dist_sq += (b->min_pt.x - p->x) * (b->min_pt.x - p->x); }
@@ -466,7 +466,7 @@ mshgeo_point_aabb_dist_sq( const msh_vec3_t* p, const msh_aabb_t* b )
 MSHGEODEF uint8_t
 mshgeo_sphere_aabb_test( const msh_sphere_t* sphere, const msh_aabb_t* box )
 {
-  real32_t dist_sq = mshgeo_point_aabb_dist_sq( &sphere->center, box );
+  float dist_sq = mshgeo_point_aabb_dist_sq( &sphere->center, box );
   return ( dist_sq <= sphere->radius * sphere->radius );
 }
 
@@ -474,7 +474,7 @@ MSHGEODEF int
 mshgeo_sphere_triangle_test_approx( const msh_sphere_t* sphere, 
                                     const msh_vec3_t* a, const msh_vec3_t* b, const msh_vec3_t* c )
 {
-  real32_t rsq = sphere->radius * sphere->radius;
+  float rsq = sphere->radius * sphere->radius;
   if( msh_vec3_norm_sq( msh_vec3_sub( sphere->center, *a ) ) < rsq ) { return 1; }
   if( msh_vec3_norm_sq( msh_vec3_sub( sphere->center, *b ) ) < rsq ) { return 1; }
   if( msh_vec3_norm_sq( msh_vec3_sub( sphere->center, *c ) ) < rsq ) { return 1; }
@@ -489,45 +489,45 @@ mshgeo_point_triangle_closest_point( const msh_vec3_t* p,
   msh_vec3_t ab = msh_vec3_sub( *b, *a );
   msh_vec3_t ac = msh_vec3_sub( *c, *a );
   msh_vec3_t ap = msh_vec3_sub( *p, *a );
-  real32_t d1 = msh_vec3_dot( ab, ap );
-  real32_t d2 = msh_vec3_dot( ac, ap );
+  float d1 = msh_vec3_dot( ab, ap );
+  float d2 = msh_vec3_dot( ac, ap );
   if( d1 <= 0.0f && d2 <= 0.0f ) { return *a; }
 
   msh_vec3_t bp = msh_vec3_sub( *p, *b );
-  real32_t d3 = msh_vec3_dot( ab, bp );
-  real32_t d4 = msh_vec3_dot( ac, bp );
+  float d3 = msh_vec3_dot( ab, bp );
+  float d4 = msh_vec3_dot( ac, bp );
   if( d3 >= 0.0f && d4 <= d3 ) { return *b; }
 
-  real32_t vc = d1*d4 - d3*d2;
+  float vc = d1*d4 - d3*d2;
   if( vc <= 0.0f && d1 >= 0.0f && d3 <= 0.0f )
   {
-    real32_t v = d1 / (d1 - d3);
+    float v = d1 / (d1 - d3);
     return msh_vec3_add( *a, msh_vec3_scalar_mul( ab, v ) );
   }
 
   msh_vec3_t cp = msh_vec3_sub( *p, *c );
-  real32_t d5 = msh_vec3_dot( ab, cp );
-  real32_t d6 = msh_vec3_dot( ab, cp );
+  float d5 = msh_vec3_dot( ab, cp );
+  float d6 = msh_vec3_dot( ab, cp );
   if( d6 >= 0.0f && d5 <= d6 ) { return *c; }
 
-  real32_t vb = d5*d2 - d1*d6;
+  float vb = d5*d2 - d1*d6;
   if( vb <= 0.0f && d2 >= 0.0f && d6 <= 0.0f )
   {
-    real32_t w = d2 / (d2 - d6 );
+    float w = d2 / (d2 - d6 );
     return msh_vec3_add( *a, msh_vec3_scalar_mul( ac, w ) );
   }
 
-  real32_t va = d3*d6 - d5*d4;
+  float va = d3*d6 - d5*d4;
   if( va <= 0.0f && (d4 - d3) >= 0.0f && (d5 - d6) >= 0.0f )
   {
-    real32_t w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+    float w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
     msh_vec3_t bc =  msh_vec3_sub( *c, *b );
     return msh_vec3_add( *b , msh_vec3_scalar_mul( bc, w ) );
   }
 
-  real32_t denom = 1.0f / ( va + vb + vc );
-  real32_t v = vb * denom;
-  real32_t w = vc* denom;
+  float denom = 1.0f / ( va + vb + vc );
+  float v = vb * denom;
+  float w = vc* denom;
   return msh_vec3_add(*a, msh_vec3_add( msh_vec3_scalar_mul( ab, v ),
                                         msh_vec3_scalar_mul( ac, w ) ) );
 }
@@ -539,8 +539,8 @@ mshgeo_sphere_triangle_test( const msh_sphere_t* sphere,
   msh_vec3_t p = mshgeo_point_triangle_closest_point( &sphere->center, a, b, c );
 
   msh_vec3_t v      = msh_vec3_sub( p, sphere->center );
-  real64_t v_len_sq = msh_vec3_norm_sq( v );
-  real64_t r_sq     = sphere->radius * sphere->radius;
+  double v_len_sq = msh_vec3_norm_sq( v );
+  double r_sq     = sphere->radius * sphere->radius;
 
   return v_len_sq < r_sq;
 }
@@ -562,7 +562,7 @@ mshgeo__aabb_tree_partition( msh_aabb_tree_t *tree,
     pointed by the pivot */
   uint32_t pivot = right[0];
   uint32_t *ind = &tree->tris[ pivot * 3 ];
-  real32_t split = tree->verts[ ind[0] ].data[ dim ];
+  float split = tree->verts[ ind[0] ].data[ dim ];
   split += tree->verts[ ind[1] ].data[ dim ];
   split += tree->verts[ ind[2] ].data[ dim ];
 
@@ -572,7 +572,7 @@ mshgeo__aabb_tree_partition( msh_aabb_tree_t *tree,
     /* Similarly look at all triangles in the current extends (left-right) and figure out how
        position of their first vertex along approperiate dimension compares to split */
     ind = &tree->tris[ (*i) * 3 ];
-    real32_t test = tree->verts[ ind[0] ].data[ dim ];
+    float test = tree->verts[ ind[0] ].data[ dim ];
     test += tree->verts[ ind[1] ].data[ dim ];
     test += tree->verts[ ind[2] ].data[ dim ];
 
@@ -704,7 +704,7 @@ typedef struct msh_ray_bvh_isect_info
 {
   uint32_t intersects;
   int32_t tri_idx;
-  real32_t u, v, w, t; /* TODO(maciej): Remove w */
+  float u, v, w, t; /* TODO(maciej): Remove w */
 
   /* Debug info -> Maybe disable when NDEBUG flag is available? */
   int32_t n_nodes_visited;
@@ -760,8 +760,8 @@ mshgeo_ray_aabb_tree_intersect( const msh_ray_t* ray, const msh_aabb_tree_t* tre
         msh_vec3_t *v2   = tree->verts + tri[2];
 
         // Ray-triangle intersection
-        real32_t t = MSH_F32_MAX;
-        real32_t u, v, w;
+        float t = MSH_F32_MAX;
+        float u, v, w;
         uint8_t intersects = msh_ray_triangle_intersect( ray, *v0, *v1, *v2, &u, &v, &w, &t );
         if( intersects && t < isect_info->t )
         {

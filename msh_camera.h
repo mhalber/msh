@@ -306,7 +306,7 @@ void msh_camera_ray_through_pixel(msh_camera_t *camera, msh_vec2_t p, msh_vec3_t
   msh_mat4_t inv_v = msh_mat4_se3_inverse(camera->view);
   msh_mat4_t inv_p = msh_mat4_inverse(camera->proj);
 
-  float clip_x = (2.0f * p.x) / camera->viewport.w - 1.0f;
+  float clip_x = (2.0f * p.x) / camera->viewport.z - 1.0f;
   float clip_y = 1.0f - (2.0f * p.y) / camera->viewport.w;
   msh_vec4_t clip_coords = msh_vec4(clip_x, clip_y, 0.0f, 1.0f);
 

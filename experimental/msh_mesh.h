@@ -11,7 +11,6 @@ typedef union msh_simple_mesh_triange
   struct { uint32_t i0; uint32_t i1; uint32_t i2; };
 } msh_sm_tri_ind_t;
 
-
 typedef union msh_simple_mesh_rgba
 {
   uint8_t color[4];
@@ -34,6 +33,12 @@ typedef enum msh_indexed_mesh_error_codes
 {
   MSH_SIMPLE_MESH_NO_ERR,
   MSH_SIMPLE_MESH_INIT_FAILURE_ERR,
+  MSH_SIMPLE_MESH_MISSING_EXTENSION_ERR,
+  MSH_SIMPLE_MESH_FORMAT_NOT_SUPPORTED_ERR,
+  MSH_SIMPLE_MESH_PLY_MISSING_VERTEX_POSITION,
+  MSH_SIMPLE_MESH_FILE_NOT_FOUND_ERR,
+  MSH_SIMPLE_MESH_PLY_IN_ERR,
+  MSH_SIMPLE_MESH_PLY_OUT_ERR
 } msh_simple_mesh_error_t;
 
 int32_t
@@ -280,9 +285,8 @@ msh_simple_mesh_split_vertices( msh_simple_mesh_t* mesh )
 }
 
 
-#if 0
 #ifdef MSH_PLY
-#define MSH_IMESH__INIT_PLY_DESCRIPTORS()                                                             \
+#define MSH_SIMPLE_MESH__INIT_PLY_DESCRIPTORS()                                                             \
 descriptors[0] = (msh_ply_desc_t){ .element_name = "vertex",                                       \
                                    .property_names = (const char*[]){"x", "y", "z"},               \
                                    .num_properties = 3,      \
@@ -312,7 +316,7 @@ descriptors[3] = (msh_ply_desc_t){ .element_name = "face",      \
 #endif
 
 int32_t
-msh_imesh_load_ply( msh_imesh_t* mesh, const char* filename )
+msh_simple_mesh_load_ply( msh_simple_mesh_t* mesh, const char* filename )
 {
   assert( mesh );
   assert( !mesh->indices );
@@ -322,20 +326,20 @@ msh_imesh_load_ply( msh_imesh_t* mesh, const char* filename )
 
 #ifdef MSH_PLY
   msh_ply_desc_t descriptors[4] = {0};
-  MSH_IMESH__INIT_PLY_DESCRIPTORS();
+  MSH_SIMPLE_MESH__INIT_PLY_DESCRIPTORS();
   msh_ply_desc_t* vpos_desc = &descriptors[0];
   msh_ply_desc_t* vnor_desc = &descriptors[1];
   msh_ply_desc_t* vclr_desc = &descriptors[2];
   msh_ply_desc_t* find_desc = &descriptors[3];
   
-  int32_t msh_mesh_err           = MSH_IMESH_NO_ERR;
+  int32_t msh_mesh_err           = MSH_SIMPLE_MESH_NO_ERR;
   int32_t msh_ply_err            = MSH_PLY_NO_ERR;
   bool need_to_calculate_normals = false;
   bool need_to_init_color        = false;
   msh_ply_t* ply_file = msh_ply_open( filename, "rb" );
   if (!ply_file )
   {
-    msh_mesh_err = MSH_IMESH_FILE_NOT_FOUND_ERR; 
+    msh_mesh_err = MSH_SIMPLE_MESH_FILE_NOT_FOUND_ERR; 
     return msh_mesh_err;
   }
 
@@ -343,7 +347,7 @@ msh_imesh_load_ply( msh_imesh_t* mesh, const char* filename )
 
   if (!msh_ply_has_properties( ply_file, vpos_desc ) )
   {
-    msh_mesh_err = MSH_IMESH_PLY_MISSING_VERTEX_POSITION;
+    msh_mesh_err = MSH_SIMPLE_MESH_PLY_MISSING_VERTEX_POSITION;
     goto ply_io_failure;
   }
   else
@@ -387,33 +391,33 @@ msh_imesh_load_ply( msh_imesh_t* mesh, const char* filename )
 
   if (need_to_calculate_normals )
   {
-    msh_imesh_calculate_vertex_normals( mesh );
+    msh_simple_mesh_compute_vertex_normals( mesh );
   }
 
   if (need_to_init_color )
   {
-    mesh->colors = (msh_rgba_t*)malloc( mesh->n_vertices * sizeof(msh_rgba_t) );
+    mesh->colors = (msh_sm_rgba_t*)malloc( mesh->n_vertices * sizeof(msh_sm_rgba_t) );
     for( size_t i = 0; i < mesh->n_vertices; ++i)
     {
-      mesh->colors[i] = (msh_rgba_t){{ 255, 255, 255, 255 }};
+      mesh->colors[i] = (msh_sm_rgba_t){ .r = 255, .g = 255, .b = 255, .a = 255 };
     }
   }
 
 ply_io_failure:
   if (msh_ply_err )
   {
-    msh_eprintf( "%s\n", msh_ply_get_error_msg( msh_ply_err ) );
-    msh_mesh_err = MSH_IMESH_PLY_IN_ERR;
+    msh_eprintf( "%s\n", msh_ply_error_msg( msh_ply_err ) );
+    msh_mesh_err = MSH_SIMPLE_MESH_PLY_IN_ERR;
   }
   msh_ply_close( ply_file );
   return msh_mesh_err;
 #else
-  return MSH_IMESH_FORMAT_NOT_SUPPORTED_ERR;
+  return MSH_SIMPLE_MESH_FORMAT_NOT_SUPPORTED_ERR;
 #endif
 }
 
 int32_t
-msh_imesh_write_ply( msh_imesh_t* mesh, const char* filename )
+msh_simple_mesh_write_ply( msh_simple_mesh_t* mesh, const char* filename )
 {
   assert( mesh );
   assert( mesh->positions );
@@ -421,18 +425,18 @@ msh_imesh_write_ply( msh_imesh_t* mesh, const char* filename )
 
 #ifdef MSH_PLY
   msh_ply_desc_t descriptors[4] = {0};
-  MSH_IMESH__INIT_PLY_DESCRIPTORS();
+  MSH_SIMPLE_MESH__INIT_PLY_DESCRIPTORS();
   msh_ply_desc_t* vpos_desc = &descriptors[0];
   msh_ply_desc_t* vnor_desc = &descriptors[1];
   msh_ply_desc_t* vclr_desc = &descriptors[2];
   msh_ply_desc_t* find_desc = &descriptors[3];
-  int32_t msh_mesh_err           = MSH_IMESH_NO_ERR;
+  int32_t msh_mesh_err           = MSH_SIMPLE_MESH_NO_ERR;
   int32_t msh_ply_err            = MSH_PLY_NO_ERR;
 
   msh_ply_t* ply_file = msh_ply_open( filename, "wb" );
   if (!ply_file )
   {
-    msh_mesh_err = MSH_IMESH_FILE_NOT_FOUND_ERR; 
+    msh_mesh_err = MSH_SIMPLE_MESH_FILE_NOT_FOUND_ERR; 
     return msh_mesh_err;
   }
 
@@ -462,91 +466,90 @@ msh_imesh_write_ply( msh_imesh_t* mesh, const char* filename )
 ply_io_failure:
   if (msh_ply_err )
   {
-    msh_eprintf( "%s\n", msh_ply_get_error_msg( msh_ply_err ) );
-    msh_mesh_err = MSH_IMESH_PLY_OUT_ERR;
+    msh_eprintf( "%s\n", msh_ply_error_msg( msh_ply_err ) );
+    msh_mesh_err = MSH_SIMPLE_MESH_PLY_OUT_ERR;
   }
   msh_ply_close( ply_file );
   return msh_mesh_err;
 #else
-  return MSH_IMESH_FORMAT_NOT_SUPPORTED_ERR;
+  return MSH_SIMPLE_MESH_FORMAT_NOT_SUPPORTED_ERR;
 #endif
 }
 
 int32_t
-msh_imesh_load_obj( )
+msh_simple_mesh_load_obj( )
 {
 #ifdef MSH_OBJ
-  return MSH_IMESH_NO_ERR;
+  return MSH_SIMPLE_MESH_NO_ERR;
 #else
-  return MSH_IMESH_FORMAT_NOT_SUPPORTED_ERR;
+  return MSH_SIMPLE_MESH_FORMAT_NOT_SUPPORTED_ERR;
 #endif
 }
 
 int32_t
-msh_imesh_write_obj( )
+msh_simple_mesh_write_obj( )
 {
 #ifdef MSH_OBJ
-  return MSH_IMESH_NO_ERR;
+  return MSH_SIMPLE_MESH_NO_ERR;
 #else
-  return MSH_IMESH_FORMAT_NOT_SUPPORTED_ERR;
+  return MSH_SIMPLE_MESH_FORMAT_NOT_SUPPORTED_ERR;
 #endif
 }
 
 int32_t
-msh_imesh_load( msh_imesh_t* mesh, const char* filename )
+msh_simple_mesh_load( msh_simple_mesh_t* mesh, const char* filename )
 {
   char* ext = strrchr( filename, '.' );
-  if (!ext ) { return MSH_IMESH_MISSING_EXTENSION_ERR; }
+  if (!ext ) { return MSH_SIMPLE_MESH_MISSING_EXTENSION_ERR; }
 
-  int32_t err = MSH_IMESH_NO_ERR;
-  if (!strcmp( ext, ".ply" ) )      { err = msh_imesh_load_ply( mesh, filename ); }
-  else if (!strcmp( ext, ".obj" ) ) { err = msh_imesh_load_obj(); }
-  else { err = MSH_IMESH_FORMAT_NOT_SUPPORTED_ERR; }
+  int32_t err = MSH_SIMPLE_MESH_NO_ERR;
+  if (!strcmp( ext, ".ply" ) )      { err = msh_simple_mesh_load_ply( mesh, filename ); }
+  else if (!strcmp( ext, ".obj" ) ) { err = msh_simple_mesh_load_obj(); }
+  else { err = MSH_SIMPLE_MESH_FORMAT_NOT_SUPPORTED_ERR; }
 
   return err;
 }
 
 int32_t
-msh_imesh_write( msh_imesh_t* mesh, const char* filename )
+msh_simple_mesh_write( msh_simple_mesh_t* mesh, const char* filename )
 {
   char* ext = strrchr( filename, '.' );
-  if (!ext ) { return MSH_IMESH_MISSING_EXTENSION_ERR; }
+  if (!ext ) { return MSH_SIMPLE_MESH_MISSING_EXTENSION_ERR; }
 
-  int32_t err = MSH_IMESH_NO_ERR;
-  if (!strcmp( ext, ".ply" ) )      { err = msh_imesh_write_ply( mesh, filename ); }
-  else if (!strcmp( ext, ".obj" ) ) { err = msh_imesh_write_obj(); }
-  else { err = MSH_IMESH_FORMAT_NOT_SUPPORTED_ERR; }
+  int32_t err = MSH_SIMPLE_MESH_NO_ERR;
+  if (!strcmp( ext, ".ply" ) )      { err = msh_simple_mesh_write_ply( mesh, filename ); }
+  else if (!strcmp( ext, ".obj" ) ) { err = msh_simple_mesh_write_obj(); }
+  else { err = MSH_SIMPLE_MESH_FORMAT_NOT_SUPPORTED_ERR; }
 
   return err;
 }
 
 char*
-msh_imesh_get_error_msg( int32_t error_code )
+msh_simple_mesh_error_msg( int32_t error_code )
 {
   switch( error_code )
   {
-    case MSH_IMESH_NO_ERR:
-      return "MSH_IMESH: No Errors";
-    case MSH_IMESH_INIT_FAILURE_ERR:
-      return "MSH_IMESH: Failed to initialize memory for indexed mesh";
-    case MSH_IMESH_MISSING_EXTENSION_ERR:
-      return "MSH_IMESH: Provided filename is missing an extension";
-    case MSH_IMESH_FORMAT_NOT_SUPPORTED_ERR:
-      return "MSH_IMESH: Provided format is not supported. Supported formats: .ply";
-    case MSH_IMESH_PLY_MISSING_VERTEX_POSITION:
-      return "MSH_IMESH: Ply file is missing vertex data!";
-    case MSH_IMESH_FILE_NOT_FOUND_ERR:
-      return "MSH_IMESH: Could not open mesh file!";
-    case MSH_IMESH_PLY_IN_ERR:
-      return "MSH_IMESH: Issue reading ply file!";
-    case MSH_IMESH_PLY_OUT_ERR:
-      return "MSH_IMESH: Issue writing ply file!";
+    case MSH_SIMPLE_MESH_NO_ERR:
+      return "MSH_SIMPLE_MESH: No Errors";
+    case MSH_SIMPLE_MESH_INIT_FAILURE_ERR:
+      return "MSH_SIMPLE_MESH: Failed to initialize memory for indexed mesh";
+    case MSH_SIMPLE_MESH_MISSING_EXTENSION_ERR:
+      return "MSH_SIMPLE_MESH: Provided filename is missing an extension";
+    case MSH_SIMPLE_MESH_FORMAT_NOT_SUPPORTED_ERR:
+      return "MSH_SIMPLE_MESH: Provided format is not supported. Supported formats: .ply";
+    case MSH_SIMPLE_MESH_PLY_MISSING_VERTEX_POSITION:
+      return "MSH_SIMPLE_MESH: Ply file is missing vertex data!";
+    case MSH_SIMPLE_MESH_FILE_NOT_FOUND_ERR:
+      return "MSH_SIMPLE_MESH: Could not open mesh file!";
+    case MSH_SIMPLE_MESH_PLY_IN_ERR:
+      return "MSH_SIMPLE_MESH: Issue reading ply file!";
+    case MSH_SIMPLE_MESH_PLY_OUT_ERR:
+      return "MSH_SIMPLE_MESH: Issue writing ply file!";
     default:
       return "No Errors";
   }
 }
 
-#endif
 
 #endif /*MSH_MESH*/
 

@@ -96,7 +96,7 @@ extern "C" {
 #include <stdint.h>
 #endif
 
-#include "glad/glad.h"
+#include "glad.h"
 
 #ifndef MSH_VEC_MATH
 
@@ -264,6 +264,7 @@ typedef struct mshgfx_geometry_data
 } mshgfx_geometry_data_t;
 
 typedef int32_t msh_geometry_properties_flags;
+
 typedef struct mshgfx_geometry
 {
   uint32_t vao;
