@@ -248,7 +248,7 @@
   [ ] Support buffering -> read data in chunks, then serve it out, rather than continuously fread.
   [ ] Add independence from c stdlib (like stdio etc.) -> Read from memory / Pass pointers to fopen?
   [ ] Better ascii support - check Vilya Harvey's miniply
-  [ ] Getting raw data for list property - add different function.
+  [ ] Getting raw data for the list property - Add different function.
   [ ] Check for duplicates in user-provided descriptor set.
   [ ] Writing optimization
     [ ] Profile lucy writing
@@ -942,7 +942,7 @@ msh_ply__calculate_elem_size_ascii(msh_ply_t* pf, msh_ply_element_t* el)
     char* cp_up  = &line[0];
     char* cp_low = &line[0];
 
-  for (size_t j = 0; j<msh_ply_array_len(el->properties); ++j)
+    for (size_t j = 0; j<msh_ply_array_len(el->properties); ++j)
     {
       msh_ply_property_t* pr = &el->properties[j];
       while( *cp_up != ' ' && *cp_up != '\n') { cp_up++; }
@@ -1153,7 +1153,7 @@ msh_ply_parse_contents( msh_ply_t* pf )
           if (!ret )
           {
             if (ferror(pf->_fp)) { return MSH_PLY_ASCII_FILE_READ_ERR; }
-            if (feof(pf->_fp) )   { return MSH_PLY_ASCII_FILE_EOF_ERR; }
+            if (feof(pf->_fp))   { return MSH_PLY_ASCII_FILE_EOF_ERR; }
           }
         }
       }
@@ -1162,7 +1162,7 @@ msh_ply_parse_contents( msh_ply_t* pf )
     {
       // There exists a list property. We need to calculate required size via pass through
       if (pf->format == MSH_PLY_ASCII) { err_code = msh_ply__calculate_elem_size_ascii(pf, el); }
-      else                              { err_code = msh_ply__calculate_elem_size_binary(pf, el); }
+      else                             { err_code = msh_ply__calculate_elem_size_binary(pf, el); }
     }
   }
 
@@ -1274,8 +1274,8 @@ msh_ply__get_element_data_ascii( msh_ply_t* pf, const msh_ply_element_t* el, voi
 #undef MSH_PLY_CONVERT_AND_ASSIGN
 
 MSH_PLY_PRIVATE int32_t
-msh_ply__get_element_data_binary( msh_ply_t* pf, const msh_ply_element_t* el, 
-                                   void** storage, size_t storage_size )
+msh_ply__get_element_data_binary(msh_ply_t* pf, const msh_ply_element_t* el, 
+                                 void** storage, size_t storage_size)
 {
   int32_t err_code = MSH_PLY_NO_ERR;
   fseek( pf->_fp, el->file_anchor, SEEK_SET );
@@ -1337,7 +1337,7 @@ msh_ply__get_properties_byte_size( msh_ply_element_t* el,
 MSH_PLY_PRIVATE void
 msh_ply__data_assign_cast( void* dst, void* src, int32_t type_dst, int32_t type_src, int32_t count )
 {
-  double data = 0;
+  static double data = 0;
   for (int32_t c = 0; c < count ; c++ )
   {
     switch( type_src )
@@ -1365,12 +1365,12 @@ msh_ply__data_assign_cast( void* dst, void* src, int32_t type_dst, int32_t type_
       case MSH_PLY_INT32:  *((int32_t*)(dst)+c)  = (int32_t)data;  break;
       case MSH_PLY_FLOAT:  *((float*)(dst)+c)    = (float)data;    break;
       case MSH_PLY_DOUBLE: *((double*)(dst)+c)   = (double)data;   break;
-      default:             *((uint8_t*)(dst)+c)  = (uint8_t)data;   break;
+      default:             *((uint8_t*)(dst)+c)  = (uint8_t)data;  break;
     }
   }
 }
 
-// TODO(maciej): This is gigantic function, can we break it down?
+// TODO(maciej): This is gigantic function, I should break it down
 MSH_PLY_PRIVATE int32_t
 msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name, 
                                     const char** property_names, int32_t num_requested_properties, 
@@ -1392,7 +1392,7 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
       int8_t can_simply_copy = 1;
       if (swap_endianness) { can_simply_copy = 0; }
       if (num_requested_properties != num_properties) { can_simply_copy = 0; }
-      if (can_simply_copy )
+      if (can_simply_copy)
       {
         for (int32_t i = 0; i < num_properties; ++i)
         {
@@ -1401,11 +1401,11 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
           const char* b = property_names[i];
           if (strcmp(a, b)) { can_simply_copy = 0; }
           if (pr->type != requested_type) { can_simply_copy = 0; }
-          if (pr->list_type != MSH_PLY_INVALID) { can_simply_copy = 0;}
+          if (pr->list_type != MSH_PLY_INVALID) { can_simply_copy = 0; }
         }
       }
 
-      if (can_simply_copy )
+      if (can_simply_copy)
       {
         msh_ply__get_element_size( el, &el->data_size );
         *data_count = el->count;
@@ -1414,7 +1414,8 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
         return MSH_PLY_NO_ERR;
       }
       
-      // If we can't simply copy the data, we will copy everything from the file and go with that.
+      // If we can't simply copy the data, we will copy everything from the file and parse that
+      // NOTE(maciej): Maybe this is a source of slowdown - possibly a huge read here
       msh_ply__get_element_size( el, &el->data_size );
       el->data = MSH_PLY_MALLOC( el->data_size ); 
       msh_ply__get_element_data( pf, el, &el->data, el->data_size ); 
@@ -1497,16 +1498,16 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
     int32_t precalc_dst_stride = 0;
 
     int32_t can_precalculate = msh_ply__can_precalculate_sizes( el );
-    if (can_precalculate )
+    if (can_precalculate)
     {
       // Determine data row sizes
       for (int32_t j = 0; j < num_properties; ++j)
       {
         msh_ply_property_t* pr = &el->properties[j];
     
-        if (requested_group_size[j] )
+        if (requested_group_size[j])
         {
-          if (pr->list_type == MSH_PLY_INVALID )
+          if (pr->list_type == MSH_PLY_INVALID)
           {
             precalc_dst_stride = requested_group_size[j] * requested_byte_size;
           }
@@ -1610,32 +1611,31 @@ msh_ply__get_property_from_element( msh_ply_t* pf, const char* element_name,
       }
    
       // TODO(maciej): Maybe make casting a separate function
-      if (need_cast )
+      if (need_cast)
       {
         for (int32_t j = 0; j < num_groups; ++j)
         {
           ply_property_read_helper_t* prh = &requested_properties[j];
-          if (dst_data )
+          if (dst_data)
           {
             void* dst_ptr = (dst_data + dst_offset);
             void* src_ptr = (src + prh->offset);
             msh_ply__data_assign_cast( dst_ptr, src_ptr, 
                                        requested_type, prh->type, prh->list_count );
-            // NOTE(maciej): Would need to make per property to enable swizzle
             dst_offset += dst_stride; 
-            if (swap_endianness ) 
+            if (swap_endianness) 
             {
               msh_ply__swap_bytes( (uint8_t*)dst_ptr, requested_byte_size, prh->list_count );
             }
           }
 
-          if (dst_list )
+          if (dst_list)
           {
             void* dst_ptr = (dst_list + dst_list_offset);
             void* src_ptr = (src + prh->list_offset);
             msh_ply__data_assign_cast( dst_ptr, src_ptr, requested_list_type, prh->list_type, 1 );
             dst_list_offset += requested_list_byte_size;
-            if (swap_endianness ) 
+            if (swap_endianness) 
             {
               msh_ply__swap_bytes( (uint8_t*)dst_ptr, requested_list_byte_size, 1 );
             }
@@ -2185,7 +2185,6 @@ msh_ply_print_header(msh_ply_t* pf)
 MSH_PLY_DEF msh_ply_t*
 msh_ply_open( const char* filename, const char* mode )
 {
-  // TODO(maciej): Add unrecognized modes.
   msh_ply_t *pf = NULL;
   if (mode[0] != 'r' && mode[0] != 'w' ) return NULL;
 
@@ -2205,7 +2204,7 @@ msh_ply_open( const char* filename, const char* mode )
     pf->_fp            = fp;
     pf->_parsed        = 0;
   
-    // endianness check
+    // Endianness check
     int32_t n = 1;
     if(*(char *)&n == 1) { pf->_system_format = MSH_PLY_LITTLE_ENDIAN; }
     else                 { pf->_system_format = MSH_PLY_BIG_ENDIAN; }

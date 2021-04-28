@@ -149,7 +149,7 @@ extern "C"
 #endif
 
 #ifndef MSH_VEC_MATH_DOUBLE_PRECISION
-  typedef float msh_scalar_t;
+typedef float msh_scalar_t;
 #define MSHVM_MIN(x, y) fminf((x), (y))
 #define MSHVM_MAX(x, y) fmaxf((x), (y))
 #define MSHVM_FABS(x) fabsf(x)
@@ -1908,7 +1908,7 @@ msh_mat4_scalar_div(msh_mat4_t m, msh_scalar_t s)
 MSHVMDEF msh_scalar_t
 msh_mat2_trace(msh_mat2_t m)
 {
-  return m.data[0] + m.data[2];
+  return m.data[0] + m.data[3];
 }
 
 MSHVMDEF msh_scalar_t
