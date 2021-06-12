@@ -3,7 +3,7 @@
   Licensing information can be found at the end of the file.
   ==============================================================================
 
-  MSH_VEC_MATH.H v0.81
+  MSH_VEC_MATH.H v0.82
 
   A single header library for a simple 2-4 dimensional vecto, quaternion and
   matrix operations.
@@ -26,9 +26,11 @@
     msh_<entity><dimension>_t  msh_<entity><dimention>_<action>( operands...)
 
   Examples:
-    4d vector addition       : msh_vec4_t msh_vec4_add(msh_vec4_t vec_a,
-  msh_vec4_t vec_b); 3d matrix multiplication : msh_mat3_t
-  msh_mat3_mul(msh_mat4_t mat_a, msh_mat4_t mat_b);
+    - 4d vector addition: 
+      msh_vec4_t msh_vec4_add(msh_vec4_t vec_a,msh_vec4_t vec_b); 
+
+    - 3d matrix multiplication : 
+      msh_mat3_t  msh_mat3_mul(msh_mat4_t mat_a, msh_mat4_t mat_b);
 
   If operands of the function don't have same type, following structure is used
   instead:
@@ -47,17 +49,16 @@
 
   Special functions:
   -------------------
-    Helper function for SE3( rigid body) transformations:
+    Helper function for SE3 (rigid body) transformations:
 
-      msh_mat4_t msh_pre_rotate( msh_mat4_t m, msh_scalar_t angle, msh_vec3_t
-  axis ) msh_mat4_t msh_post_rotate( msh_mat4_t m, msh_scalar_t angle,
-  msh_vec3_t axis )
+      msh_mat4_t msh_pre_rotate(msh_mat4_t m, msh_scalar_t angle, msh_vec3_t axis) 
+      msh_mat4_t msh_post_rotate(msh_mat4_t m, msh_scalar_t angle, msh_vec3_t axis)
 
-      msh_mat4_t msh_pre_translate( msh_mat4_t m, msh_vec3_t translation )
-      msh_mat4_t msh_post_translate( msh_mat4_t m, msh_vec3_t translation )
+      msh_mat4_t msh_pre_translate(msh_mat4_t m, msh_vec3_t translation)
+      msh_mat4_t msh_post_translate(msh_mat4_t m, msh_vec3_t translation)
 
-      msh_mat4_t msh_pre_scale( msh_mat4_t m, msh_vec3_t scale )
-      msh_mat4_t msh_post_scale( msh_mat4_t m, msh_vec3_t scale )
+      msh_mat4_t msh_pre_scale(msh_mat4_t m, msh_vec3_t scale)
+      msh_mat4_t msh_post_scale(msh_mat4_t m, msh_vec3_t scale)
 
     OpenGL Helpers:
       Reimplementations of standard GLU procedures.
@@ -69,8 +70,7 @@
                              msh_scalar_t bottom, msh_scalar_t top,
                              msh_scalar_t z_near, msh_scalar_t z_far);
 
-        msh_mat4_t msh_look_at(msh_vec3_t eye, msh_vec3_t center, msh_vec3_t
-  up);
+        msh_mat4_t msh_look_at(msh_vec3_t eye, msh_vec3_t center, msh_vec3_t up);
 
         msh_vec3_t msh_project(msh_vec4_t obj,
                                msh_mat4_t model_matrix,
@@ -82,12 +82,10 @@
                                  msh_mat4_t project,
                                  msh_vec4_t viewport);
 
-
     Point/Normal transformation Helpers:
       msh_mat4_vec3_mul:
 
-        msh_vec3_t msh_mat4_vec3_mul( msh_mat4_t m, msh_vec3_t v, int32_t
-  is_point);
+        msh_vec3_t msh_mat4_vec3_mul( msh_mat4_t m, msh_vec3_t v, int32_t  is_point);
 
       Applies transformation described in 'm' to 'v'. For points 'is_point'
   should be true, for normals it should be false. This function is useful for
@@ -100,7 +98,7 @@
   This file requires following c stdlib headers:
     - <float.h>  -- FLT_EPSILON
     - <math.h>   -- transcendental functions, fmin, fmax
-    - <stdio.h>  -- fprintf, printf
+    - <stdio.h>  -- (optional) fprintf, printf
 
   Note that this file will not pull them in. This is to prevent pulling the same
   files multiple times, especially within single compilation unit.
@@ -116,7 +114,6 @@
   ==============================================================================
   TODOs:
   [ ] Make use of Per Vogsnen template idea?
-  [ ] Normalize the quaternion after lerping!
 
   ==============================================================================
   REFERENCES:
@@ -181,7 +178,6 @@ typedef double msh_scalar_t;
 
 typedef union vec2
 {
-  msh_scalar_t data[2];
   struct
   {
     msh_scalar_t x;
@@ -192,11 +188,11 @@ typedef union vec2
     msh_scalar_t r;
     msh_scalar_t g;
   };
+  msh_scalar_t data[2];
 } msh_vec2_t;
 
 typedef union vec3
 {
-  msh_scalar_t data[3];
   struct
   {
     msh_scalar_t x;
@@ -209,11 +205,11 @@ typedef union vec3
     msh_scalar_t g;
     msh_scalar_t b;
   };
+  msh_scalar_t data[3];
 } msh_vec3_t;
 
 typedef union vec4
 {
-  msh_scalar_t data[4];
   struct
   {
     msh_scalar_t x;
@@ -228,6 +224,7 @@ typedef union vec4
     msh_scalar_t b;
     msh_scalar_t a;
   };
+  msh_scalar_t data[4];
 } msh_vec4_t;
 
 typedef union quaternion
@@ -262,242 +259,57 @@ typedef union mat4
   msh_vec4_t col[4];
 } msh_mat4_t;
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 //       VECTORS
-////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
-// NOTE(maciej): CPP mode in MSVC is wierd, boy
 #if defined(__cplusplus) && defined(_MSC_VER)
-#define MSHVM_INIT_CAST(x) x
+#define MSHVM_INIT_CAST(x)
 #else
 #define MSHVM_INIT_CAST(x) (x)
 #endif
 
-#define msh_vec2_zeros()                                                       \
-  MSHVM_INIT_CAST(msh_vec2_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      0, 0                                                                     \
-    }                                                                          \
-  }
-#define msh_vec3_zeros()                                                       \
-  MSHVM_INIT_CAST(msh_vec3_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      0, 0, 0                                                                  \
-    }                                                                          \
-  }
-#define msh_vec4_zeros()                                                       \
-  MSHVM_INIT_CAST(msh_vec4_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      0, 0, 0, 0                                                               \
-    }                                                                          \
-  }
-#define msh_vec2_ones()                                                        \
-  MSHVM_INIT_CAST(msh_vec2_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      1, 1                                                                     \
-    }                                                                          \
-  }
-#define msh_vec3_ones()                                                        \
-  MSHVM_INIT_CAST(msh_vec3_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      1, 1, 1                                                                  \
-    }                                                                          \
-  }
-#define msh_vec4_ones()                                                        \
-  MSHVM_INIT_CAST(msh_vec4_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      1, 1, 1, 1                                                               \
-    }                                                                          \
-  }
-#define msh_vec2_value(x)                                                      \
-  MSHVM_INIT_CAST(msh_vec2_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      x, x                                                                     \
-    }                                                                          \
-  }
-#define msh_vec3_value(x)                                                      \
-  MSHVM_INIT_CAST(msh_vec3_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      x, x, x                                                                  \
-    }                                                                          \
-  }
-#define msh_vec4_value(x)                                                      \
-  MSHVM_INIT_CAST(msh_vec4_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      x, x, x, x                                                               \
-    }                                                                          \
-  }
-#define msh_vec2(x, y)                                                         \
-  MSHVM_INIT_CAST(msh_vec2_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      x, y                                                                     \
-    }                                                                          \
-  }
-#define msh_vec3(x, y, z)                                                      \
-  MSHVM_INIT_CAST(msh_vec3_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      x, y, z                                                                  \
-    }                                                                          \
-  }
-#define msh_vec4(x, y, z, w)                                                   \
-  MSHVM_INIT_CAST(msh_vec4_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      x, y, z, w                                                               \
-    }                                                                          \
-  }
+// clang-format off
+#define msh_vec2_zeros() MSHVM_INIT_CAST(msh_vec2_t){{0, 0}}
+#define msh_vec3_zeros() MSHVM_INIT_CAST(msh_vec3_t){{0, 0, 0}}
+#define msh_vec4_zeros() MSHVM_INIT_CAST(msh_vec4_t){{0, 0, 0, 0}}
+#define msh_vec2_ones() MSHVM_INIT_CAST(msh_vec2_t){{1, 1}}
+#define msh_vec3_ones() MSHVM_INIT_CAST(msh_vec3_t){{1, 1, 1}}
+#define msh_vec4_ones() MSHVM_INIT_CAST(msh_vec4_t){{1, 1, 1, 1}}
+#define msh_vec2_value(x)  MSHVM_INIT_CAST(msh_vec2_t){{x, x}}
+#define msh_vec3_value(x)  MSHVM_INIT_CAST(msh_vec3_t){{x, x, x}}
+#define msh_vec4_value(x)  MSHVM_INIT_CAST(msh_vec4_t){{x, x, x, x}}
+#define msh_vec2(x, y)  MSHVM_INIT_CAST(msh_vec2_t){{x, y}}
+#define msh_vec3(x, y, z)  MSHVM_INIT_CAST(msh_vec3_t){{x, y, z}}
+#define msh_vec4(x, y, z, w)  MSHVM_INIT_CAST(msh_vec4_t){{x, y, z, w}}
 
-#define msh_vec2_posx()                                                        \
-  MSHVM_INIT_CAST(msh_vec2_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      1, 0                                                                     \
-    }                                                                          \
-  }
-#define msh_vec3_posx()                                                        \
-  MSHVM_INIT_CAST(msh_vec3_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      1, 0, 0                                                                  \
-    }                                                                          \
-  }
-#define msh_vec4_posx()                                                        \
-  MSHVM_INIT_CAST(msh_vec4_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      1, 0, 0, 0                                                               \
-    }                                                                          \
-  }
-#define msh_vec2_posy()                                                        \
-  MSHVM_INIT_CAST(msh_vec2_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      0, 1                                                                     \
-    }                                                                          \
-  }
-#define msh_vec3_posy()                                                        \
-  MSHVM_INIT_CAST(msh_vec3_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      0, 1, 0                                                                  \
-    }                                                                          \
-  }
-#define msh_vec4_posy()                                                        \
-  MSHVM_INIT_CAST(msh_vec4_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      0, 1, 0, 0                                                               \
-    }                                                                          \
-  }
-#define msh_vec3_posz()                                                        \
-  MSHVM_INIT_CAST(msh_vec3_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      0, 0, 1                                                                  \
-    }                                                                          \
-  }
-#define msh_vec4_posz()                                                        \
-  MSHVM_INIT_CAST(msh_vec4_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      0, 0, 1, 0                                                               \
-    }                                                                          \
-  }
-#define msh_vec4_posw()                                                        \
-  MSHVM_INIT_CAST(msh_vec4_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      0, 0, 0, 1                                                               \
-    }                                                                          \
-  }
+#define msh_vec2_posx() MSHVM_INIT_CAST(msh_vec2_t){{1, 0}}
+#define msh_vec3_posx() MSHVM_INIT_CAST(msh_vec3_t){{1, 0, 0}}
+#define msh_vec4_posx() MSHVM_INIT_CAST(msh_vec4_t){{1, 0, 0, 0}}
+#define msh_vec2_posy() MSHVM_INIT_CAST(msh_vec2_t){{0, 1}}
+#define msh_vec3_posy() MSHVM_INIT_CAST(msh_vec3_t){{0, 1, 0}}
+#define msh_vec4_posy() MSHVM_INIT_CAST(msh_vec4_t){{0, 1, 0, 0}}
+#define msh_vec3_posz() MSHVM_INIT_CAST(msh_vec3_t){{0, 0, 1}}
+#define msh_vec4_posz() MSHVM_INIT_CAST(msh_vec4_t){{0, 0, 1, 0}}
+#define msh_vec4_posw() MSHVM_INIT_CAST(msh_vec4_t){{0, 0, 0, 1}}
 
-#define msh_vec2_negx()                                                        \
-  MSHVM_INIT_CAST(msh_vec2_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      -1, 0                                                                    \
-    }                                                                          \
-  }
-#define msh_vec3_negx()                                                        \
-  MSHVM_INIT_CAST(msh_vec3_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      -1, 0, 0                                                                 \
-    }                                                                          \
-  }
-#define msh_vec4_negx()                                                        \
-  MSHVM_INIT_CAST(msh_vec4_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      -1, 0, 0, 0                                                              \
-    }                                                                          \
-  }
-#define msh_vec2_negy()                                                        \
-  MSHVM_INIT_CAST(msh_vec2_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      0, -1                                                                    \
-    }                                                                          \
-  }
-#define msh_vec3_negy()                                                        \
-  MSHVM_INIT_CAST(msh_vec3_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      0, -1, 0                                                                 \
-    }                                                                          \
-  }
-#define msh_vec4_negy()                                                        \
-  MSHVM_INIT_CAST(msh_vec4_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      0, -1, 0, 0                                                              \
-    }                                                                          \
-  }
-#define msh_vec3_negz()                                                        \
-  MSHVM_INIT_CAST(msh_vec3_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      0, 0, -1                                                                 \
-    }                                                                          \
-  }
-#define msh_vec4_negz()                                                        \
-  MSHVM_INIT_CAST(msh_vec4_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      0, 0, -1, 0                                                              \
-    }                                                                          \
-  }
-#define msh_vec4_negw()                                                        \
-  MSHVM_INIT_CAST(msh_vec4_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      0, 0, 0, -1                                                              \
-    }                                                                          \
-  }
+#define msh_vec2_negx() MSHVM_INIT_CAST(msh_vec2_t){{-1, 0}}
+#define msh_vec3_negx() MSHVM_INIT_CAST(msh_vec3_t){{-1, 0, 0}}
+#define msh_vec4_negx() MSHVM_INIT_CAST(msh_vec4_t){{-1, 0, 0, 0}}
+#define msh_vec2_negy() MSHVM_INIT_CAST(msh_vec2_t){{0, -1}}
+#define msh_vec3_negy() MSHVM_INIT_CAST(msh_vec3_t){{0, -1, 0}}
+#define msh_vec4_negy() MSHVM_INIT_CAST(msh_vec4_t){{0, -1, 0, 0}}
+#define msh_vec3_negz() MSHVM_INIT_CAST(msh_vec3_t){{0, 0, -1}}
+#define msh_vec4_negz() MSHVM_INIT_CAST(msh_vec4_t){{0, 0, -1, 0}}
+#define msh_vec4_negw() MSHVM_INIT_CAST(msh_vec4_t){{0, 0, 0, -1}}
 
-MSHVMDEF msh_vec2_t msh_vec3_to_vec2(msh_vec3_t v);
-MSHVMDEF msh_vec2_t msh_vec4_to_vec2(msh_vec4_t v);
-MSHVMDEF msh_vec3_t msh_vec2_to_vec3(msh_vec2_t v);
-MSHVMDEF msh_vec3_t msh_vec4_to_vec3(msh_vec4_t v);
-MSHVMDEF msh_vec4_t msh_vec2_to_vec4(msh_vec2_t v);
-MSHVMDEF msh_vec4_t msh_vec3_to_vec4(msh_vec3_t v);
+#define msh_vec2_to_vec4(a, b, c) MSHVM_INIT_CAST(msh_vec4_t){{a.x, a.y, b, c}}
+#define msh_vec3_to_vec4(a, b) MSHVM_INIT_CAST(msh_vec4_t){{a.x, a.y, a.z, b}}
 
-MSHVMDEF msh_vec3_t msh_vec2_msh_scalar_to_vec3(msh_vec2_t v, msh_scalar_t s);
-MSHVMDEF msh_vec4_t msh_vec2_msh_scalar_to_vec4(msh_vec2_t v,
-                                                msh_scalar_t s0,
-                                                msh_scalar_t s1);
-MSHVMDEF msh_vec4_t msh_vec3_msh_scalar_to_vec4(msh_vec3_t v, msh_scalar_t s);
+#define msh_vec3_to_vec2(a) MSHVM_INIT_CAST(msh_vec2_t){{a.x, a.y}}
+#define msh_vec4_to_vec2(a) MSHVM_INIT_CAST(msh_vec2_t){{a.x, a.y}}
+#define msh_vec4_to_vec3(a) MSHVM_INIT_CAST(msh_vec3_t){{a.x, a.y, a.z}}
+// clang-format on
 
 MSHVMDEF msh_vec2_t msh_vec2_add(msh_vec2_t a, msh_vec2_t b);
 MSHVMDEF msh_vec3_t msh_vec3_add(msh_vec3_t a, msh_vec3_t b);
@@ -590,85 +402,36 @@ MSHVMDEF int msh_vec2_equal(msh_vec2_t a, msh_vec2_t b);
 MSHVMDEF int msh_vec3_equal(msh_vec3_t a, msh_vec3_t b);
 MSHVMDEF int msh_vec4_equal(msh_vec4_t a, msh_vec4_t b);
 
+#ifdef MSHVM_STDIO
 MSHVMDEF void msh_vec2_fprint(msh_vec2_t v, FILE* stream);
 MSHVMDEF void msh_vec3_fprint(msh_vec3_t v, FILE* stream);
 MSHVMDEF void msh_vec4_fprint(msh_vec4_t v, FILE* stream);
 MSHVMDEF void msh_vec2_print(msh_vec2_t v);
 MSHVMDEF void msh_vec3_print(msh_vec3_t v);
 MSHVMDEF void msh_vec4_print(msh_vec4_t v);
+#endif
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 //       MATRICES
-////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
-#define msh_mat2_zeros()                                                       \
-  MSHVM_INIT_CAST(msh_mat2_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      0, 0, 0, 0                                                               \
-    }                                                                          \
-  }
-#define msh_mat3_zeros()                                                       \
-  MSHVM_INIT_CAST(msh_mat3_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      0, 0, 0, 0, 0, 0, 0, 0, 0                                                \
-    }                                                                          \
-  }
-#define msh_mat4_zeros()                                                       \
-  MSHVM_INIT_CAST(msh_mat4_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0                           \
-    }                                                                          \
-  }
-#define msh_mat2_identity()                                                    \
-  MSHVM_INIT_CAST(msh_mat2_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      1, 0, 0, 1                                                               \
-    }                                                                          \
-  }
-#define msh_mat3_identity()                                                    \
-  MSHVM_INIT_CAST(msh_mat3_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      1, 0, 0, 0, 1, 0, 0, 0, 1                                                \
-    }                                                                          \
-  }
-#define msh_mat4_identity()                                                    \
-  MSHVM_INIT_CAST(msh_mat4_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1                           \
-    }                                                                          \
-  }
-#define msh_mat2_diag(x)                                                       \
-  MSHVM_INIT_CAST(msh_mat2_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      x, 0, 0, x                                                               \
-    }                                                                          \
-  }
-#define msh_mat3_diag(x)                                                       \
-  MSHVM_INIT_CAST(msh_mat3_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      x, 0, 0, 0, x, 0, 0, 0, x                                                \
-    }                                                                          \
-  }
-#define msh_mat4_diag(x)                                                       \
-  MSHVM_INIT_CAST(msh_mat4_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      x, 0, 0, 0, 0, x, 0, 0, 0, 0, x, 0, 0, 0, 0, x                           \
-    }                                                                          \
-  }
+// clang-format off
+#define msh_mat2_zeros() MSHVM_INIT_CAST(msh_mat2_t){{0, 0, 0, 0}}
+#define msh_mat3_zeros() MSHVM_INIT_CAST(msh_mat3_t){{0, 0, 0, 0, 0, 0, 0, 0, 0}}
+#define msh_mat4_zeros() MSHVM_INIT_CAST(msh_mat4_t){{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}
+#define msh_mat2_identity() MSHVM_INIT_CAST(msh_mat2_t){{1, 0, 0, 1}}
+#define msh_mat3_identity() MSHVM_INIT_CAST(msh_mat3_t){{1, 0, 0, 0, 1, 0, 0, 0, 1}}
+#define msh_mat4_identity() MSHVM_INIT_CAST(msh_mat4_t){{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}}
+#define msh_mat2_diag(x) MSHVM_INIT_CAST(msh_mat2_t){{x, 0, 0, x}}
+#define msh_mat3_diag(x) MSHVM_INIT_CAST(msh_mat3_t){{x, 0, 0, 0, x, 0, 0, 0, x}}
+#define msh_mat4_diag(x) MSHVM_INIT_CAST(msh_mat4_t){{x, 0, 0, 0, 0, x, 0, 0, 0, 0, x, 0, 0, 0, 0, x}}
+// clang-format on
 
 MSHVMDEF msh_mat2_t msh_mat3_to_mat2(msh_mat3_t m);
 MSHVMDEF msh_mat2_t msh_mat4_to_mat2(msh_mat4_t m);
-MSHVMDEF msh_mat3_t msh_mat2_to_mat3(msh_mat2_t m);
 MSHVMDEF msh_mat3_t msh_mat4_to_mat3(msh_mat4_t m);
+
+MSHVMDEF msh_mat3_t msh_mat2_to_mat3(msh_mat2_t m);
 MSHVMDEF msh_mat4_t msh_mat2_to_mat4(msh_mat2_t m);
 MSHVMDEF msh_mat4_t msh_mat3_to_mat4(msh_mat3_t m);
 
@@ -786,31 +549,15 @@ MSHVMDEF void msh_mat2_print(msh_mat2_t v);
 MSHVMDEF void msh_mat3_print(msh_mat3_t v);
 MSHVMDEF void msh_mat4_print(msh_mat4_t v);
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 //       QUATERNIONS
-////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
-#define msh_quat_zeros()                                                       \
-  MSHVM_INIT_CAST(msh_quat_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      0, 0, 0, 0                                                               \
-    }                                                                          \
-  }
-#define msh_quat_identity()                                                    \
-  MSHVM_INIT_CAST(msh_quat_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      0, 0, 0, 1                                                               \
-    }                                                                          \
-  }
-#define msh_quat(x, y, z, w)                                                   \
-  MSHVM_INIT_CAST(msh_quat_t)                                                  \
-  {                                                                            \
-    {                                                                          \
-      x, y, z, w                                                               \
-    }                                                                          \
-  }
+// clang-format off
+#define msh_quat_zeros() MSHVM_INIT_CAST(msh_quat_t){{0, 0, 0, 0}}
+#define msh_quat_identity() MSHVM_INIT_CAST(msh_quat_t){{0, 0, 0, 1}}
+#define msh_quat(x, y, z, w)  MSHVM_INIT_CAST(msh_quat_t){{x, y, z, w}}
+// clang-format on
 
 MSHVMDEF msh_quat_t msh_quat_from_axis_angle(msh_vec3_t axis,
                                              msh_scalar_t angle);
@@ -852,9 +599,9 @@ MSHVMDEF void msh_quat_print(msh_quat_t q);
 }
 #endif
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 //       OPERATORS
-////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 #ifdef __cplusplus
 MSHVMDEF msh_vec2_t operator+(msh_vec2_t a, msh_vec2_t b);
@@ -870,63 +617,9 @@ MSHVMDEF msh_vec4_t& operator+=(msh_vec4_t& a, msh_vec4_t& b);
 
 #ifdef MSH_VEC_MATH_IMPLEMENTATION
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 //       VECTOR IMPLEMENTATION
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-MSHVMDEF msh_vec2_t
-msh_vec3_to_vec2(msh_vec3_t v)
-{
-  return MSHVM_INIT_CAST(msh_vec2_t) {{v.x, v.y}};
-}
-
-MSHVMDEF msh_vec2_t
-msh_vec4_to_vec2(msh_vec4_t v)
-{
-  return MSHVM_INIT_CAST(msh_vec2_t) {{v.x, v.y}};
-}
-
-MSHVMDEF msh_vec3_t
-msh_vec2_to_vec3(msh_vec2_t v)
-{
-  return MSHVM_INIT_CAST(msh_vec3_t) {{v.x, v.y, 0.0f}};
-}
-
-MSHVMDEF msh_vec3_t
-msh_vec2_msh_scalar_to_vec3(msh_vec2_t v, msh_scalar_t s)
-{
-  return MSHVM_INIT_CAST(msh_vec3_t) {{v.x, v.y, s}};
-}
-
-MSHVMDEF msh_vec4_t
-msh_vec2_msh_scalar_to_vec4(msh_vec2_t v, msh_scalar_t s0, msh_scalar_t s1)
-{
-  return MSHVM_INIT_CAST(msh_vec4_t) {{v.x, v.y, s0, s1}};
-}
-
-MSHVMDEF msh_vec3_t
-msh_vec4_to_vec3(msh_vec4_t v)
-{
-  return MSHVM_INIT_CAST(msh_vec3_t) {{v.x, v.y, v.z}};
-}
-
-MSHVMDEF msh_vec4_t
-msh_vec2_to_vec4(msh_vec2_t v)
-{
-  return MSHVM_INIT_CAST(msh_vec4_t) {{v.x, v.y, 0.0f, 0.0f}};
-}
-
-MSHVMDEF msh_vec4_t
-msh_vec3_to_vec4(msh_vec3_t v)
-{
-  return MSHVM_INIT_CAST(msh_vec4_t) {{v.x, v.y, v.z, 0.0f}};
-}
-
-MSHVMDEF msh_vec4_t
-msh_vec3_msh_scalar_to_vec4(msh_vec3_t v, msh_scalar_t s)
-{
-  return MSHVM_INIT_CAST(msh_vec4_t) {{v.x, v.y, v.z, s}};
-}
+////////////////////////////////////////////////////////////////////////////////
 
 MSHVMDEF msh_vec2_t
 msh_vec2_add(msh_vec2_t a, msh_vec2_t b)
@@ -1419,9 +1112,9 @@ operator+=(msh_vec4_t& a, msh_vec4_t& b)
 
 #endif
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 //       MATRIX IMPELEMENTATION
-////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 MSHVMDEF msh_mat2_t
 msh_mat3_to_mat2(msh_mat3_t m)
@@ -2114,8 +1807,7 @@ msh_mat4_se3_inverse(msh_mat4_t m)
   m.col[3]     = msh_vec4(0.0f, 0.0f, 0.0f, 1.0f);
   m            = msh_mat4_transpose(m);
   t            = msh_vec3_invert(msh_mat4_vec3_mul(m, t, 0));
-  m.col[3]     = msh_vec3_to_vec4(t);
-  m.col[3].w   = 1.0f;
+  m.col[3]     = msh_vec3_to_vec4(t, 1.0f);
   return m;
 }
 
@@ -2606,9 +2298,9 @@ msh_mat3_from_euler(msh_vec3_t euler_angles)
                                        cx * cy}};
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 //       QUATERNION IMPLEMENTATION
-////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 MSHVMDEF msh_quat_t
 msh_quat_from_axis_angle(msh_vec3_t axis, msh_scalar_t angle)
@@ -2949,10 +2641,11 @@ msh_mat4_equal(msh_mat4_t a, msh_mat4_t b)
   return result;
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 //       DEBUG IMPLEMENTATION
-////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
+#ifdef MSHVM_STDIO
 MSHVMDEF void
 msh_vec2_fprint(msh_vec2_t v, FILE* stream)
 {
@@ -3073,6 +2766,7 @@ msh_mat4_print(msh_mat4_t m)
 {
   msh_mat4_fprint(m, stdout);
 }
+#endif
 
 #endif /* MSH_VEC_MATH_IMPLEMENTATION */
 
