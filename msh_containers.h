@@ -789,7 +789,7 @@ msh_dset_union(msh_dset_t* dset, uint64_t idx_a, uint64_t idx_b)
   if (root_a == root_b) { return; }
 
   // if not need to do union(by rank)
-  if (dset.elems[root_a].rank < dset.elems[root_b].rank)
+  if (dset->elems[root_a].rank < dset->elems[root_b].rank)
   {
     uint64_t tmp = root_a;
     root_a       = root_b;
