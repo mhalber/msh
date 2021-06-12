@@ -1,8 +1,8 @@
 
 /*
-  ==================================================================================================
+  ==============================================================================
   Licensing information can be found at the end of the file.
-  ==================================================================================================
+  ==============================================================================
   
   MSH_ARGPARSE.H v0.8
 
@@ -138,22 +138,21 @@
     [ ] C++ API?
  */
 
-
 #ifndef MSH_ARGPARSE
 #define MSH_ARGPARSE
 
 /* Default array length options. Adjust based on your needs. */
 
-#ifndef MSH_AP_MAX_NAME_LEN   /* Maximum string lengths for names */
-#define MSH_AP_MAX_NAME_LEN   64
+#ifndef MSH_AP_MAX_NAME_LEN /* Maximum string lengths for names */
+#define MSH_AP_MAX_NAME_LEN 64
 #endif
 
-#ifndef MSH_AP_MAX_STR_LEN   /* Maximum string length for descriptions */
-#define MSH_AP_MAX_STR_LEN   512
+#ifndef MSH_AP_MAX_STR_LEN /* Maximum string length for descriptions */
+#define MSH_AP_MAX_STR_LEN 512
 #endif
 
-#ifndef MSH_AP_MAX_N_ARGS   /* Maximum number of arguments one can add */
-#define MSH_AP_MAX_N_ARGS   100
+#ifndef MSH_AP_MAX_N_ARGS /* Maximum number of arguments one can add */
+#define MSH_AP_MAX_N_ARGS 100
 #endif
 
 /* If you're confident all your arguments are setup properly it is fine to 
@@ -179,7 +178,7 @@ extern "C" {
 #define MSH_AP_DEF extern
 #endif
 
-typedef enum 
+typedef enum
 {
   MSH_AP_BOOL,
   MSH_AP_CHAR,
@@ -198,9 +197,9 @@ typedef enum
 
 typedef struct msh_arg
 {
-  const char *name;
-  const char *shorthand;
-  const char *message;
+  const char* name;
+  const char* shorthand;
+  const char* message;
   int position;
   msh_type_t type;
   size_t num_vals;
@@ -209,64 +208,61 @@ typedef struct msh_arg
 
 typedef struct msh_argparse
 {
-  const char *program_name; 
-  const char *program_description;
+  const char* program_name;
+  const char* program_description;
 
-  msh_arg_t args[ MSH_AP_MAX_N_ARGS ];
+  msh_arg_t args[MSH_AP_MAX_N_ARGS];
   size_t n_args;
   size_t n_required;
   bool print_help;
   bool initialized;
 
-  char * typenames[ MSH_AP_N_TYPES ];
+  char* typenames[MSH_AP_N_TYPES];
 
 } msh_argparse_t;
 
+MSH_AP_DEF void msh_ap_init(msh_argparse_t* argparse,
+                            const char* program_name,
+                            const char* program_description);
 
-MSH_AP_DEF void msh_ap_init( msh_argparse_t *argparse,
-                          const char *program_name, 
-                          const char *program_description );
+MSH_AP_DEF int msh_ap_parse(msh_argparse_t* argparse, int argc, char** argv);
 
-MSH_AP_DEF int msh_ap_parse( msh_argparse_t *argparse,
-                           int argc, 
-                           char **argv );
-
-MSH_AP_DEF int msh_ap_display_help( msh_argparse_t *argparse );
+MSH_AP_DEF int msh_ap_display_help(msh_argparse_t* argparse);
 
 /* Argument addition function prototype.  */
 /* typename follows the convention of msh_typenames */
-#define MSH_AP_ADD_ARGUMENT(typename,val_t)                                      \
-  MSH_AP_DEF int msh_ap_add_##typename##_argument( msh_argparse_t *argparse,       \
-                                                 const char *name,               \
-                                                 const char *shorthand,          \
-                                                 const char *message,            \
-                                                 val_t *value,                   \
-                                                 const size_t num_vals  ); 
+#define MSH_AP_ADD_ARGUMENT(typename, val_t)                                   \
+  MSH_AP_DEF int msh_ap_add_##typename##_argument(msh_argparse_t* argparse,    \
+                                                  const char* name,            \
+                                                  const char* shorthand,       \
+                                                  const char* message,         \
+                                                  val_t* value,                \
+                                                  const size_t num_vals);
 
 /* msh_add_bool_argument(...) */
 MSH_AP_ADD_ARGUMENT(bool, bool)
 /* msh_add_char_argument(...) */
 MSH_AP_ADD_ARGUMENT(char, char)
 /* msh_add_unsigned_char_argument(...) */
-MSH_AP_ADD_ARGUMENT(unsigned_char, unsigned char)  
+MSH_AP_ADD_ARGUMENT(unsigned_char, unsigned char)
 /* msh_add_short_argument(...) */
 MSH_AP_ADD_ARGUMENT(short, short)
 /* msh_add_unsigned_short_argument(...) */
 MSH_AP_ADD_ARGUMENT(unsigned_short, unsigned short)
 /* msh_add_int_argument(...) */
-MSH_AP_ADD_ARGUMENT(int,int)
+MSH_AP_ADD_ARGUMENT(int, int)
 /* msh_add_unsigned_int_argument(...) */
 MSH_AP_ADD_ARGUMENT(unsigned_int, unsigned int)
 /* msh_add_long_argument(...) */
-MSH_AP_ADD_ARGUMENT(long,long)
+MSH_AP_ADD_ARGUMENT(long, long)
 /* msh_add_unsigned_long_argument(...) */
 MSH_AP_ADD_ARGUMENT(unsigned_long, unsigned long)
 /* msh_add_float_argument(...) */
-MSH_AP_ADD_ARGUMENT(float,float)
+MSH_AP_ADD_ARGUMENT(float, float)
 /* msh_add_double_argument(...) */
-MSH_AP_ADD_ARGUMENT(double,double)
+MSH_AP_ADD_ARGUMENT(double, double)
 /* msh_add_sting_argument(...) */
-MSH_AP_ADD_ARGUMENT(string,char*)
+MSH_AP_ADD_ARGUMENT(string, char*)
 
 #ifdef __cplusplus
 }
@@ -274,99 +270,98 @@ MSH_AP_ADD_ARGUMENT(string,char*)
 
 #endif /* MSH_ARGPARSE */
 
-/*
- * =============================================================================
- *       IMPLEMENTATION
- * =============================================================================
- */
+////////////////////////////////////////////////////////////////////////////////
+// IMPLEMENTATION
+////////////////////////////////////////////////////////////////////////////////
 #ifdef MSH_ARGPARSE_IMPLEMENTATION
 
-
-static int 
-msh_ap__arg_compare ( const void * data_a, const void * data_b )
+static int
+msh_ap__arg_compare(const void* data_a, const void* data_b)
 {
-  const msh_arg_t * arg_a = (const msh_arg_t *)data_a; 
-  const msh_arg_t * arg_b = (const msh_arg_t *)data_b;
+  const msh_arg_t* arg_a = (const msh_arg_t*)data_a;
+  const msh_arg_t* arg_b = (const msh_arg_t*)data_b;
 
-  if (  arg_a->position >= 0 && arg_b->position >= 0 )
+  if (arg_a->position >= 0 && arg_b->position >= 0)
   {
     return (arg_a->position - arg_b->position);
   }
 
-  if ( arg_a->position < 0 && arg_b->position < 0 ) 
+  if (arg_a->position < 0 && arg_b->position < 0)
   {
-    return strncmp( arg_a->name, arg_b->name, MSH_AP_MAX_NAME_LEN );
+    return strncmp(arg_a->name, arg_b->name, MSH_AP_MAX_NAME_LEN);
   }
 
-  if ( arg_a->position >= 0 && arg_b->position < 0 )
-  {
-    return -1;
-  }
-  
-  if ( arg_a->position < 0 &&  arg_b->position >= 0 ) 
-  {
-    return 1;
-  }
+  if (arg_a->position >= 0 && arg_b->position < 0) { return -1; }
+
+  if (arg_a->position < 0 && arg_b->position >= 0) { return 1; }
 
   return 0;
 }
 
 static int
-msh_ap__are_options_valid( const char * name, 
-                        const char * shorthand, 
-                        const char * message, 
-                        const void * values, 
-                        const msh_argparse_t *argparse )
+msh_ap__are_options_valid(const char* name,
+                          const char* shorthand,
+                          const char* message,
+                          const void* values,
+                          const msh_argparse_t* argparse)
 {
 #ifndef MSH_AP_NO_DEBUG
-  if ( argparse->n_args >= MSH_AP_MAX_N_ARGS )
+  if (argparse->n_args >= MSH_AP_MAX_N_ARGS)
   {
-    fprintf(stderr, "Argparse Error: Reached maxiumum numbers of arguments!\n"
-                    "Did not add argument %s\n"
-                    "Please modify your options as necessary!\n",
-                    name );
+    fprintf(stderr,
+            "Argparse Error: Reached maxiumum numbers of arguments!\n"
+            "Did not add argument %s\n"
+            "Please modify your options as necessary!\n",
+            name);
     return 0;
   }
 
-  if ( strlen(name) > MSH_AP_MAX_NAME_LEN )
+  if (strlen(name) > MSH_AP_MAX_NAME_LEN)
   {
-    fprintf(stderr, "Argparse Error: Name for argument %s is too long "
-                    "(more than %d). Please shorten or modify your options "
-                    "as necessary!\n", 
-                    name, MSH_AP_MAX_NAME_LEN );
+    fprintf(stderr,
+            "Argparse Error: Name for argument %s is too long "
+            "(more than %d). Please shorten or modify your options "
+            "as necessary!\n",
+            name,
+            MSH_AP_MAX_NAME_LEN);
     return 0;
   }
 
   /* TODO: Enforce that if argument its optional its length must be at least 3 and must have "--" */
-  if (strlen(name) > 3 && name[0] == '-' && name[1] != '-' ) 
+  if (strlen(name) > 3 && name[0] == '-' && name[1] != '-')
   {
-    fprintf(stderr, "Argparse Error: All optional arguments must start with "
-                    "'--'. Please fix argument %s.\n", 
-                      name );
+    fprintf(stderr,
+            "Argparse Error: All optional arguments must start with "
+            "'--'. Please fix argument %s.\n",
+            name);
   }
 
-  if ( values == NULL )
+  if (values == NULL)
   {
-    fprintf(stderr, "Argparse Error: Storage for argument %s is invlaid "
-                    "(NULL pointer).\n", 
-                    name );
+    fprintf(stderr,
+            "Argparse Error: Storage for argument %s is invlaid "
+            "(NULL pointer).\n",
+            name);
     return 0;
   }
 
-  if ( shorthand && ( strlen(shorthand) != 2 || shorthand[0] != '-' ) ) 
+  if (shorthand && (strlen(shorthand) != 2 || shorthand[0] != '-'))
   {
-    fprintf(stderr, "Argparse Error: Shorthand for argument %s has invalid"
-                    " format! Correct shorthand format '-<single_letter>'.\n",
-                    name );
+    fprintf(stderr,
+            "Argparse Error: Shorthand for argument %s has invalid"
+            " format! Correct shorthand format '-<single_letter>'.\n",
+            name);
     return 0;
   }
 
-  if ( message && strlen(message) > MSH_AP_MAX_STR_LEN )
+  if (message && strlen(message) > MSH_AP_MAX_STR_LEN)
   {
-    fprintf(stderr, "Argparse Error: Message for argument %s is too long "
-                    "(more than %d). Please shorten or modify your options "
-                    "as necessary!\n", 
-            name, MSH_AP_MAX_STR_LEN );
+    fprintf(stderr,
+            "Argparse Error: Message for argument %s is too long "
+            "(more than %d). Please shorten or modify your options "
+            "as necessary!\n",
+            name,
+            MSH_AP_MAX_STR_LEN);
     return 0;
   }
 
@@ -376,102 +371,99 @@ msh_ap__are_options_valid( const char * name,
 }
 
 static void
-msh_ap__print_arguments( const msh_argparse_t * argparse, 
-                         size_t start, 
-                         size_t end )
+msh_ap__print_arguments(const msh_argparse_t* argparse,
+                        size_t start,
+                        size_t end)
 {
-  for ( size_t i = start ; i < end ; ++i )
+  for (size_t i = start; i < end; ++i)
   {
-    const msh_arg_t * argument = &argparse->args[i];
-    if ( argument->shorthand == NULL )
+    const msh_arg_t* argument = &argparse->args[i];
+    if (argument->shorthand == NULL)
     {
-      printf("|\t%-32s - %s <%d %s>\n", argument->name,
-                                        argument->message,
-                                        (int)argument->num_vals,
-                                        argparse->typenames[argument->type] );
+      printf("|\t%-32s - %s <%d %s>\n",
+             argument->name,
+             argument->message,
+             (int)argument->num_vals,
+             argparse->typenames[argument->type]);
     }
     else
     {
       char name_and_shorthand[MSH_AP_MAX_NAME_LEN + 10];
-      sprintf( name_and_shorthand, "%s, %s", argument->name, 
-                                             argument->shorthand );
-      printf("|\t%-32s - %s <%d %s>\n", name_and_shorthand,
-                                        argument->message,
-                                        (int)argument->num_vals,
-                                        argparse->typenames[argument->type] );
+      sprintf(name_and_shorthand,
+              "%s, %s",
+              argument->name,
+              argument->shorthand);
+      printf("|\t%-32s - %s <%d %s>\n",
+             name_and_shorthand,
+             argument->message,
+             (int)argument->num_vals,
+             argparse->typenames[argument->type]);
     }
   }
 }
 
 static int
-msh_ap__find_type( const msh_argparse_t * argparse, char * type_id )
+msh_ap__find_type(const msh_argparse_t* argparse, char* type_id)
 {
-  for ( size_t i = 0 ; i < MSH_AP_N_TYPES ; ++i )
+  for (size_t i = 0; i < MSH_AP_N_TYPES; ++i)
   {
-    if ( !strncmp( type_id, argparse->typenames[i], 15 ) )
-    {
-      return (int)i;
-    }
+    if (!strncmp(type_id, argparse->typenames[i], 15)) { return (int)i; }
   }
   return -1;
 }
 
-static msh_arg_t *
-msh_ap__find_argument( const char * arg_name,
-                       const char * shorthand,
-                       const int position,
-                       msh_argparse_t * argparse )
+static msh_arg_t*
+msh_ap__find_argument(const char* arg_name,
+                      const char* shorthand,
+                      const int position,
+                      msh_argparse_t* argparse)
 {
-  for ( size_t i = 0 ; i < argparse->n_args ; ++i )
+  for (size_t i = 0; i < argparse->n_args; ++i)
   {
-    msh_arg_t * cur_arg = &argparse->args[ i ];
-    if ( arg_name && cur_arg->name && 
-        !strcmp( cur_arg->name, arg_name ) )
+    msh_arg_t* cur_arg = &argparse->args[i];
+    if (arg_name && cur_arg->name && !strcmp(cur_arg->name, arg_name))
     {
       return cur_arg;
     }
-    if ( shorthand && cur_arg->shorthand &&
-         !strcmp(cur_arg->shorthand, shorthand) )
+    if (shorthand && cur_arg->shorthand &&
+        !strcmp(cur_arg->shorthand, shorthand))
     {
       return cur_arg;
     }
-    if ( position >= 0 && cur_arg->position == position )
-    {
-      return cur_arg;
-    }
+    if (position >= 0 && cur_arg->position == position) { return cur_arg; }
   }
   return NULL;
 }
 
 #define MSH_AP__PARSE_ARGUMENT(typename, val_t, cfunc)                         \
-  static int                                                                   \
-  msh_ap__parse_##typename##_argument( msh_arg_t * arg,                        \
-                                       size_t argc,                            \
-                                       char **argv,                            \
-                                       size_t *argv_index )                    \
+  static int msh_ap__parse_##typename##_argument(msh_arg_t* arg,               \
+                                                 size_t argc,                  \
+                                                 char** argv,                  \
+                                                 size_t* argv_index)           \
   {                                                                            \
-    val_t * values = (val_t *)arg->values;                                     \
-    if ( arg->num_vals <= 0 )                                                  \
+    val_t* values = (val_t*)arg->values;                                       \
+    if (arg->num_vals <= 0)                                                    \
     {                                                                          \
       values[0] = (val_t)1;                                                    \
       return 1;                                                                \
     }                                                                          \
-    for ( size_t j = 0 ; j < arg->num_vals ; j++ )                             \
+    for (size_t j = 0; j < arg->num_vals; j++)                                 \
     {                                                                          \
       *argv_index += 1;                                                        \
-      if ( *argv_index >= argc || (argv[*argv_index][0] == '-' &&              \
-                                  !isdigit(argv[*argv_index][1]) ) )           \
+      if (*argv_index >= argc ||                                               \
+          (argv[*argv_index][0] == '-' && !isdigit(argv[*argv_index][1])))     \
       {                                                                        \
-        fprintf( stderr, "Argparse Error: Wrong number of parameters "         \
-                         "for argument %s. Correct value is: %d\n",            \
-                         arg->name,                                            \
-                         (int)arg->num_vals );                                 \
+        fprintf(stderr,                                                        \
+                "Argparse Error: Wrong number of parameters "                  \
+                "for argument %s. Correct value is: %d\n",                     \
+                arg->name,                                                     \
+                (int)arg->num_vals);                                           \
         return 0;                                                              \
       }                                                                        \
-      values[j] = (val_t)cfunc( argv[*argv_index] );                           \
+      values[j] = (val_t)cfunc(argv[*argv_index]);                             \
     }                                                                          \
     return 1;                                                                  \
-  }                                                                            
+  }
 MSH_AP__PARSE_ARGUMENT(bool, bool, (bool)atoi)
 MSH_AP__PARSE_ARGUMENT(char, char, atoi)
 MSH_AP__PARSE_ARGUMENT(unsigned_char, unsigned char, atoi)
@@ -483,64 +475,88 @@ MSH_AP__PARSE_ARGUMENT(long, long, atoi)
 MSH_AP__PARSE_ARGUMENT(unsigned_long, unsigned long, atoi)
 MSH_AP__PARSE_ARGUMENT(float, float, atof)
 MSH_AP__PARSE_ARGUMENT(double, double, atof)
-MSH_AP__PARSE_ARGUMENT(string, char*, /*nothing*/ )
+MSH_AP__PARSE_ARGUMENT(string, char*, /*nothing*/)
 
-static int 
-msh_ap__parse_argument( msh_arg_t * arg,
-                        int argc,
-                        char** argv,
-                        size_t * argv_index )
+static int
+msh_ap__parse_argument(msh_arg_t* arg,
+                       int argc,
+                       char** argv,
+                       size_t* argv_index)
 {
   /* NOTE(maciej): can i avoid this switch somehow...? */
-  switch ( arg->type )
+  switch (arg->type)
   {
     case MSH_AP_BOOL:
-      if ( !msh_ap__parse_bool_argument(arg, argc, argv, argv_index) ) 
-        { return 0; }
+      if (!msh_ap__parse_bool_argument(arg, argc, argv, argv_index))
+      {
+        return 0;
+      }
       break;
     case MSH_AP_CHAR:
-      if ( !msh_ap__parse_char_argument(arg, argc, argv, argv_index) ) 
-        { return 0; }
+      if (!msh_ap__parse_char_argument(arg, argc, argv, argv_index))
+      {
+        return 0;
+      }
       break;
     case MSH_AP_UNSIGNED_CHAR:
-      if ( !msh_ap__parse_unsigned_char_argument(arg, argc, argv, argv_index) )
-        { return 0; }
+      if (!msh_ap__parse_unsigned_char_argument(arg, argc, argv, argv_index))
+      {
+        return 0;
+      }
       break;
     case MSH_AP_SHORT:
-      if ( !msh_ap__parse_short_argument(arg, argc, argv, argv_index) ) 
-        { return 0; }
+      if (!msh_ap__parse_short_argument(arg, argc, argv, argv_index))
+      {
+        return 0;
+      }
       break;
     case MSH_AP_UNSIGNED_SHORT:
-      if ( !msh_ap__parse_unsigned_short_argument(arg, argc, argv, argv_index) )
-        { return 0; }
+      if (!msh_ap__parse_unsigned_short_argument(arg, argc, argv, argv_index))
+      {
+        return 0;
+      }
       break;
     case MSH_AP_INT:
-      if ( !msh_ap__parse_int_argument(arg, argc, argv, argv_index) ) 
-        { return 0; }
+      if (!msh_ap__parse_int_argument(arg, argc, argv, argv_index))
+      {
+        return 0;
+      }
       break;
     case MSH_AP_UNSIGNED_INT:
-      if ( !msh_ap__parse_unsigned_int_argument(arg, argc, argv, argv_index) )
-        {return 0; }
+      if (!msh_ap__parse_unsigned_int_argument(arg, argc, argv, argv_index))
+      {
+        return 0;
+      }
       break;
     case MSH_AP_LONG:
-      if ( !msh_ap__parse_long_argument(arg, argc, argv, argv_index) ) 
-        { return 0; }
+      if (!msh_ap__parse_long_argument(arg, argc, argv, argv_index))
+      {
+        return 0;
+      }
       break;
     case MSH_AP_UNSIGNED_LONG:
-      if ( !msh_ap__parse_unsigned_long_argument(arg, argc, argv, argv_index) )
-        { return 0; }
+      if (!msh_ap__parse_unsigned_long_argument(arg, argc, argv, argv_index))
+      {
+        return 0;
+      }
       break;
     case MSH_AP_FLOAT:
-      if ( !msh_ap__parse_float_argument(arg, argc, argv, argv_index) )
-        { return 0; }
+      if (!msh_ap__parse_float_argument(arg, argc, argv, argv_index))
+      {
+        return 0;
+      }
       break;
     case MSH_AP_DOUBLE:
-      if ( !msh_ap__parse_double_argument(arg, argc, argv, argv_index) )
-        { return 0; }
+      if (!msh_ap__parse_double_argument(arg, argc, argv, argv_index))
+      {
+        return 0;
+      }
       break;
     case MSH_AP_STRING:
-      if ( !msh_ap__parse_string_argument(arg, argc, argv, argv_index) )
-        { return 0; }
+      if (!msh_ap__parse_string_argument(arg, argc, argv, argv_index))
+      {
+        return 0;
+      }
       break;
     default:
       return 0;
@@ -548,78 +564,79 @@ msh_ap__parse_argument( msh_arg_t * arg,
   return 1;
 }
 
-
-#define MSH_AP_ADD_ARGUMENT_IMPL(typename, val_t)                                 \
-  MSH_AP_DEF int                                                                    \
-  msh_ap_add_##typename##_argument( msh_argparse_t * argparse,                    \
-                                    const char * name,                            \
-                                    const char * shorthand,                       \
-                                    const char * message,                         \
-                                    val_t *values,                                \
-                                    const size_t num_vals )                       \
-  {                                                                               \
-    if ( !argparse )                                                              \
-    {                                                                             \
-      fprintf( stderr, "Argparse Error: Null pointer passed as parser!\n");       \
-      return 0;                                                                   \
-    }                                                                             \
-    if ( !argparse->initialized )                                                 \
-    {                                                                             \
-      fprintf( stderr, "Argparse Error: Please initialize parser before adding"   \
-      " arguments!\n");                                                           \
-      return 0;                                                                   \
-    }                                                                             \
-    if ( !name )                                                                  \
-    {                                                                             \
-      fprintf( stderr, "Argparse Error: Please provide valid "                    \
-                       "name for an argument\n" );                                \
-      return 0;                                                                   \
-    }                                                                             \
-    msh_arg_t *argument = msh_ap__find_argument( name,                            \
-                                                 shorthand,                       \
-                                                 -1,                              \
-                                                 argparse );                      \
-    if ( !argument )                                                              \
-    {                                                                             \
-      if ( !msh_ap__are_options_valid( name,                                      \
-                                       shorthand,                                 \
-                                       message,                                   \
-                                       values,                                    \
-                                       argparse ) )                               \
-      {                                                                           \
-        return 0;                                                                 \
-      }                                                                           \
-      /* create argument */                                                       \
-      argument = &(argparse->args[argparse->n_args++]);                           \
-      /* is argument an option, or required? */                                   \
-      argument->position = -1;                                                    \
-      if ( name[0] != '-' )                                                       \
-      {                                                                           \
-        argument->position = (int)(++argparse->n_required - 1);                   \
-        if( num_vals == 0 )                                                       \
-        {                                                                         \
-          fprintf(stderr, "Argparse Error: Required arguments should require at"  \
-          " least a single value!\n");                                            \
-          return 0;                                                               \
-        }                                                                         \
-      }                                                                           \
-      /* assign properties */                                                     \
-      argument->name      = name;                                                 \
-      argument->shorthand = shorthand;                                            \
-      argument->message   = message;                                              \
-      /* determine type */                                                        \
-      argument->type = (msh_type_t)msh_ap__find_type(argparse, (char*)#typename); \
-      /* copy length and pointer */                                               \
-      argument->num_vals = num_vals;                                              \
-      argument->values = (void*)values;                                           \
-      return 1;                                                                   \
-    }                                                                             \
-    else                                                                          \
-    {                                                                             \
-      printf("Argparse Warning: Argument %s already exists."                      \
-             " Skipping!\n", name );                                              \
-      return 1;                                                                   \
-    }                                                                             \
+#define MSH_AP_ADD_ARGUMENT_IMPL(typename, val_t)                              \
+  MSH_AP_DEF int msh_ap_add_##typename##_argument(msh_argparse_t* argparse,    \
+                                                  const char* name,            \
+                                                  const char* shorthand,       \
+                                                  const char* message,         \
+                                                  val_t* values,               \
+                                                  const size_t num_vals)       \
+  {                                                                            \
+    if (!argparse)                                                             \
+    {                                                                          \
+      fprintf(stderr, "Argparse Error: Null pointer passed as parser!\n");     \
+      return 0;                                                                \
+    }                                                                          \
+    if (!argparse->initialized)                                                \
+    {                                                                          \
+      fprintf(stderr,                                                          \
+              "Argparse Error: Please initialize parser before adding"         \
+              " arguments!\n");                                                \
+      return 0;                                                                \
+    }                                                                          \
+    if (!name)                                                                 \
+    {                                                                          \
+      fprintf(stderr,                                                          \
+              "Argparse Error: Please provide valid "                          \
+              "name for an argument\n");                                       \
+      return 0;                                                                \
+    }                                                                          \
+    msh_arg_t* argument =                                                      \
+      msh_ap__find_argument(name, shorthand, -1, argparse);                    \
+    if (!argument)                                                             \
+    {                                                                          \
+      if (!msh_ap__are_options_valid(name,                                     \
+                                     shorthand,                                \
+                                     message,                                  \
+                                     values,                                   \
+                                     argparse))                                \
+      {                                                                        \
+        return 0;                                                              \
+      }                                                                        \
+      /* create argument */                                                    \
+      argument = &(argparse->args[argparse->n_args++]);                        \
+      /* is argument an option, or required? */                                \
+      argument->position = -1;                                                 \
+      if (name[0] != '-')                                                      \
+      {                                                                        \
+        argument->position = (int)(++argparse->n_required - 1);                \
+        if (num_vals == 0)                                                     \
+        {                                                                      \
+          fprintf(stderr,                                                      \
+                  "Argparse Error: Required arguments should require at"       \
+                  " least a single value!\n");                                 \
+          return 0;                                                            \
+        }                                                                      \
+      }                                                                        \
+      /* assign properties */                                                  \
+      argument->name      = name;                                              \
+      argument->shorthand = shorthand;                                         \
+      argument->message   = message;                                           \
+      /* determine type */                                                     \
+      argument->type =                                                         \
+        (msh_type_t)msh_ap__find_type(argparse, (char*)#typename);             \
+      /* copy length and pointer */                                            \
+      argument->num_vals = num_vals;                                           \
+      argument->values   = (void*)values;                                      \
+      return 1;                                                                \
+    }                                                                          \
+    else                                                                       \
+    {                                                                          \
+      printf("Argparse Warning: Argument %s already exists."                   \
+             " Skipping!\n",                                                   \
+             name);                                                            \
+      return 1;                                                                \
+    }                                                                          \
   }
 
 MSH_AP_ADD_ARGUMENT_IMPL(bool, bool)
@@ -635,31 +652,34 @@ MSH_AP_ADD_ARGUMENT_IMPL(float, float)
 MSH_AP_ADD_ARGUMENT_IMPL(double, double)
 MSH_AP_ADD_ARGUMENT_IMPL(string, char*)
 
-
 MSH_AP_DEF void
-msh_ap_init( msh_argparse_t * argparse,
-             const char * program_name,
-             const char * program_description )
+msh_ap_init(msh_argparse_t* argparse,
+            const char* program_name,
+            const char* program_description)
 {
 #ifndef MSH_AP_NO_DEBUG
-  if ( !argparse )
+  if (!argparse)
   {
-    fprintf( stderr, "Argparse Error: Null pointer passed as parser!\n");
+    fprintf(stderr, "Argparse Error: Null pointer passed as parser!\n");
     return;
   }
 
-  if( strlen(program_name) >= MSH_AP_MAX_NAME_LEN ) 
-  { 
-    fprintf(stderr, "Argparse Error: Name %s is too long (more than %d). "
-           "Please shorten or modify your options as necessary!\n", 
-           program_name, MSH_AP_MAX_NAME_LEN );
+  if (strlen(program_name) >= MSH_AP_MAX_NAME_LEN)
+  {
+    fprintf(stderr,
+            "Argparse Error: Name %s is too long (more than %d). "
+            "Please shorten or modify your options as necessary!\n",
+            program_name,
+            MSH_AP_MAX_NAME_LEN);
   }
-  
-  if( strlen(program_description) >= MSH_AP_MAX_STR_LEN )
-  { 
-    fprintf(stderr, "Argparse Error: Description %s is too long (more than %d)."
-           " Please shorten or modify your options as necessary!\n", 
-           program_description, MSH_AP_MAX_STR_LEN );
+
+  if (strlen(program_description) >= MSH_AP_MAX_STR_LEN)
+  {
+    fprintf(stderr,
+            "Argparse Error: Description %s is too long (more than %d)."
+            " Please shorten or modify your options as necessary!\n",
+            program_description,
+            MSH_AP_MAX_STR_LEN);
   }
 #endif
 
@@ -671,73 +691,73 @@ msh_ap_init( msh_argparse_t * argparse,
   argparse->print_help  = 0;
   argparse->initialized = 1;
 
-  argparse->typenames[ 0] = (char*)"bool";
-  argparse->typenames[ 1] = (char*)"char";
-  argparse->typenames[ 2] = (char*)"unsigned_char";
-  argparse->typenames[ 3] = (char*)"short";
-  argparse->typenames[ 4] = (char*)"unsigned_short";
-  argparse->typenames[ 5] = (char*)"int";
-  argparse->typenames[ 6] = (char*)"unsigned_int";
-  argparse->typenames[ 7] = (char*)"long";
-  argparse->typenames[ 8] = (char*)"unsigned_long";
-  argparse->typenames[ 9] = (char*)"float";
+  argparse->typenames[0]  = (char*)"bool";
+  argparse->typenames[1]  = (char*)"char";
+  argparse->typenames[2]  = (char*)"unsigned_char";
+  argparse->typenames[3]  = (char*)"short";
+  argparse->typenames[4]  = (char*)"unsigned_short";
+  argparse->typenames[5]  = (char*)"int";
+  argparse->typenames[6]  = (char*)"unsigned_int";
+  argparse->typenames[7]  = (char*)"long";
+  argparse->typenames[8]  = (char*)"unsigned_long";
+  argparse->typenames[9]  = (char*)"float";
   argparse->typenames[10] = (char*)"double";
   argparse->typenames[11] = (char*)"string";
 
 #ifndef MSH_AP_NO_HELP
-  msh_ap_add_bool_argument( argparse, "--help", "-h", "Print this help information", 
-                            &argparse->print_help, 0 );
+  msh_ap_add_bool_argument(argparse,
+                           "--help",
+                           "-h",
+                           "Print this help information",
+                           &argparse->print_help,
+                           0);
 #endif
-
 }
 
 MSH_AP_DEF int
-msh_ap_parse( msh_argparse_t * argparse,
-              int argc, 
-              char **argv )
+msh_ap_parse(msh_argparse_t* argparse, int argc, char** argv)
 {
   /* sort arguments */
-  qsort( argparse->args, 
-         argparse->n_args, 
-         sizeof(msh_arg_t), 
-         msh_ap__arg_compare );
+  qsort(argparse->args,
+        argparse->n_args,
+        sizeof(msh_arg_t),
+        msh_ap__arg_compare);
 
   size_t argv_index = 0;
   size_t i;
-  for( i = 0 ; i < argparse->n_required ; ++i )
+  for (i = 0; i < argparse->n_required; ++i)
   {
-    msh_arg_t * cur_arg = &(argparse->args[i]);
-    if( !msh_ap__parse_argument( cur_arg, argc, argv, &argv_index ) ) 
+    msh_arg_t* cur_arg = &(argparse->args[i]);
+    if (!msh_ap__parse_argument(cur_arg, argc, argv, &argv_index))
     {
-      msh_ap_display_help( argparse );
+      msh_ap_display_help(argparse);
       return 0;
     }
   }
- 
+
   argv_index++;
-  for( ; (int)argv_index < argc ; ++argv_index )
+  for (; (int)argv_index < argc; ++argv_index)
   {
-     msh_arg_t * cur_arg = msh_ap__find_argument( argv[argv_index], 
-                                               argv[argv_index], 
-                                               -1,
-                                               argparse );
-    if( !cur_arg ) 
-    { 
-      fprintf( stderr, "Argparse Error: Unknown argument %s encountered!\n", 
-                       argv[argv_index] );
+    msh_arg_t* cur_arg =
+      msh_ap__find_argument(argv[argv_index], argv[argv_index], -1, argparse);
+    if (!cur_arg)
+    {
+      fprintf(stderr,
+              "Argparse Error: Unknown argument %s encountered!\n",
+              argv[argv_index]);
       return 0;
     }
 
-    if( !msh_ap__parse_argument( cur_arg, argc, argv, &argv_index ) )
+    if (!msh_ap__parse_argument(cur_arg, argc, argv, &argv_index))
     {
-      msh_ap_display_help( argparse );
+      msh_ap_display_help(argparse);
       return 0;
     }
   }
 
-  if( argparse->print_help )
+  if (argparse->print_help)
   {
-    msh_ap_display_help( argparse );
+    msh_ap_display_help(argparse);
     return 0;
   }
 
@@ -745,47 +765,53 @@ msh_ap_parse( msh_argparse_t * argparse,
 }
 
 //NOTE(maciej): This assumes argparse->program description is valid null-terminated string
-MSH_AP_DEF int 
-msh_ap_display_help( msh_argparse_t *argparse )
+MSH_AP_DEF int
+msh_ap_display_help(msh_argparse_t* argparse)
 {
-  printf("\n|%s\n", argparse->program_name );
+  printf("\n|%s\n", argparse->program_name);
   char* description = (char*)argparse->program_description;
-  char* line_start = description;
-  char* line_end = description;
+  char* line_start  = description;
+  char* line_end    = description;
   char buf[1024];
-  while( 1 )
+  while (1)
   {
-    while( *line_end != (char)'\n' ) { if(*line_end == 0) break; line_end++; }
-    strncpy(buf, description+(line_start-description), line_end-line_start );
-    buf[line_end-line_start] = 0;
+    while (*line_end != (char)'\n')
+    {
+      if (*line_end == 0) break;
+      line_end++;
+    }
+    strncpy(buf,
+            description + (line_start - description),
+            line_end - line_start);
+    buf[line_end - line_start] = 0;
     printf("|  %s\n", buf);
-    if(*line_end == 0) break;
+    if (*line_end == 0) break;
     line_end++;
     line_start = line_end;
   }
   printf("|\n");
 
   /* sort arguments */
-  qsort( argparse->args, 
-         argparse->n_args, 
-         sizeof(msh_arg_t), 
-         msh_ap__arg_compare );
+  qsort(argparse->args,
+        argparse->n_args,
+        sizeof(msh_arg_t),
+        msh_ap__arg_compare);
 
   /* Print out the info */
-  if ( argparse->n_args )
+  if (argparse->n_args)
   {
     printf("|Usage:\n| Required Arguments:\n");
-    msh_ap__print_arguments( argparse, 0, argparse->n_required );
+    msh_ap__print_arguments(argparse, 0, argparse->n_required);
 
     printf("|\n| Optional Arguments:\n");
-    msh_ap__print_arguments( argparse, argparse->n_required, argparse->n_args );
+    msh_ap__print_arguments(argparse, argparse->n_required, argparse->n_args);
   }
-  printf("\\----------------------------------------------------------------\n");
+  printf(
+    "\\----------------------------------------------------------------\n");
   return 1;
 }
 
-#endif  /* MSH_ARGPARSE_IMPLEMENTATION */
-
+#endif /* MSH_ARGPARSE_IMPLEMENTATION */
 
 /*
 ------------------------------------------------------------------------------
