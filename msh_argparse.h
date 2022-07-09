@@ -40,8 +40,8 @@
   Argument addition
   -----------------------
   Definitions of functions used to add arguments follow structure:
-    msh_ap_add_<type>_argument(char *name, char *shorthand, char *description, 
-                     <type> *values, size_t num_values, msh_argparse_t &parser);
+    msh_ap_add_<type>_argument(msh_argparse_t &parser, char *name, char *shorthand, char *description, 
+                     <type> *values, size_t num_values);
   
   parser      -> Pointer to the parser structure
   name        -> Argument identifier. Argument's type is decided based on this 

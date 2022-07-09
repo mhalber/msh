@@ -173,12 +173,12 @@ extern "C" {
 #define MSH_CPU_ENDIAN_LITTLE 1
 #endif
 
+// Compiler detection
 #define MSH_COMPILER_CLANG 0
 #define MSH_COMPILER_GCC   0
 #define MSH_COMPILER_MSVC  0
 #define MSH_COMPLIER_TCC   0
 
-// Compiler detection
 #if defined(__clang__)
 #undef MSH_COMPILER_CLANG
 #define MSH_COMPILER_CLANG                                                     \
@@ -254,6 +254,10 @@ extern "C" {
 #endif
 #include <windows.h>
 #include <direct.h>
+// Thanks Windows!
+#ifdef NO_ERROR
+#undef NO_ERROR
+#endif
 #endif
 
 #if MSH_PLATFORM_MACOS

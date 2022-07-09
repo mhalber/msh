@@ -261,7 +261,6 @@ msh_camera_update_proj(msh_camera_t* cam)
     float top  = 0.85f * cam->zoom_speed * msh_vec3_norm(cam->offset);
     float left = -aspect_ratio * top;
     cam->proj  = msh_ortho(left, -left, -top, top, cam->znear, cam->zfar);
-    // cam->proj = msh_ortho( -w/2, w/2, -h/2, h/2,  cam->znear, cam->zfar );
   }
   else
   {

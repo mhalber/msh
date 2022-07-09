@@ -1884,7 +1884,6 @@ msh_mat4_inverse(msh_mat4_t m)
     m.data[3] * dets[3] - m.data[7] * dets[5] + m.data[15] * dets[2];
   /*23*/ C[11] = m.data[7] * dets[4] - m.data[3] * dets[1] -
                  m.data[11] * dets[2]; /* negated */
-
   /*30*/ C[12] = m.data[10] * dets[3] - m.data[6] * dets[0] -
                  m.data[14] * dets[1]; /* negated */
   /*31*/ C[13] =
