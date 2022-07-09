@@ -407,7 +407,7 @@ typedef struct msh_ply_array_header
 
 #define msh_ply_array(T) T*
 
-void* msh_ply__array_grow(const void* array, size_t new_len, size_t elem_size);
+MSH_PLY_PRIVATE void* msh_ply__array_grow(const void* array, size_t new_len, size_t elem_size);
 
 #define msh_ply_array__grow_formula(x) ((2 * (x) + 5))
 #define msh_ply_array__hdr(a)                                                  \
