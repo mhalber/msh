@@ -303,6 +303,7 @@ typedef union mat4
 #define msh_vec4_negz() MSHVM_INIT_CAST(msh_vec4_t){{0, 0, -1, 0}}
 #define msh_vec4_negw() MSHVM_INIT_CAST(msh_vec4_t){{0, 0, 0, -1}}
 
+#define msh_vec2_to_vec3(a, b) MSHVM_INIT_CAST(msh_vec3_t){{a.x, a.y, b}}
 #define msh_vec2_to_vec4(a, b, c) MSHVM_INIT_CAST(msh_vec4_t){{a.x, a.y, b, c}}
 #define msh_vec3_to_vec4(a, b) MSHVM_INIT_CAST(msh_vec4_t){{a.x, a.y, a.z, b}}
 
