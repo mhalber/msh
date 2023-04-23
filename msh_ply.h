@@ -224,6 +224,7 @@
   DEPENDENCIES
 
     This file requires following c stdlib headers:
+    - assert.h
     - stdlib.h
     - stdint.h
     - string.h
@@ -267,6 +268,7 @@
 #define MSH_PLY
 
 #if defined(MSH_PLY_INCLUDE_LIBC_HEADERS)
+#include <assert.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
