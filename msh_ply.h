@@ -213,7 +213,7 @@
     msh_ply_add_descriptor( ply_file, &descriptors[0] );
     msh_ply_add_descriptor( ply_file, &descriptors[1] );
 
-    // Write data to disk
+    // Read the file
     msh_ply_read( ply_file );
 
     // Close ply file
