@@ -233,7 +233,7 @@
     files multiple time. If you do not like this behaviour and want this file to
     pull in c headers, simply define following before including the library:
 
-    #define MSH_PLY_INCLUDE_HEADERS
+    #define MSH_PLY_INCLUDE_LIBC_HEADERS
 
   ==============================================================================
   AUTHORS:
