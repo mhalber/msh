@@ -1999,8 +1999,7 @@ msh_ply__get_property_from_element(msh_ply_t* pf,
       if (dst_list) dst_list += dst_list_row_size;
     }
   }
-    free(el->data);
-    el->data=NULL;
+
   return MSH_PLY_NO_ERR;
 }
 
