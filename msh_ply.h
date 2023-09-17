@@ -191,7 +191,7 @@
                      .property_names = (const char*[]){"x", "y", "z"},
                      .num_properties = 3,
                      .data_type = MSH_PLY_FLOAT };
-  descriptors[1] = { .element_name = "vertex",
+  descriptors[1] = { .element_name = "face",
                      .property_names = (const char*[]){"vertex_indices"},
                      .num_properties = 1,
                      .data_type = MSH_PLY_INT32,
@@ -242,7 +242,7 @@
 
   CREDITS:
     Inspiration for single header ply reader:   tinyply    by ddiakopoulos
-    Dynamic array based on                      stb.h      by Sean T. Barrett
+    Dynamic array based on:                     stb.h      by Sean T. Barrett
 
   ==============================================================================
   TODOs:
