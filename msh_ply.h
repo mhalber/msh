@@ -2,9 +2,9 @@
   ==============================================================================
   Licensing information can be found at the end of the file.
   ==============================================================================
-  
-  MSH_PLY.H v1.01
-  
+
+  MSH_PLY.H v1.02
+
   A single header library for reading and writing ply files.
 
   To use the library you simply add:
@@ -21,7 +21,7 @@
     - MSH_PLY_MALLOC
     - MSH_PLY_REALLOC
     - MSH_PLY_FREE
-  
+
   You have an option to specify whether you need only encoding/decoding parts of the library.
     #define MSH_PLY_ENCODER_ONLY  - only pull in writing functionality
     #define MSH_PLY_DECODER_ONLY  - only pull in reading functionality
@@ -29,7 +29,7 @@
   msh_ply_open
   -------------------
     msh_ply_t* msh_ply_open( const char* filename, const char* mode );
-  
+
   Creates a new ply file handle and returns pointer to it. 'filename' is the path to the ply file
   and 'mode' describes in what mode file should be used:
     'r' or 'rb' - read
@@ -40,22 +40,22 @@
   msh_ply_add_descriptor
   -------------------
     int32_t msh_ply_add_descriptor( msh_ply_t *pf, msh_ply_desc_t *desc );
-  
-  Adds a data descriptor 'desc' to ply file object 'pf'. Descriptors provide information that is 
+
+  Adds a data descriptor 'desc' to ply file object 'pf'. Descriptors provide information that is
   requested from ply file object. See example for more details. Returns 0 on success and error
   code on failure.
 
   msh_ply_read
   -------------------
     int32_t msh_ply_read( msh_ply_t* pf );
-  
-  Performs reading of ply file described by 'pf'. Should be called after adding descriptors. 
+
+  Performs reading of ply file described by 'pf'. Should be called after adding descriptors.
   Returns 0 on success and error code on failure.
-    
+
   msh_ply_write
   -------------------
     int32_t msh_ply_write( msh_ply_t* pf );
-  
+
   Performs writing of ply file described by 'pf'. Should be called after adding descriptors.
   Returns 0 on success and error code on failure.
 
@@ -64,24 +64,24 @@
     int32_t msh_ply_parse_header( msh_ply_t* pf );
 
   Parses just the header of the file. Needs to be called to programatically check what
-  contents file has, but will not read any of the actual data. Returns 0 on success and error 
+  contents file has, but will not read any of the actual data. Returns 0 on success and error
   code on failure.
-  
+
   msh_ply_has_properties
   -------------------
     bool msh_ply_has_properties( const msh_ply_t* pf, const msh_ply_desc_t* desc );
-  
-  Returns true if the ply file 'pf' contains properties contained in descriptor 'desc'. This is 
-  the preffered  method to check whether some property exist in ply file 'pf'. 
+
+  Returns true if the ply file 'pf' contains properties contained in descriptor 'desc'. This is
+  the preffered  method to check whether some property exist in ply file 'pf'.
   Can only be called after header has been parsed!
 
   msh_ply_find_element
   -------------------
     msh_ply_element_t*  msh_ply_find_element( const msh_ply_t* pf, const char* element_name );
 
-  Returns a pointer to element if the element of given name has been found in 'pf'. Returns NULL 
+  Returns a pointer to element if the element of given name has been found in 'pf'. Returns NULL
   otherwise. Can only be called after header has been parsed!
- 
+
   msh_ply_find_property
   -------------------
     msh_ply_property_t* msh_ply_find_property( const msh_ply_element_t* el, const char* property_name );
@@ -93,30 +93,30 @@
   -------------------
     void msh_ply_close( msh_ply_t* pf );
 
-  Closes the ply file 'pf'. 
+  Closes the ply file 'pf'.
 
   msh_ply_error_msg
   -------------------
     const char* msh_ply_error_msg( int32_t err );
 
-  Get pointer to a error message string from the error code. 
-  
+  Get pointer to a error message string from the error code.
+
   void msh_ply_print_header( msh_ply_t* pf );
   -------------------
     void msh_ply_print_header( msh_ply_t* pf );
 
   Pretty print of the ply file header.
-    
+
   ==============================================================================
   EXAMPLES:
 
-  This library usage focuses around the concept of descriptors. User describes his/her/their 
+  This library usage focuses around the concept of descriptors. User describes his/her/their
   data with a set of descriptors. Descriptors tell us what element and properties is
   the data describing, what is the data type, as well as storing pointer to actual data.
   Once descriptors are prepared they can be added to each of ply files and written out.
   System for reading is exactly the same, but you'd be describing requested data.
   Note that ply file does not own pointers to the data, so you will need to delete these
-  separately. Additionally, every function returns an error code, which can be turned 
+  separately. Additionally, every function returns an error code, which can be turned
   into string message using "msh_ply_error_msg( ply_err_t err )" function. Not used
   below for clarity.
 
@@ -246,6 +246,7 @@
 
   ==============================================================================
   TODOs:
+  [ ] Move from signed to unsigned integers
   [ ] Support buffering -> read data in chunks, then serve it out, rather than continuously fread.
   [ ] Add independence from c stdlib (like stdio etc.) -> Read from memory / Pass pointers to fopen?
   [ ] Better ascii support - check Vilya Harvey's miniply
@@ -353,7 +354,7 @@ struct msh_ply_desc
   msh_ply_type_id_t list_type;
   void* data;
   void* list_data;
-  int32_t* data_count;
+  int32_t* data_count; // should be uint
   uint8_t list_size_hint;
 };
 
@@ -581,7 +582,7 @@ msh_ply__array_grow(const void* array, size_t new_len, size_t elem_size)
 }
 
 MSH_PLY_PRIVATE msh_ply_property_t
-msh_ply__property_zero_init()
+msh_ply__property_zero_init(void)
 {
   msh_ply_property_t pr =
     {0, 0, 0, 0, 0, 0, 0, MSH_PLY_INVALID, MSH_PLY_INVALID, 0, 0, {0}, 0, 0};
@@ -589,7 +590,7 @@ msh_ply__property_zero_init()
 }
 
 MSH_PLY_PRIVATE msh_ply_element_t
-msh_ply__element_zero_init()
+msh_ply__element_zero_init(void)
 {
   msh_ply_element_t el = {{0}, 0, 0, 0, 0, 0};
   return el;
@@ -1113,12 +1114,10 @@ msh_ply__parse_command(char* cmd, char* line, msh_ply_t* pf)
 MSH_PLY_DEF int32_t
 msh_ply_parse_header(msh_ply_t* pf)
 {
-  int32_t line_no = 0;
   char line[MSH_PLY_MAX_STR_LEN];
   int32_t err_code = 0;
   while (fgets(&line[0], MSH_PLY_MAX_STR_LEN, pf->_fp))
   {
-    line_no++;
     char cmd[MSH_PLY_MAX_STR_LEN];
     if (sscanf(line, "%s", cmd) != (unsigned)1)
     {
@@ -1203,7 +1202,7 @@ msh_ply__calculate_elem_size_ascii(msh_ply_t* pf, msh_ply_element_t* el)
 MSH_PLY_PRIVATE int32_t
 msh_ply__calculate_elem_size_binary(msh_ply_t* pf, msh_ply_element_t* el)
 {
-  for (size_t i = 0; i < el->count; ++i)
+  for (int32_t i = 0; i < el->count; ++i)
   {
     for (size_t j = 0; j < msh_ply_array_len(el->properties); ++j)
     {
@@ -1365,7 +1364,7 @@ msh_ply_parse_contents(msh_ply_t* pf)
       else
       {
         char line[MSH_PLY_MAX_STR_LEN];
-        for (size_t j = 0; j < el->count; ++j)
+        for (int32_t j = 0; j < el->count; ++j)
         {
           char* ret = fgets(&line[0], MSH_PLY_MAX_STR_LEN, pf->_fp);
           if (!ret)
@@ -1393,13 +1392,13 @@ msh_ply_parse_contents(msh_ply_t* pf)
   return err_code;
 }
 
-MSH_PLY_PRIVATE int32_t
-msh_ply__get_element_count(const msh_ply_element_t* el, int32_t* count)
-{
-  int32_t err_code = MSH_PLY_NO_ERR;
-  *count           = el->count;
-  return err_code;
-}
+// MSH_PLY_PRIVATE int32_t
+// msh_ply__get_element_count(const msh_ply_element_t* el, int32_t* count)
+// {
+//   int32_t err_code = MSH_PLY_NO_ERR;
+//   *count           = el->count;
+//   return err_code;
+// }
 
 MSH_PLY_PRIVATE int32_t
 msh_ply__get_element_size(const msh_ply_element_t* el, size_t* size)
@@ -1464,7 +1463,7 @@ msh_ply__get_element_data_ascii(msh_ply_t* pf,
 
   fseek(pf->_fp, el->file_anchor, SEEK_SET);
   char* dest = (char*)*storage;
-  for (size_t i = 0; i < el->count; ++i)
+  for (int32_t i = 0; i < el->count; ++i)
   {
     char line[MSH_PLY_MAX_STR_LEN];
     fgets(line, MSH_PLY_MAX_STR_LEN, pf->_fp);
@@ -1867,7 +1866,7 @@ msh_ply__get_property_from_element(msh_ply_t* pf,
     }
 
     // Start copying
-    for (size_t i = 0; i < el->count; ++i)
+    for (int32_t i = 0; i < el->count; ++i)
     {
       int32_t dst_row_size      = 0;
       int32_t dst_list_row_size = 0;
@@ -2311,7 +2310,7 @@ msh_ply__write_data_ascii(const msh_ply_t* pf)
   {
     msh_ply_element_t* el = &pf->elements[i];
 
-    for (size_t j = 0; j < el->count; ++j)
+    for (int32_t j = 0; j < el->count; ++j)
     {
       for (size_t k = 0; k < msh_ply_array_len(el->properties); ++k)
       {
@@ -2378,7 +2377,7 @@ msh_ply__write_data_binary(const msh_ply_t* pf)
     uint8_t* dst       = (uint8_t*)MSH_PLY_MALLOC(buffer_size);
     int64_t dst_offset = 0;
 
-    for (size_t j = 0; j < el->count; ++j)
+    for (int32_t j = 0; j < el->count; ++j)
     {
       for (size_t k = 0; k < msh_ply_array_len(el->properties); ++k)
       {
@@ -2634,12 +2633,14 @@ msh_ply_open(const char* filename, const char* mode)
       pf->_system_format = MSH_PLY_BIG_ENDIAN;
     }
   }
+
   if (mode[0] == 'w')
   {
     pf->format_version = 1;
     pf->format         = MSH_PLY_ASCII;
     if (strlen(mode) > 1 && mode[1] == 'b') { pf->format = pf->_system_format; }
   }
+
   return pf;
 }
 
@@ -2678,22 +2679,22 @@ ALTERNATIVE A - MIT License
 
 Copyright (c) 2018-2020 Maciej Halber
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of 
-this software and associated documentation files (the "Software"), to deal in 
-the Software without restriction, including without limitation the rights to 
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies 
-of the Software, and to permit persons to whom the Software is furnished to do 
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
 so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all 
+The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE 
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ------------------------------------------------------------------------------
@@ -2702,22 +2703,22 @@ ALTERNATIVE B - Public Domain (www.unlicense.org)
 
 This is free and unencumbered software released into the public domain.
 
-Anyone is free to copy, modify, publish, use, compile, sell, or distribute this 
-software, either in source code form or as a compiled binary, for any purpose, 
+Anyone is free to copy, modify, publish, use, compile, sell, or distribute this
+software, either in source code form or as a compiled binary, for any purpose,
 commercial or non-commercial, and by any means.
 
-In jurisdictions that recognize copyright laws, the author or authors of this 
-software dedicate any and all copyright interest in the software to the public 
-domain. We make this dedication for the benefit of the public at large and to 
-the detriment of our heirs and successors. We intend this dedication to be an 
-overt act of relinquishment in perpetuity of all present and future rights to 
+In jurisdictions that recognize copyright laws, the author or authors of this
+software dedicate any and all copyright interest in the software to the public
+domain. We make this dedication for the benefit of the public at large and to
+the detriment of our heirs and successors. We intend this dedication to be an
+overt act of relinquishment in perpetuity of all present and future rights to
 this software under copyright law.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
-AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN 
-ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION 
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ------------------------------------------------------------------------------
